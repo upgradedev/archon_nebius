@@ -2,11 +2,23 @@
 Archon — Financial Analysis Endpoint
 Runs as a Nebius Serverless AI Endpoint (always-on).
 
-Reads extracted document JSONs from object storage,
-runs the agentic financial pipeline, and returns a FinancialReport.
+Pipeline (single-responsibility agents in sequence):
+  1. ClassifierAgent    — re-classify doc_type for analysis context
+  2. PnLAgent           — P&L aggregation (uses employer_cost from register, not bank net)
+  3. CashFlowAgent      — cash flow derivation (uses bank transfers for real cash movements)
+  4. EmployeeAgent      — per-employee salary analytics from payslip + register
+  5. ValidatorAgent     — cross-document consistency re-validation
+  6. NarratorAgent      — LLM-written CFO-level executive summary
+
+Reads from Nebius Object Storage:
+  extracted/{period}/*/documents.json
+  extracted/{period}/*/events.json     (produced by extraction job event_linker)
+  extracted/{period}/*/validation.json (produced by extraction job validator)
+
+Writes to:
+  reports/{period}/report.json
 """
 
-import os
 import json
 import logging
 from datetime import datetime, timezone
@@ -18,7 +30,7 @@ from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
 from agents.classifier import classify
-from agents.pnl_builder import build_report
+from agents import pnl_agent, cashflow_agent, employee_agent, validator_agent
 from agents.narrator import build_summary
 from models.financial import ExtractedDoc, FinancialReport
 
@@ -38,10 +50,10 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-app = FastAPI(title="Archon Analysis Endpoint", version="1.0.0")
+app = FastAPI(title="Archon Analysis Endpoint", version="2.0.0")
 
 
-def s3():
+def _s3():
     return boto3.client(
         "s3",
         endpoint_url=settings.storage_endpoint_url or None,
@@ -52,15 +64,15 @@ def s3():
     )
 
 
-def load_documents(period: str) -> list[ExtractedDoc]:
+def _load_documents(period: str) -> list[ExtractedDoc]:
     prefix = f"extracted/{period}/"
-    paginator = s3().get_paginator("list_objects_v2")
+    paginator = _s3().get_paginator("list_objects_v2")
     docs: list[ExtractedDoc] = []
     for page in paginator.paginate(Bucket=settings.nebius_bucket_name, Prefix=prefix):
         for obj in page.get("Contents", []):
             key = obj["Key"]
             if key.endswith("documents.json"):
-                body = s3().get_object(Bucket=settings.nebius_bucket_name, Key=key)["Body"].read()
+                body = _s3().get_object(Bucket=settings.nebius_bucket_name, Key=key)["Body"].read()
                 payload = json.loads(body)
                 for d in payload.get("documents", []):
                     try:
@@ -82,23 +94,51 @@ class AnalyzeResponse(BaseModel):
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest):
-    log.info("Analyzing period %s", req.period)
+    log.info("=== Analysis start — period=%s ===", req.period)
 
-    docs = load_documents(req.period)
+    docs = _load_documents(req.period)
     if not docs:
-        raise HTTPException(status_code=404, detail=f"No extracted documents found for period {req.period}")
-
+        raise HTTPException(status_code=404, detail=f"No extracted documents for period {req.period}")
     log.info("Loaded %d documents", len(docs))
 
-    classified = classify(docs)
-    report = build_report(req.period, classified)
+    # Step 1: classify
+    docs = classify(docs)
+
+    # Step 2: P&L
+    pnl = pnl_agent.build_pnl(req.period, docs)
+    expense_breakdown = pnl_agent.build_expense_breakdown(docs)
+    top_vendors = pnl_agent.build_vendor_summary(docs)
+    key_metrics = pnl_agent.build_key_metrics(docs, pnl.revenue, pnl.expenses)
+
+    # Step 3: cash flow
+    cash_flow = cashflow_agent.build_cashflow(req.period, docs, pnl)
+
+    # Step 4: validation
+    validation_results = validator_agent.run(req.period, docs)
+
+    # Step 5: employee analytics
+    employee_summaries = employee_agent.build_employee_summaries(req.period, docs)
+    payroll_events = employee_agent.build_payroll_event_summaries(req.period, docs, validation_results)
+
+    # Step 6: narrative
+    report = FinancialReport(
+        period=req.period,
+        pnl=pnl,
+        cashFlow=cash_flow,
+        expenseBreakdown=expense_breakdown,
+        topVendors=top_vendors,
+        keyMetrics=key_metrics,
+        payrollEvents=payroll_events,
+        employeeSummaries=employee_summaries,
+        validationResults=validation_results,
+        executiveSummary="",
+    )
     report.executiveSummary = build_summary(report)
 
     generated_at = datetime.now(timezone.utc).isoformat()
-
-    # Cache report to storage for fast retrieval
     _cache_report(req.period, report, generated_at)
 
+    log.info("=== Analysis complete — period=%s ===", req.period)
     return AnalyzeResponse(jobId="n/a", report=report, generatedAt=generated_at)
 
 
@@ -106,23 +146,21 @@ def analyze(req: AnalyzeRequest):
 def get_report(period: str):
     key = f"reports/{period}/report.json"
     try:
-        body = s3().get_object(Bucket=settings.nebius_bucket_name, Key=key)["Body"].read()
+        body = _s3().get_object(Bucket=settings.nebius_bucket_name, Key=key)["Body"].read()
         return json.loads(body)
-    except s3().exceptions.NoSuchKey:
-        raise HTTPException(status_code=404, detail=f"No report cached for period {period}")
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail=f"No report for period {period}") from exc
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "archon-analysis"}
+    return {"status": "ok", "service": "archon-analysis", "version": "2.0.0"}
 
 
 def _cache_report(period: str, report: FinancialReport, generated_at: str) -> None:
     payload = {"jobId": "n/a", "report": report.model_dump(), "generatedAt": generated_at}
     body = json.dumps(payload, ensure_ascii=False).encode()
-    s3().put_object(
+    _s3().put_object(
         Bucket=settings.nebius_bucket_name,
         Key=f"reports/{period}/report.json",
         Body=body,

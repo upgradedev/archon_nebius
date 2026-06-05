@@ -2,21 +2,28 @@
 Archon — Document Extraction Job
 Runs as a Nebius Serverless AI Job (batch).
 
-Entry point: reads UPLOAD_ID and PERIOD from env,
-downloads raw documents from object storage,
-routes each file through the appropriate extractor,
-writes structured JSON results back to storage.
+Pipeline (single-responsibility agents in sequence):
+  1. ExtractorAgent  — auto-detect file type, call vision/text LLM, produce ExtractedDocument
+  2. ClassifierAgent — rule-based refinement of doc_type (no LLM, deterministic)
+  3. EventLinkerAgent — group payroll docs into unified PayrollEvents
+  4. ValidatorAgent  — cross-document consistency rules, produce ValidationResults
+
+Outputs written to Nebius Object Storage:
+  extracted/{period}/{upload_id}/documents.json
+  extracted/{period}/{upload_id}/events.json
+  extracted/{period}/{upload_id}/validation.json
 """
 
-import os
 import json
-import tempfile
 import logging
+import os
+import tempfile
 from pathlib import Path
 
 import boto3
 from botocore.config import Config
 
+from agents import classifier, event_linker, validator
 from extractors.image import ImageExtractor
 from extractors.pdf import PdfExtractor
 from extractors.docx import DocxExtractor
@@ -31,7 +38,9 @@ BUCKET = os.environ["NEBIUS_BUCKET_NAME"]
 EXTRACTORS = [PdfExtractor(), DocxExtractor(), ImageExtractor()]
 
 
-def s3():
+# ── S3 helpers ────────────────────────────────────────────────────────────────
+
+def _s3():
     return boto3.client(
         "s3",
         endpoint_url=os.getenv("STORAGE_ENDPOINT_URL"),
@@ -42,9 +51,9 @@ def s3():
     )
 
 
-def list_raw_files() -> list[str]:
+def _list_raw_files() -> list[str]:
     prefix = f"raw-docs/{PERIOD}/{UPLOAD_ID}/"
-    paginator = s3().get_paginator("list_objects_v2")
+    paginator = _s3().get_paginator("list_objects_v2")
     keys = []
     for page in paginator.paginate(Bucket=BUCKET, Prefix=prefix):
         for obj in page.get("Contents", []):
@@ -54,27 +63,27 @@ def list_raw_files() -> list[str]:
     return keys
 
 
-def download(key: str, dest: Path) -> None:
-    s3().download_file(BUCKET, key, str(dest))
+def _download(key: str, dest: Path) -> None:
+    _s3().download_file(BUCKET, key, str(dest))
 
 
-def upload_result(key: str, data: dict) -> None:
+def _put_json(key: str, data: object) -> None:
     body = json.dumps(data, ensure_ascii=False, indent=2).encode()
-    s3().put_object(Bucket=BUCKET, Key=key, Body=body, ContentType="application/json")
+    _s3().put_object(Bucket=BUCKET, Key=key, Body=body, ContentType="application/json")
 
 
-def process_file(key: str) -> dict | None:
+# ── extractor step ────────────────────────────────────────────────────────────
+
+def _extract_file(key: str) -> dict | None:
     filename = key.split("/")[-1]
     with tempfile.NamedTemporaryFile(suffix=Path(filename).suffix, delete=False) as tmp:
         tmp_path = Path(tmp.name)
-
     try:
-        download(key, tmp_path)
+        _download(key, tmp_path)
         extractor = next((e for e in EXTRACTORS if e.can_handle(tmp_path)), None)
         if extractor is None:
             log.warning("No extractor for %s — skipping", filename)
             return None
-
         log.info("Extracting %s with %s", filename, type(extractor).__name__)
         doc = extractor.extract(tmp_path)
         return doc.model_dump()
@@ -85,21 +94,67 @@ def process_file(key: str) -> dict | None:
         tmp_path.unlink(missing_ok=True)
 
 
+# ── main pipeline ─────────────────────────────────────────────────────────────
+
 def main():
-    log.info("Starting extraction job — upload=%s period=%s", UPLOAD_ID, PERIOD)
-    raw_keys = list_raw_files()
+    log.info("=== Extraction job start — upload=%s period=%s ===", UPLOAD_ID, PERIOD)
+
+    # Step 1: extract raw files
+    raw_keys = _list_raw_files()
     log.info("Found %d files to process", len(raw_keys))
+    raw_docs = [r for k in raw_keys if (r := _extract_file(k)) is not None]
+    log.info("Extracted %d documents", len(raw_docs))
 
-    results = []
-    for key in raw_keys:
-        result = process_file(key)
-        if result:
-            results.append(result)
+    # Deserialise into typed models for the agent pipeline
+    from models.document import ExtractedDocument
+    typed_docs = []
+    for d in raw_docs:
+        try:
+            typed_docs.append(ExtractedDocument(**d))
+        except Exception as exc:
+            log.warning("Skipping malformed extraction result: %s", exc)
 
-    # Write aggregated extraction output
-    output_key = f"extracted/{PERIOD}/{UPLOAD_ID}/documents.json"
-    upload_result(output_key, {"period": PERIOD, "upload_id": UPLOAD_ID, "documents": results})
-    log.info("Wrote %d extracted documents to %s", len(results), output_key)
+    # Step 2: classify (rule-based, no LLM)
+    typed_docs = classifier.run(typed_docs)
+    log.info("Classification complete")
+
+    # Step 3: link payroll events
+    events = event_linker.run(typed_docs)
+    log.info("Linked %d payroll events", len(events))
+
+    # Step 4: validate cross-document consistency
+    validation_results = validator.run(events)
+    errors = sum(1 for r in validation_results if not r.passed and r.severity == "error")
+    log.info("Validation: %d results, %d errors", len(validation_results), errors)
+
+    # Write outputs
+    base = f"extracted/{PERIOD}/{UPLOAD_ID}"
+
+    _put_json(f"{base}/documents.json", {
+        "period": PERIOD,
+        "upload_id": UPLOAD_ID,
+        "documents": [d.model_dump() for d in typed_docs],
+    })
+
+    _put_json(f"{base}/events.json", {
+        "period": PERIOD,
+        "upload_id": UPLOAD_ID,
+        "events": [e.model_dump() for e in events],
+    })
+
+    _put_json(f"{base}/validation.json", {
+        "period": PERIOD,
+        "upload_id": UPLOAD_ID,
+        "results": [r.model_dump() for r in validation_results],
+        "summary": {
+            "total": len(validation_results),
+            "passed": sum(1 for r in validation_results if r.passed),
+            "errors": errors,
+            "warnings": sum(1 for r in validation_results if not r.passed and r.severity == "warning"),
+        },
+    })
+
+    log.info("=== Extraction job complete — %d docs, %d events ===", len(typed_docs), len(events))
 
 
 if __name__ == "__main__":

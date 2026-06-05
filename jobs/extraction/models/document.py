@@ -3,10 +3,13 @@ from pydantic import BaseModel
 
 
 class DocType(str, Enum):
-    INVOICE = "invoice"
-    PAYROLL = "payroll"
-    EXPENSE = "expense"
-    SALES = "sales"
+    INVOICE = "invoice"                       # vendor/purchase invoice
+    SALES = "sales"                           # sales invoice (company is the seller)
+    EXPENSE = "expense"                       # expense receipt
+    PAYROLL_REGISTER = "payroll_register"     # official payroll sheet (gross + IKA + employer cost)
+    BANK_CONFIRMATION = "bank_confirmation"   # bank batch payroll transfer confirmation (net total)
+    PAYSLIP = "payslip"                       # individual employee pay slip (net per person)
+    PAYROLL = "payroll"                       # generic payroll when subtype cannot be determined
     UNKNOWN = "unknown"
 
 
@@ -25,7 +28,7 @@ class ExtractedDocument(BaseModel):
     vendor_name: str | None
     vendor_tax_id: str | None       # ΑΦΜ for Greek docs
     recipient_name: str | None
-    currency: str                   # ISO 4217, e.g. "EUR"
+    currency: str
     subtotal: float | None
     vat_amount: float | None
     vat_rate_pct: float | None
@@ -36,4 +39,12 @@ class ExtractedDocument(BaseModel):
     notes: str | None
     raw_text_excerpt: str           # first 500 chars of extracted text for audit
     extraction_model: str
-    confidence: float               # 0.0 – 1.0
+    confidence: float               # 0.0 - 1.0
+
+    # Payroll-specific fields (populated for payroll_register / bank_confirmation / payslip)
+    employee_count: int | None = None
+    gross_pay_total: float | None = None       # total gross wages (payroll_register)
+    employer_cost_total: float | None = None   # gross + IKA employer share (payroll_register)
+    net_pay_total: float | None = None         # total net transfers (bank_confirmation)
+    employee_name: str | None = None           # for payslip docs
+    employee_code: str | None = None           # internal employee code (payslip)

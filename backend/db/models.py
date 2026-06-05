@@ -1,0 +1,76 @@
+"""
+Pydantic models mirroring the PostgreSQL schema for use in FastAPI responses.
+
+These are read models — writes go through direct SQL (psycopg2) to keep
+the backend dependency footprint minimal. SQLAlchemy ORM is not used
+intentionally: the query patterns here are simple and an ORM would add
+complexity without benefit at this scale.
+"""
+
+from __future__ import annotations
+from datetime import date, datetime
+from uuid import UUID
+from pydantic import BaseModel
+
+
+class DocumentRecord(BaseModel):
+    id: UUID
+    upload_id: str
+    period: str
+    source_file: str
+    doc_type: str
+    detected_lang: str | None
+    issue_date: date | None
+    vendor_name: str | None
+    vendor_tax_id: str | None
+    recipient_name: str | None
+    currency: str
+    total_amount: float
+    confidence: float | None
+    created_at: datetime
+
+
+class EmployeeRecord(BaseModel):
+    id: UUID
+    employee_code: str | None
+    full_name: str | None
+    tax_id: str | None
+    bank_account: str | None
+    updated_at: datetime
+
+
+class EmployeePayrollRecord(BaseModel):
+    id: UUID
+    employee_id: UUID
+    period: str
+    gross_pay: float | None
+    net_pay: float
+    employer_cost: float | None
+    ika_employee: float | None
+    ika_employer: float | None
+    income_tax: float | None
+    document_id: UUID | None
+
+
+class PayrollEventRecord(BaseModel):
+    id: UUID
+    period: str
+    company_name: str | None
+    net_total: float | None
+    gross_total: float | None
+    employer_cost_total: float | None
+    employee_count: int | None
+    is_complete: bool
+    created_at: datetime
+
+
+class ValidationResultRecord(BaseModel):
+    id: UUID
+    period: str
+    upload_id: str | None
+    rule: str
+    passed: bool
+    severity: str
+    message: str | None
+    source_files: list[str]
+    created_at: datetime
