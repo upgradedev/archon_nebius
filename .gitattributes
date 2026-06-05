@@ -1,0 +1,37 @@
+# Normalize line endings to LF on commit, convert to OS default on checkout
+* text=auto eol=lf
+
+# Shell scripts must always be LF (Docker, bash)
+*.sh text eol=lf
+
+# Python
+*.py text eol=lf
+
+# TypeScript / JavaScript
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+
+# Config / markup
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.env text eol=lf
+*.example text eol=lf
+*.toml text eol=lf
+Dockerfile text eol=lf
+
+# Binary — never touch
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.tiff binary
+*.tif binary
+*.webp binary
+*.pdf binary
+*.ico binary
+*.woff binary
+*.woff2 binary
