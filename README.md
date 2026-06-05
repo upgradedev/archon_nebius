@@ -12,7 +12,7 @@
 
 Archon is an end-to-end agentic pipeline that turns raw business documents — scanned invoices, payroll PDFs, vendor bills, expense photos — into structured financial intelligence. It supports **multilingual documents** (including Greek), handles every common file format, and produces a modern dashboard with P&L trends, cash flow analysis, and an LLM-written executive summary.
 
-Built entirely on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius Serverless AI Endpoints** (financial analysis agent), with a React frontend and FastAPI orchestration layer.
+Built on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius Serverless AI Endpoints** (financial analysis agent), with a React frontend hosted on Firebase and a FastAPI orchestration layer running on Nebius Compute.
 
 ---
 
@@ -20,12 +20,14 @@ Built entirely on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius 
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
+│                  Firebase Hosting (Google CDN)                  │
 │                     React Frontend                              │
 │            Ant Design  ·  Recharts  ·  TypeScript               │
 │  Upload ──► Job Status ──► P&L Dashboard ──► Executive Report   │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ REST / JSON
 ┌───────────────────────────▼─────────────────────────────────────┐
+│              Nebius Compute VM  (CPU · always-on)               │
 │                 FastAPI Orchestration Backend                    │
 │   /upload  ·  /jobs  ·  /analyze  ·  /reports                   │
 │         JobRunner abstraction (cloud-portable)                  │
@@ -73,14 +75,14 @@ Built entirely on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius 
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 18, Vite, TypeScript, Ant Design, Recharts, TanStack Query |
-| Backend | Python 3.12, FastAPI, Pydantic v2, boto3 |
-| AI Job | Python 3.12, Qwen2-VL (vision), pdfplumber, PyMuPDF, python-docx |
-| AI Endpoint | Python 3.12, FastAPI, Qwen2.5-72B (analysis agent) |
-| Storage | Nebius Object Storage (S3-compatible) |
-| Infrastructure | Nebius Serverless AI Jobs + Endpoints, Docker |
+| Layer | Technology | Hosting |
+|---|---|---|
+| Frontend | React 18, Vite, TypeScript, Ant Design, Recharts, TanStack Query | Firebase Hosting (Google CDN) |
+| Backend | Python 3.12, FastAPI, Pydantic v2, boto3 | Nebius Compute VM (CPU) |
+| AI Job | Python 3.12, Qwen2-VL (vision), pdfplumber, PyMuPDF, python-docx | Nebius Serverless AI Job |
+| AI Endpoint | Python 3.12, FastAPI, Qwen2.5-72B (analysis agent) | Nebius Serverless AI Endpoint |
+| Storage | boto3 (S3-compatible) | Nebius Object Storage |
+| Registry | Docker | Nebius Container Registry |
 
 ---
 
@@ -90,6 +92,7 @@ Built entirely on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius 
 
 - [Nebius account](https://nebius.com) with credits
 - [Nebius CLI](https://docs.nebius.com/cli/install) installed and configured
+- [Firebase CLI](https://firebase.google.com/docs/cli) (`npm install -g firebase-tools`)
 - Docker 24+
 - Node.js 20+
 - Python 3.12+
@@ -155,6 +158,23 @@ python scripts/generate-sample-data.py   # generates synthetic Greek invoices
 # Then upload the files from sample-data/ via the UI
 ```
 
+### 7. Deploy the frontend to Firebase
+
+```bash
+cd frontend
+npm run build
+firebase login
+firebase use archon-pnl        # replace with your Firebase project ID
+firebase deploy
+```
+
+The live URL will be printed by the CLI (e.g. `https://archon-pnl.web.app`).
+Set this URL as the allowed CORS origin in your backend `.env`:
+
+```bash
+CORS_ORIGINS=https://archon-pnl.web.app
+```
+
 ---
 
 ## Cloud Portability
@@ -163,10 +183,12 @@ Archon is designed to run on any cloud with minimal changes. Only two components
 
 | Component | Nebius | AWS | Azure | GCP | OCI |
 |---|---|---|---|---|---|
-| Batch Job | AI Jobs | AWS Batch | Container Apps Jobs | Cloud Run Jobs | Container Instances |
-| Endpoint | AI Endpoints | ECS / Fargate | Container Apps | Cloud Run | Functions |
-| Storage | Object Storage | S3 | Blob Storage | GCS | Object Storage |
-| Registry | Container Registry | ECR | ACR | Artifact Registry | OCIR |
+| **Frontend** | Firebase Hosting | S3 + CloudFront | Static Web Apps | Firebase Hosting | Object Storage |
+| **Backend** | Compute VM | EC2 / ECS | Container Apps | Cloud Run | Compute |
+| **Batch Job** | AI Jobs | AWS Batch | Container Apps Jobs | Cloud Run Jobs | Container Instances |
+| **Endpoint** | AI Endpoints | ECS / Fargate | Container Apps | Cloud Run | Functions |
+| **Storage** | Object Storage | S3 | Blob Storage | GCS | Object Storage |
+| **Registry** | Container Registry | ECR | ACR | Artifact Registry | OCIR |
 
 To switch providers, update the `JOB_RUNNER_BACKEND` and `STORAGE_BACKEND` env vars and replace the two deploy scripts.
 
