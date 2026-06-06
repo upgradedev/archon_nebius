@@ -38,12 +38,12 @@ class ExtractedDocument(BaseModel):
     vendor_tax_id: str | None       # ΑΦΜ for Greek docs
     recipient_name: str | None
     currency: str                   # ISO 4217 — normalised to EUR when possible
-    original_currency: str | None   # as billed (e.g. "USD" for AWS/OpenAI)
-    original_amount: float | None   # amount in original currency before FX conversion
+    original_currency: str | None = None   # as billed (e.g. "USD" for AWS/OpenAI)
+    original_amount: float | None = None   # amount in original currency before FX conversion
     subtotal: float | None
     vat_amount: float | None
     vat_rate_pct: float | None
-    vat_treatment: VatTreatment | None  # classification of VAT handling
+    vat_treatment: VatTreatment | None = None  # classification of VAT handling
     total_amount: float             # EUR-normalised total
     line_items: list[LineItem]
     payment_due_date: str | None
