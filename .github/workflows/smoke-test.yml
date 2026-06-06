@@ -27,31 +27,31 @@ jobs:
 
       - name: Create .env from secrets
         run: |
-          cat > .env <<'ENVEOF'
-          JOB_RUNNER_BACKEND=local
-          EXTRACTION_SERVICE_URL=http://extraction:8002
-          NEBIUS_BUCKET_NAME=archon-docs
-          STORAGE_ENDPOINT_URL=http://localstack:4566
-          AWS_ACCESS_KEY_ID=test
-          AWS_SECRET_ACCESS_KEY=test
-          NEBIUS_REGION=us-east-1
-          NEBIUS_INFERENCE_BASE_URL=https://api.studio.nebius.ai/v1
-          VISION_MODEL=Qwen/Qwen2-VL-72B-Instruct
-          ANALYSIS_MODEL=Qwen/Qwen2.5-72B-Instruct
-          ANALYSIS_ENDPOINT_URL=http://analysis:8001
-          BACKEND_HOST=0.0.0.0
-          BACKEND_PORT=8000
-          CORS_ORIGINS=http://localhost:3000
-          POSTGRES_HOST=
-          POSTGRES_PORT=6432
-          POSTGRES_DB=archon
-          POSTGRES_USER=archon_user
-          POSTGRES_PASSWORD=
-          DATABASE_URL=
-          NEBIUS_IAM_TOKEN=
-          NEBIUS_PROJECT_ID=
-          ENVEOF
-          echo "NEBIUS_INFERENCE_API_KEY=${{ secrets.NEBIUS_INFERENCE_API_KEY }}" >> .env
+          cat > .env <<ENVEOF
+JOB_RUNNER_BACKEND=local
+EXTRACTION_SERVICE_URL=http://extraction:8002
+NEBIUS_BUCKET_NAME=archon-docs
+STORAGE_ENDPOINT_URL=http://localstack:4566
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
+NEBIUS_REGION=us-east-1
+NEBIUS_INFERENCE_BASE_URL=https://api.studio.nebius.ai/v1
+NEBIUS_INFERENCE_API_KEY=${{ secrets.NEBIUS_INFERENCE_API_KEY }}
+VISION_MODEL=Qwen/Qwen2-VL-72B-Instruct
+ANALYSIS_MODEL=Qwen/Qwen2.5-72B-Instruct
+ANALYSIS_ENDPOINT_URL=http://analysis:8001
+BACKEND_HOST=0.0.0.0
+BACKEND_PORT=8000
+CORS_ORIGINS=http://localhost:3000
+POSTGRES_HOST=
+POSTGRES_PORT=6432
+POSTGRES_DB=archon
+POSTGRES_USER=archon_user
+POSTGRES_PASSWORD=
+DATABASE_URL=
+NEBIUS_IAM_TOKEN=
+NEBIUS_PROJECT_ID=
+ENVEOF
 
       - name: Build and start services (backend, extraction, analysis, localstack)
         run: |
@@ -77,6 +77,18 @@ jobs:
           wait_for "extraction"  "http://localhost:8002/health"
           wait_for "analysis"    "http://localhost:8001/health"
           wait_for "backend"     "http://localhost:8000/health"
+
+      - name: Create S3 bucket in LocalStack
+        run: |
+          pip install awscli -q
+          aws --endpoint-url=http://localhost:4566 \
+              --region us-east-1 \
+              s3 mb s3://archon-docs || true
+          echo "Bucket ready:"
+          aws --endpoint-url=http://localhost:4566 --region us-east-1 s3 ls
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
 
       - name: Run end-to-end smoke test
         run: bash scripts/test-pipeline.sh
