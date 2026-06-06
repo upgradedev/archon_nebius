@@ -1,0 +1,99 @@
+name: Pipeline Smoke Test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate synthetic sample PDFs
+        run: |
+          pip install reportlab
+          python scripts/generate-sample-data.py
+
+      - name: Create .env from secrets
+        run: |
+          cat > .env <<'ENVEOF'
+          JOB_RUNNER_BACKEND=local
+          EXTRACTION_SERVICE_URL=http://extraction:8002
+          NEBIUS_BUCKET_NAME=archon-docs
+          STORAGE_ENDPOINT_URL=http://localstack:4566
+          AWS_ACCESS_KEY_ID=test
+          AWS_SECRET_ACCESS_KEY=test
+          NEBIUS_REGION=us-east-1
+          NEBIUS_INFERENCE_BASE_URL=https://api.studio.nebius.ai/v1
+          VISION_MODEL=Qwen/Qwen2-VL-72B-Instruct
+          ANALYSIS_MODEL=Qwen/Qwen2.5-72B-Instruct
+          ANALYSIS_ENDPOINT_URL=http://analysis:8001
+          BACKEND_HOST=0.0.0.0
+          BACKEND_PORT=8000
+          CORS_ORIGINS=http://localhost:3000
+          POSTGRES_HOST=
+          POSTGRES_PORT=6432
+          POSTGRES_DB=archon
+          POSTGRES_USER=archon_user
+          POSTGRES_PASSWORD=
+          DATABASE_URL=
+          NEBIUS_IAM_TOKEN=
+          NEBIUS_PROJECT_ID=
+          ENVEOF
+          echo "NEBIUS_INFERENCE_API_KEY=${{ secrets.NEBIUS_INFERENCE_API_KEY }}" >> .env
+
+      - name: Build and start services (backend, extraction, analysis, localstack)
+        run: |
+          docker compose up --build -d localstack extraction analysis backend
+        timeout-minutes: 15
+
+      - name: Wait for all services to be healthy
+        run: |
+          wait_for() {
+            local name=$1 url=$2
+            echo "Waiting for $name at $url ..."
+            for i in $(seq 1 40); do
+              if curl -sf "$url" > /dev/null 2>&1; then
+                echo "  $name is up (attempt $i)"
+                return 0
+              fi
+              sleep 5
+            done
+            echo "ERROR: $name did not start in time"
+            return 1
+          }
+          wait_for "localstack"  "http://localhost:4566/_localstack/health"
+          wait_for "extraction"  "http://localhost:8002/health"
+          wait_for "analysis"    "http://localhost:8001/health"
+          wait_for "backend"     "http://localhost:8000/health"
+
+      - name: Run end-to-end smoke test
+        run: bash scripts/test-pipeline.sh
+        env:
+          BACKEND_URL: http://localhost:8000
+          PERIOD: "2026-01"
+        timeout-minutes: 25
+
+      - name: Upload pipeline report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-report
+          path: |
+            /tmp/archon-report-*.json
+          if-no-files-found: ignore
+
+      - name: Dump service logs on failure
+        if: failure()
+        run: docker compose logs --tail=100

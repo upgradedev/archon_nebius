@@ -10,7 +10,16 @@ class DocType(str, Enum):
     BANK_CONFIRMATION = "bank_confirmation"   # bank batch payroll transfer confirmation (net total)
     PAYSLIP = "payslip"                       # individual employee pay slip (net per person)
     PAYROLL = "payroll"                       # generic payroll when subtype cannot be determined
+    ACCOUNT_STATEMENT = "account_statement"   # vendor statement of account (AR aging / reconciliation use only)
     UNKNOWN = "unknown"
+
+
+class VatTreatment(str, Enum):
+    STANDARD = "standard"             # e.g. Greek 24% VAT
+    REVERSE_CHARGE = "reverse_charge" # B2B cross-border EU services (0% billed)
+    EXEMPT = "exempt"                 # legally VAT-exempt activity
+    ZERO_RATE = "zero_rate"           # zero-rated supply (e.g. exports)
+    NONE = "none"                     # no VAT applicable (B2C, non-EU)
 
 
 class LineItem(BaseModel):
@@ -28,11 +37,14 @@ class ExtractedDocument(BaseModel):
     vendor_name: str | None
     vendor_tax_id: str | None       # ΑΦΜ for Greek docs
     recipient_name: str | None
-    currency: str
+    currency: str                   # ISO 4217 — normalised to EUR when possible
+    original_currency: str | None   # as billed (e.g. "USD" for AWS/OpenAI)
+    original_amount: float | None   # amount in original currency before FX conversion
     subtotal: float | None
     vat_amount: float | None
     vat_rate_pct: float | None
-    total_amount: float
+    vat_treatment: VatTreatment | None  # classification of VAT handling
+    total_amount: float             # EUR-normalised total
     line_items: list[LineItem]
     payment_due_date: str | None
     invoice_number: str | None
@@ -48,3 +60,8 @@ class ExtractedDocument(BaseModel):
     net_pay_total: float | None = None         # total net transfers (bank_confirmation)
     employee_name: str | None = None           # for payslip docs
     employee_code: str | None = None           # internal employee code (payslip)
+
+    # Account statement fields (populated for account_statement docs only)
+    statement_balance: float | None = None     # closing balance per statement
+    statement_overdue: float | None = None     # overdue amount per statement
+    statement_entries: list[dict] | None = None  # raw invoice references from statement

@@ -3,17 +3,18 @@ Archon — Financial Analysis Endpoint
 Runs as a Nebius Serverless AI Endpoint (always-on).
 
 Pipeline (single-responsibility agents in sequence):
-  1. ClassifierAgent    — re-classify doc_type for analysis context
-  2. PnLAgent           — P&L aggregation (uses employer_cost from register, not bank net)
-  3. CashFlowAgent      — cash flow derivation (uses bank transfers for real cash movements)
-  4. EmployeeAgent      — per-employee salary analytics from payslip + register
-  5. ValidatorAgent     — cross-document consistency re-validation
-  6. NarratorAgent      — LLM-written CFO-level executive summary
+  1. ClassifierAgent       — re-classify doc_type for analysis context
+  2. PnLAgent              — P&L aggregation (uses employer_cost from register, not bank net)
+  3. CashFlowAgent         — cash flow derivation (uses bank transfers for real cash movements)
+  4. EmployeeAgent         — per-employee salary analytics from payslip + register
+  5. ValidatorAgent        — cross-document consistency re-validation
+  6. ReconciliationAgent   — vendor statement vs. uploaded invoices diff
+  7. NarratorAgent         — LLM-written CFO-level executive summary
+
+account_statement docs are excluded from P&L/cash flow; used only by ReconciliationAgent.
 
 Reads from Nebius Object Storage:
   extracted/{period}/*/documents.json
-  extracted/{period}/*/events.json     (produced by extraction job event_linker)
-  extracted/{period}/*/validation.json (produced by extraction job validator)
 
 Writes to:
   reports/{period}/report.json
@@ -30,7 +31,7 @@ from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
 from agents.classifier import classify
-from agents import pnl_agent, cashflow_agent, employee_agent, validator_agent
+from agents import pnl_agent, cashflow_agent, employee_agent, validator_agent, reconciliation_agent
 from agents.narrator import build_summary
 from models.financial import ExtractedDoc, FinancialReport
 
@@ -50,7 +51,7 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-app = FastAPI(title="Archon Analysis Endpoint", version="2.0.0")
+app = FastAPI(title="Archon Analysis Endpoint", version="2.1.0")
 
 
 def _s3():
@@ -96,31 +97,39 @@ class AnalyzeResponse(BaseModel):
 def analyze(req: AnalyzeRequest):
     log.info("=== Analysis start — period=%s ===", req.period)
 
-    docs = _load_documents(req.period)
-    if not docs:
+    all_docs = _load_documents(req.period)
+    if not all_docs:
         raise HTTPException(status_code=404, detail=f"No extracted documents for period {req.period}")
-    log.info("Loaded %d documents", len(docs))
+    log.info("Loaded %d documents", len(all_docs))
 
     # Step 1: classify
-    docs = classify(docs)
+    all_docs = classify(all_docs)
 
-    # Step 2: P&L
-    pnl = pnl_agent.build_pnl(req.period, docs)
-    expense_breakdown = pnl_agent.build_expense_breakdown(docs)
-    top_vendors = pnl_agent.build_vendor_summary(docs)
-    key_metrics = pnl_agent.build_key_metrics(docs, pnl.revenue, pnl.expenses)
+    # Separate financial docs from statements (statements excluded from P&L/cash flow)
+    fin_docs = [d for d in all_docs if d.doc_type != "account_statement"]
+    log.info("Financial docs: %d, Account statements: %d",
+             len(fin_docs), len(all_docs) - len(fin_docs))
 
-    # Step 3: cash flow
-    cash_flow = cashflow_agent.build_cashflow(req.period, docs, pnl)
+    # Step 2: P&L (financial docs only)
+    pnl = pnl_agent.build_pnl(req.period, fin_docs)
+    expense_breakdown = pnl_agent.build_expense_breakdown(fin_docs)
+    top_vendors = pnl_agent.build_vendor_summary(fin_docs)
+    key_metrics = pnl_agent.build_key_metrics(fin_docs, pnl.revenue, pnl.expenses)
+
+    # Step 3: cash flow (financial docs only)
+    cash_flow = cashflow_agent.build_cashflow(req.period, fin_docs, pnl)
 
     # Step 4: validation
-    validation_results = validator_agent.run(req.period, docs)
+    validation_results = validator_agent.run(req.period, fin_docs)
 
     # Step 5: employee analytics
-    employee_summaries = employee_agent.build_employee_summaries(req.period, docs)
-    payroll_events = employee_agent.build_payroll_event_summaries(req.period, docs, validation_results)
+    employee_summaries = employee_agent.build_employee_summaries(req.period, fin_docs)
+    payroll_events = employee_agent.build_payroll_event_summaries(req.period, fin_docs, validation_results)
 
-    # Step 6: narrative
+    # Step 6: reconciliation (uses ALL docs including statements)
+    vendor_reconciliations = reconciliation_agent.run(req.period, all_docs)
+
+    # Step 7: narrative (full picture including reconciliation gaps)
     report = FinancialReport(
         period=req.period,
         pnl=pnl,
@@ -131,6 +140,7 @@ def analyze(req: AnalyzeRequest):
         payrollEvents=payroll_events,
         employeeSummaries=employee_summaries,
         validationResults=validation_results,
+        vendorReconciliations=vendor_reconciliations,
         executiveSummary="",
     )
     report.executiveSummary = build_summary(report)
@@ -154,7 +164,7 @@ def get_report(period: str):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "archon-analysis", "version": "2.0.0"}
+    return {"status": "ok", "service": "archon-analysis", "version": "2.1.0"}
 
 
 def _cache_report(period: str, report: FinancialReport, generated_at: str) -> None:

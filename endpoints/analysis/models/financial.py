@@ -10,21 +10,28 @@ class ExtractedDoc(BaseModel):
     vendor_tax_id: str | None
     recipient_name: str | None
     currency: str
+    original_currency: str | None = None
+    original_amount: float | None = None
     subtotal: float | None
     vat_amount: float | None
     vat_rate_pct: float | None
+    vat_treatment: str | None = None
     total_amount: float
     payment_due_date: str | None
     invoice_number: str | None
     notes: str | None
     confidence: float
-    # Payroll-specific fields
+    # Payroll-specific
     employee_count: int | None = None
     gross_pay_total: float | None = None
     employer_cost_total: float | None = None
     net_pay_total: float | None = None
     employee_name: str | None = None
     employee_code: str | None = None
+    # Statement-specific
+    statement_balance: float | None = None
+    statement_overdue: float | None = None
+    statement_entries: list[dict] | None = None
 
 
 class MonthlyPnL(BaseModel):
@@ -68,21 +75,19 @@ class KeyMetrics(BaseModel):
 
 
 class EmployeeSummary(BaseModel):
-    """Per-employee payroll analytics derived from payslip documents."""
     employee_code: str | None
     employee_name: str | None
     period: str
     net_pay: float
-    gross_pay: float | None       # available when payroll_register is linked
-    employer_cost: float | None   # gross + IKA; available from payroll_register
+    gross_pay: float | None
+    employer_cost: float | None
 
 
 class PayrollEventSummary(BaseModel):
-    """High-level summary of a linked payroll event for the dashboard."""
     period: str
     company_name: str | None
-    net_total: float              # from bank_confirmation or sum of payslips
-    gross_total: float | None     # from payroll_register
+    net_total: float
+    gross_total: float | None
     employer_cost_total: float | None
     employee_count: int
     bank_confirmed: bool
@@ -92,10 +97,49 @@ class PayrollEventSummary(BaseModel):
 class ValidationResult(BaseModel):
     rule: str
     passed: bool
-    severity: str                 # "info" | "warning" | "error"
+    severity: str
     message: str
     source_files: list[str]
 
+
+# ── Vendor reconciliation models ─────────────────────────────────────────────
+
+class StatementEntry(BaseModel):
+    """One line from a vendor Statement of Account."""
+    document_number: str | None     # invoice / credit note number per vendor
+    posting_date: str | None        # date per statement
+    due_date: str | None
+    original_amount: float
+    remaining_amount: float
+    is_overdue: bool
+
+
+class VendorReconciliation(BaseModel):
+    """
+    Comparison between what the vendor's statement says and what invoices
+    we actually have in the system. Surfaces missing documents.
+    """
+    vendor_name: str
+    vendor_tax_id: str | None
+    period: str
+
+    # What vendor says (from account_statement doc)
+    statement_balance: float | None
+    statement_overdue: float | None
+    statement_entries: list[StatementEntry]
+
+    # What we have in our system (uploaded invoices)
+    uploaded_invoices: list[str]        # invoice_number of matched docs
+    uploaded_total: float
+
+    # Discrepancy analysis
+    missing_in_system: list[str]        # doc numbers in statement not found as uploads
+    unmatched_uploads: list[str]        # uploaded invoice numbers with no statement reference
+    reconciled: bool                    # True when all statement entries matched
+    discrepancy_eur: float              # statement_balance - uploaded_total (0 = clean)
+
+
+# ── Main report ───────────────────────────────────────────────────────────────
 
 class FinancialReport(BaseModel):
     period: str
@@ -107,4 +151,5 @@ class FinancialReport(BaseModel):
     payrollEvents: list[PayrollEventSummary]
     employeeSummaries: list[EmployeeSummary]
     validationResults: list[ValidationResult]
+    vendorReconciliations: list[VendorReconciliation]
     executiveSummary: str

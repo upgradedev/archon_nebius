@@ -11,6 +11,8 @@ services:
       - ./backend:/app
     depends_on:
       - localstack
+      - extraction
+      - analysis
     networks:
       - archon
 
@@ -39,6 +41,21 @@ services:
       - AWS_SECRET_ACCESS_KEY=test
     volumes:
       - localstack_data:/var/lib/localstack
+      - ./scripts/init-localstack.sh:/etc/localstack/init/ready.d/init-localstack.sh
+    networks:
+      - archon
+
+  # Extraction job HTTP wrapper (local dev only — replaces Nebius AI Job)
+  extraction:
+    build:
+      context: ./jobs/extraction
+      dockerfile: Dockerfile.local
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    depends_on:
+      - localstack
     networks:
       - archon
 
