@@ -14,7 +14,7 @@ JOB_NAME="archon-extract-$PERIOD-$(openssl rand -hex 3)"
 
 nebius ai job create \
   --name "$JOB_NAME" \
-  --image "$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PROJECT/archon-extraction:latest" \
+  --image "$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PATH/archon-extraction:latest" \
   --platform "${EXTRACTION_JOB_PLATFORM:-gpu-l40s-a}" \
   --preset "${EXTRACTION_JOB_PRESET:-1gpu-8vcpu-32gb}" \
   --timeout 2h \

@@ -14,7 +14,7 @@ echo "Save this — it will not be shown again."
 
 nebius ai endpoint create \
   --name "$ENDPOINT_NAME" \
-  --image "$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PROJECT/archon-analysis:latest" \
+  --image "$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PATH/archon-analysis:latest" \
   --container-port 8001 \
   --platform gpu-l40s-a \
   --preset 1gpu-8vcpu-32gb \
