@@ -26,32 +26,34 @@ jobs:
           python scripts/generate-sample-data.py
 
       - name: Create .env from secrets
+        env:
+          NEBIUS_KEY: ${{ secrets.NEBIUS_INFERENCE_API_KEY }}
         run: |
-          cat > .env <<ENVEOF
-JOB_RUNNER_BACKEND=local
-EXTRACTION_SERVICE_URL=http://extraction:8002
-NEBIUS_BUCKET_NAME=archon-docs
-STORAGE_ENDPOINT_URL=http://localstack:4566
-AWS_ACCESS_KEY_ID=test
-AWS_SECRET_ACCESS_KEY=test
-NEBIUS_REGION=us-east-1
-NEBIUS_INFERENCE_BASE_URL=https://api.studio.nebius.ai/v1
-NEBIUS_INFERENCE_API_KEY=${{ secrets.NEBIUS_INFERENCE_API_KEY }}
-VISION_MODEL=Qwen/Qwen2-VL-72B-Instruct
-ANALYSIS_MODEL=Qwen/Qwen2.5-72B-Instruct
-ANALYSIS_ENDPOINT_URL=http://analysis:8001
-BACKEND_HOST=0.0.0.0
-BACKEND_PORT=8000
-CORS_ORIGINS=http://localhost:3000
-POSTGRES_HOST=
-POSTGRES_PORT=6432
-POSTGRES_DB=archon
-POSTGRES_USER=archon_user
-POSTGRES_PASSWORD=
-DATABASE_URL=
-NEBIUS_IAM_TOKEN=
-NEBIUS_PROJECT_ID=
-ENVEOF
+          {
+            echo "JOB_RUNNER_BACKEND=local"
+            echo "EXTRACTION_SERVICE_URL=http://extraction:8002"
+            echo "NEBIUS_BUCKET_NAME=archon-docs"
+            echo "STORAGE_ENDPOINT_URL=http://localstack:4566"
+            echo "AWS_ACCESS_KEY_ID=test"
+            echo "AWS_SECRET_ACCESS_KEY=test"
+            echo "NEBIUS_REGION=us-east-1"
+            echo "NEBIUS_INFERENCE_BASE_URL=https://api.studio.nebius.ai/v1"
+            echo "NEBIUS_INFERENCE_API_KEY=${NEBIUS_KEY}"
+            echo "VISION_MODEL=Qwen/Qwen2-VL-72B-Instruct"
+            echo "ANALYSIS_MODEL=Qwen/Qwen2.5-72B-Instruct"
+            echo "ANALYSIS_ENDPOINT_URL=http://analysis:8001"
+            echo "BACKEND_HOST=0.0.0.0"
+            echo "BACKEND_PORT=8000"
+            echo "CORS_ORIGINS=http://localhost:3000"
+            echo "POSTGRES_HOST="
+            echo "POSTGRES_PORT=6432"
+            echo "POSTGRES_DB=archon"
+            echo "POSTGRES_USER=archon_user"
+            echo "POSTGRES_PASSWORD="
+            echo "DATABASE_URL="
+            echo "NEBIUS_IAM_TOKEN="
+            echo "NEBIUS_PROJECT_ID="
+          } > .env
 
       - name: Build and start services (backend, extraction, analysis, localstack)
         run: |
