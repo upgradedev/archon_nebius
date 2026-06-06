@@ -1,0 +1,102 @@
+name: Deploy to Nebius
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_endpoint:
+        description: 'Deploy analysis endpoint'
+        type: boolean
+        default: true
+      apply_schema:
+        description: 'Apply PostgreSQL schema'
+        type: boolean
+        default: false
+
+jobs:
+  deploy-endpoint:
+    name: Deploy Analysis Endpoint
+    runs-on: ubuntu-latest
+    if: ${{ inputs.deploy_endpoint }}
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nebius CLI
+        run: |
+          curl -sSL https://storage.eu-north1.nebius.cloud/cli/install.sh | bash
+          echo "$HOME/.nebius/bin" >> $GITHUB_PATH
+
+      - name: Authenticate Nebius CLI
+        env:
+          NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
+        run: |
+          nebius profile create --name ci \
+            --parent-id ${{ vars.NEBIUS_PROJECT_ID }} \
+            --iam-token "$NEBIUS_IAM_TOKEN"
+          nebius profile activate ci
+
+      - name: Generate endpoint token
+        id: token
+        run: |
+          TOKEN=$(openssl rand -hex 32)
+          echo "endpoint_token=$TOKEN" >> $GITHUB_OUTPUT
+          echo "::add-mask::$TOKEN"
+
+      - name: Deploy analysis endpoint
+        env:
+          NEBIUS_PROJECT_ID: ${{ vars.NEBIUS_PROJECT_ID }}
+          NEBIUS_REGISTRY: cr.eu-west1.nebius.cloud
+          NEBIUS_REGISTRY_PATH: e01f86ag28zc4gcrvk
+          NEBIUS_BUCKET_NAME: archon-bucket
+          NEBIUS_STORAGE_ENDPOINT_URL: https://storage.eu-west1.nebius.cloud
+          NEBIUS_STORAGE_ACCESS_KEY_ID: ${{ secrets.NEBIUS_STORAGE_ACCESS_KEY_ID }}
+          NEBIUS_STORAGE_SECRET_KEY: ${{ secrets.NEBIUS_STORAGE_SECRET_KEY }}
+          NEBIUS_INFERENCE_BASE_URL: https://api.studio.nebius.ai/v1
+          NEBIUS_INFERENCE_API_KEY: ${{ secrets.NEBIUS_INFERENCE_API_KEY }}
+          ANALYSIS_ENDPOINT_TOKEN: ${{ steps.token.outputs.endpoint_token }}
+        run: |
+          nebius ai endpoint create \
+            --name archon-analysis \
+            --parent-id "$NEBIUS_PROJECT_ID" \
+            --image "$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PATH/archon-analysis:latest" \
+            --container-port 8001 \
+            --platform gpu-l40s-a \
+            --preset 1gpu-8vcpu-32gb \
+            --public \
+            --auth token \
+            --token "$ANALYSIS_ENDPOINT_TOKEN" \
+            --env "NEBIUS_BUCKET_NAME=$NEBIUS_BUCKET_NAME" \
+            --env "STORAGE_ENDPOINT_URL=$NEBIUS_STORAGE_ENDPOINT_URL" \
+            --env "AWS_ACCESS_KEY_ID=$NEBIUS_STORAGE_ACCESS_KEY_ID" \
+            --env "AWS_SECRET_ACCESS_KEY=$NEBIUS_STORAGE_SECRET_KEY" \
+            --env "NEBIUS_INFERENCE_BASE_URL=$NEBIUS_INFERENCE_BASE_URL" \
+            --env "NEBIUS_INFERENCE_API_KEY=$NEBIUS_INFERENCE_API_KEY" \
+            --env "ANALYSIS_MODEL=meta-llama/Llama-3.3-70B-Instruct"
+
+      - name: Show endpoint token
+        run: |
+          echo "============================================================"
+          echo "Endpoint deployed. Save this token as ANALYSIS_ENDPOINT_TOKEN"
+          echo "Token: ${{ steps.token.outputs.endpoint_token }}"
+          echo "============================================================"
+
+  apply-schema:
+    name: Apply PostgreSQL Schema
+    runs-on: ubuntu-latest
+    if: ${{ inputs.apply_schema }}
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Apply schema
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PGPASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          psql "$DATABASE_URL" -f backend/db/schema.sql
+          echo "Schema applied successfully."
