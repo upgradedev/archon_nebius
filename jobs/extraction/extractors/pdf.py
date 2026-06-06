@@ -31,7 +31,7 @@ class PdfExtractor(BaseExtractor):
             base_url=os.environ["NEBIUS_INFERENCE_BASE_URL"],
             api_key=os.environ["NEBIUS_INFERENCE_API_KEY"],
         )
-        self.model = os.getenv("VISION_MODEL", "Qwen/Qwen2-VL-72B-Instruct")
+        self.model = os.getenv("VISION_MODEL", "Qwen/Qwen2.5-VL-72B-Instruct")
 
     def can_handle(self, path: Path) -> bool:
         return path.suffix.lower() == ".pdf"
@@ -58,10 +58,11 @@ class PdfExtractor(BaseExtractor):
             temperature=0.1,
         )
         raw = response.choices[0].message.content or "{}"
-        data = json.loads(raw.strip())
+        from .image import _clean_json, _safe_doc_type
+        data = json.loads(_clean_json(raw))
         return ExtractedDocument(
             source_file=path.name,
-            doc_type=DocType(data.get("doc_type", "unknown")),
+            doc_type=_safe_doc_type(data.get("doc_type")),
             detected_language=data.get("detected_language", "el"),
             issue_date=data.get("issue_date"),
             vendor_name=data.get("vendor_name"),

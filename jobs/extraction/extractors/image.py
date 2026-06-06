@@ -20,29 +20,32 @@ from models.document import ExtractedDocument, DocType, LineItem
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tiff", ".tif", ".webp"}
 
 EXTRACTION_PROMPT = """You are a financial document extraction specialist.
-Analyse this document image — it may be in Greek or English.
+Analyse this document — it may be in Greek or English.
 
-Extract ALL of the following fields as JSON (use null for missing fields):
+Extract ALL of the following fields as a JSON object (use null for missing fields).
+Choose doc_type from EXACTLY one of these values:
+  invoice, sales, expense, payroll_register, bank_confirmation, payslip, payroll, account_statement, unknown
+
 {
-  "doc_type": "invoice|payroll|expense|sales|unknown",
+  "doc_type": "one of the values listed above",
   "detected_language": "ISO 639-1 code, e.g. el or en",
   "issue_date": "YYYY-MM-DD or null",
   "vendor_name": "string or null",
-  "vendor_tax_id": "string (ΑΦΜ for Greek) or null",
+  "vendor_tax_id": "string or null",
   "recipient_name": "string or null",
-  "currency": "ISO 4217 code, default EUR",
-  "subtotal": number_or_null,
-  "vat_amount": number_or_null,
-  "vat_rate_pct": number_or_null,
-  "total_amount": number (required),
-  "line_items": [{"description": "...", "quantity": n, "unit_price": n, "total": n}],
+  "currency": "EUR",
+  "subtotal": null,
+  "vat_amount": null,
+  "vat_rate_pct": null,
+  "total_amount": 0.0,
+  "line_items": [],
   "payment_due_date": "YYYY-MM-DD or null",
   "invoice_number": "string or null",
   "notes": "string or null",
-  "confidence": 0.0_to_1.0
+  "confidence": 0.9
 }
 
-Return ONLY the JSON object. No markdown, no explanation.
+IMPORTANT: Return ONLY the raw JSON object. No markdown fences, no extra text.
 """
 
 
@@ -52,7 +55,7 @@ class ImageExtractor(BaseExtractor):
             base_url=os.environ["NEBIUS_INFERENCE_BASE_URL"],
             api_key=os.environ["NEBIUS_INFERENCE_API_KEY"],
         )
-        self.model = os.getenv("VISION_MODEL", "Qwen/Qwen2-VL-72B-Instruct")
+        self.model = os.getenv("VISION_MODEL", "Qwen/Qwen2.5-VL-72B-Instruct")
 
     def can_handle(self, path: Path) -> bool:
         return path.suffix.lower() in IMAGE_EXTENSIONS
@@ -78,11 +81,11 @@ class ImageExtractor(BaseExtractor):
         )
 
         raw = response.choices[0].message.content or "{}"
-        data = json.loads(raw.strip())
+        data = json.loads(_clean_json(raw))
 
         return ExtractedDocument(
             source_file=path.name,
-            doc_type=DocType(data.get("doc_type", "unknown")),
+            doc_type=_safe_doc_type(data.get("doc_type")),
             detected_language=data.get("detected_language", "el"),
             issue_date=data.get("issue_date"),
             vendor_name=data.get("vendor_name"),
@@ -101,6 +104,22 @@ class ImageExtractor(BaseExtractor):
             extraction_model=self.model,
             confidence=float(data.get("confidence", 0.85)),
         )
+
+
+def _clean_json(raw: str) -> str:
+    """Strip markdown code fences and surrounding whitespace."""
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[-1]  # drop opening fence line
+        raw = raw.rsplit("```", 1)[0]  # drop closing fence
+    return raw.strip()
+
+
+def _safe_doc_type(value: str | None) -> DocType:
+    try:
+        return DocType(value) if value else DocType.UNKNOWN
+    except ValueError:
+        return DocType.UNKNOWN
 
 
 def _encode_image(path: Path) -> str:
