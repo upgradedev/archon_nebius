@@ -58,7 +58,7 @@ class PdfExtractor(BaseExtractor):
             temperature=0.1,
         )
         raw = response.choices[0].message.content or "{}"
-        from .image import _clean_json, _safe_doc_type
+        from .image import _clean_json, _safe_doc_type, _safe_float, _safe_line_items
         data = json.loads(_clean_json(raw))
         return ExtractedDocument(
             source_file=path.name,
