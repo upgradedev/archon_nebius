@@ -86,23 +86,23 @@ class ImageExtractor(BaseExtractor):
         return ExtractedDocument(
             source_file=path.name,
             doc_type=_safe_doc_type(data.get("doc_type")),
-            detected_language=data.get("detected_language", "el"),
-            issue_date=data.get("issue_date"),
-            vendor_name=data.get("vendor_name"),
-            vendor_tax_id=data.get("vendor_tax_id"),
-            recipient_name=data.get("recipient_name"),
-            currency=data.get("currency", "EUR"),
-            subtotal=data.get("subtotal"),
-            vat_amount=data.get("vat_amount"),
-            vat_rate_pct=data.get("vat_rate_pct"),
-            total_amount=float(data.get("total_amount", 0)),
-            line_items=[LineItem(**li) for li in data.get("line_items", [])],
-            payment_due_date=data.get("payment_due_date"),
-            invoice_number=data.get("invoice_number"),
-            notes=data.get("notes"),
+            detected_language=data.get("detected_language") or "el",
+            issue_date=data.get("issue_date") or None,
+            vendor_name=data.get("vendor_name") or None,
+            vendor_tax_id=data.get("vendor_tax_id") or None,
+            recipient_name=data.get("recipient_name") or None,
+            currency=data.get("currency") or "EUR",
+            subtotal=_safe_float(data.get("subtotal")),
+            vat_amount=_safe_float(data.get("vat_amount")),
+            vat_rate_pct=_safe_float(data.get("vat_rate_pct")),
+            total_amount=_safe_float(data.get("total_amount")) or 0.0,
+            line_items=_safe_line_items(data.get("line_items")),
+            payment_due_date=data.get("payment_due_date") or None,
+            invoice_number=data.get("invoice_number") or None,
+            notes=data.get("notes") or None,
             raw_text_excerpt="[image document]",
             extraction_model=self.model,
-            confidence=float(data.get("confidence", 0.85)),
+            confidence=float(data.get("confidence") or 0.85),
         )
 
 
@@ -120,6 +120,30 @@ def _safe_doc_type(value: str | None) -> DocType:
         return DocType(value) if value else DocType.UNKNOWN
     except ValueError:
         return DocType.UNKNOWN
+
+
+def _safe_float(value) -> float | None:
+    """Return float or None — never raise on null/empty/non-numeric LLM output."""
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_line_items(value) -> list:
+    """Return list of LineItem dicts — never raise on null LLM output."""
+    if not value or not isinstance(value, list):
+        return []
+    items = []
+    for li in value:
+        if isinstance(li, dict) and "description" in li and "total" in li:
+            try:
+                items.append(LineItem(**li))
+            except Exception:
+                pass
+    return items
 
 
 def _encode_image(path: Path) -> str:
