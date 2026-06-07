@@ -29,14 +29,25 @@ jobs:
 
       - name: Authenticate Nebius CLI
         env:
-          NEBIUS_SA_CREDENTIALS: ${{ secrets.NEBIUS_SA_CREDENTIALS }}
+          NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
         run: |
-          echo "$NEBIUS_SA_CREDENTIALS" > /tmp/nebius-sa.json
-          nebius profile create ci \
-            --parent-id ${{ vars.NEBIUS_PROJECT_ID }} \
-            --service-account-file /tmp/nebius-sa.json
-          nebius profile activate ci
-          rm -f /tmp/nebius-sa.json
+          mkdir -p ~/.nebius
+          cat > ~/.nebius/config.yaml << 'NEBIUS_CONFIG'
+          default: ci
+          profiles:
+              ci:
+                  endpoint: api.nebius.cloud
+                  auth-type: federation
+                  federation-endpoint: auth.nebius.com
+                  parent-id: project-e01mmzejpr00e93rgqgf3q
+                  tenant-id: tenant-e00e1r6ntpkd0ws76b
+          NEBIUS_CONFIG
+          cat > ~/.nebius/credentials.yaml << NEBIUS_CREDS
+          tokens:
+              federation/auth.nebius.com//ci:
+                  token: ${NEBIUS_IAM_TOKEN}
+                  expires_at: 9999999999
+          NEBIUS_CREDS
 
       - name: Generate endpoint token
         id: token
