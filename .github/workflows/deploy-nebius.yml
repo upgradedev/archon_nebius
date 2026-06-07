@@ -32,7 +32,7 @@ jobs:
           NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
         run: |
           echo "$NEBIUS_IAM_TOKEN" > /tmp/nebius-token.txt
-          nebius profile create --name ci \
+          nebius profile create ci \
             --parent-id ${{ vars.NEBIUS_PROJECT_ID }} \
             --token-file /tmp/nebius-token.txt
           nebius profile activate ci
