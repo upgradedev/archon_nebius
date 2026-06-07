@@ -31,10 +31,12 @@ jobs:
         env:
           NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
         run: |
+          echo "$NEBIUS_IAM_TOKEN" > /tmp/nebius-token.txt
           nebius profile create --name ci \
             --parent-id ${{ vars.NEBIUS_PROJECT_ID }} \
-            --iam-token "$NEBIUS_IAM_TOKEN"
+            --token-file /tmp/nebius-token.txt
           nebius profile activate ci
+          rm -f /tmp/nebius-token.txt
 
       - name: Generate endpoint token
         id: token
