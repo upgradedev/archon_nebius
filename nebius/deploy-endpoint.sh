@@ -8,28 +8,29 @@ set -euo pipefail
 source "$(dirname "$0")/../.env"
 
 ENDPOINT_NAME="archon-analysis"
-TOKEN=$(openssl rand -hex 32)
-echo "Generated endpoint token: $TOKEN"
-echo "Save this — it will not be shown again."
+ENDPOINT_TOKEN=$(openssl rand -hex 32)
+echo "Generated endpoint token: $ENDPOINT_TOKEN"
+echo "Save this — you will need it as ANALYSIS_ENDPOINT_TOKEN in your .env."
 
 nebius ai endpoint create \
   --name "$ENDPOINT_NAME" \
-  --image "$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PROJECT/archon-analysis:latest" \
+  --parent-id "$NEBIUS_PROJECT_ID" \
+  --image "$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PATH/archon-analysis:latest" \
   --container-port 8001 \
   --platform gpu-l40s-a \
   --preset 1gpu-8vcpu-32gb \
   --public \
   --auth token \
-  --token "$TOKEN" \
+  --token "$ENDPOINT_TOKEN" \
   --env "NEBIUS_BUCKET_NAME=$NEBIUS_BUCKET_NAME" \
-  --env "STORAGE_ENDPOINT_URL=$STORAGE_ENDPOINT_URL" \
-  --env "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" \
-  --env "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" \
+  --env "STORAGE_ENDPOINT_URL=$NEBIUS_STORAGE_ENDPOINT_URL" \
+  --env "AWS_ACCESS_KEY_ID=$NEBIUS_STORAGE_ACCESS_KEY_ID" \
+  --env "AWS_SECRET_ACCESS_KEY=$NEBIUS_STORAGE_SECRET_KEY" \
   --env "NEBIUS_INFERENCE_BASE_URL=$NEBIUS_INFERENCE_BASE_URL" \
   --env "NEBIUS_INFERENCE_API_KEY=$NEBIUS_INFERENCE_API_KEY" \
-  --env "ANALYSIS_MODEL=${ANALYSIS_MODEL:-Qwen/Qwen2.5-72B-Instruct}"
+  --env "ANALYSIS_MODEL=${ANALYSIS_MODEL:-meta-llama/Llama-3.3-70B-Instruct}"
 
 echo ""
 echo "Endpoint '$ENDPOINT_NAME' deployment started."
-echo "Check status: nebius ai endpoint list"
-echo "Update ANALYSIS_ENDPOINT_URL in .env once it reaches Running state."
+echo "Check status:  nebius ai endpoint list"
+echo "Once RUNNING, update ANALYSIS_ENDPOINT_URL in .env with the endpoint URL."
