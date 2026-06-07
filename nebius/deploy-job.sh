@@ -26,6 +26,6 @@ nebius ai job create \
   --env "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" \
   --env "NEBIUS_INFERENCE_BASE_URL=$NEBIUS_INFERENCE_BASE_URL" \
   --env "NEBIUS_INFERENCE_API_KEY=$NEBIUS_INFERENCE_API_KEY" \
-  --env "VISION_MODEL=${VISION_MODEL:-Qwen/Qwen2-VL-72B-Instruct}"
+  --env "VISION_MODEL=${VISION_MODEL:-Qwen/Qwen2.5-VL-72B-Instruct}"
 
 echo "Job '$JOB_NAME' submitted. Monitor with: nebius ai job list"
