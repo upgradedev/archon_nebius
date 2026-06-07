@@ -29,14 +29,14 @@ jobs:
 
       - name: Authenticate Nebius CLI
         env:
-          NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
+          NEBIUS_SA_CREDENTIALS: ${{ secrets.NEBIUS_SA_CREDENTIALS }}
         run: |
-          echo "$NEBIUS_IAM_TOKEN" > /tmp/nebius-token.txt
+          echo "$NEBIUS_SA_CREDENTIALS" > /tmp/nebius-sa.json
           nebius profile create ci \
             --parent-id ${{ vars.NEBIUS_PROJECT_ID }} \
-            --token-file /tmp/nebius-token.txt
+            --service-account-file /tmp/nebius-sa.json
           nebius profile activate ci
-          rm -f /tmp/nebius-token.txt
+          rm -f /tmp/nebius-sa.json
 
       - name: Generate endpoint token
         id: token
