@@ -113,7 +113,7 @@ jobs:
             --container-port 8001 \
             --subnet-id vpcsubnet-e01x810n0mmhj19k9b \
             --registry-username iam \
-            --registry-password "$SESSION_TOKEN" \
+            --registry-password "$NEBIUS_IAM_TOKEN" \
             --public \
             --auth token \
             --token "$ANALYSIS_ENDPOINT_TOKEN" \
