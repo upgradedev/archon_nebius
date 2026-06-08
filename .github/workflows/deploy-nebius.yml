@@ -103,7 +103,6 @@ jobs:
           NEBIUS_STORAGE_SECRET_KEY: ${{ secrets.NEBIUS_STORAGE_SECRET_KEY }}
           NEBIUS_INFERENCE_BASE_URL: https://api.studio.nebius.ai/v1
           NEBIUS_INFERENCE_API_KEY: ${{ secrets.NEBIUS_INFERENCE_API_KEY }}
-          NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
           ANALYSIS_ENDPOINT_TOKEN: ${{ steps.token.outputs.endpoint_token }}
         run: |
           nebius ai endpoint create \
@@ -112,8 +111,6 @@ jobs:
             --image "$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PATH/archon-analysis:latest" \
             --container-port 8001 \
             --subnet-id vpcsubnet-e01x810n0mmhj19k9b \
-            --registry-username iam \
-            --registry-password "$NEBIUS_IAM_TOKEN" \
             --public \
             --auth token \
             --token "$ANALYSIS_ENDPOINT_TOKEN" \
