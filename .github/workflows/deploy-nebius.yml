@@ -76,7 +76,7 @@ jobs:
             --image "$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PATH/archon-analysis:latest" \
             --container-port 8001 \
             --subnet-id vpcsubnet-e01x810n0mmhj19k9b \
-            --registry-username oauth2accesstoken \
+            --registry-username iam \
             --registry-password "$NEBIUS_IAM_TOKEN" \
             --public \
             --auth token \
