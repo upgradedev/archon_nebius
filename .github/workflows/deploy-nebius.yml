@@ -50,9 +50,10 @@ jobs:
           NEBIUS_CREDS
 
       - name: Log in to Nebius Container Registry
+        env:
+          NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
         run: |
-          SESSION_TOKEN=$(nebius iam get-access-token)
-          echo "$SESSION_TOKEN" | docker login cr.eu-west1.nebius.cloud -u iam --password-stdin
+          echo "$NEBIUS_IAM_TOKEN" | docker login cr.eu-west1.nebius.cloud -u iam --password-stdin
 
       - name: Build and push analysis image
         env:
@@ -102,9 +103,9 @@ jobs:
           NEBIUS_STORAGE_SECRET_KEY: ${{ secrets.NEBIUS_STORAGE_SECRET_KEY }}
           NEBIUS_INFERENCE_BASE_URL: https://api.studio.nebius.ai/v1
           NEBIUS_INFERENCE_API_KEY: ${{ secrets.NEBIUS_INFERENCE_API_KEY }}
+          NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
           ANALYSIS_ENDPOINT_TOKEN: ${{ steps.token.outputs.endpoint_token }}
         run: |
-          SESSION_TOKEN=$(nebius iam get-access-token)
           nebius ai endpoint create \
             --name archon-analysis \
             --parent-id "$NEBIUS_PROJECT_ID" \
