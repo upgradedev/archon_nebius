@@ -22,6 +22,9 @@ Writes to:
 
 import json
 import logging
+import os
+import pathlib
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 import boto3
@@ -45,13 +48,47 @@ class Settings(BaseSettings):
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     nebius_region: str = "eu-north1"
+    database_url: str = ""
 
     class Config:
         env_file = ".env"
 
 
 settings = Settings()
-app = FastAPI(title="Archon Analysis Endpoint", version="2.1.0")
+
+
+def _apply_schema() -> None:
+    """Apply backend/db/schema.sql if DATABASE_URL is set and schema not yet applied."""
+    if not settings.database_url:
+        log.info("DATABASE_URL not set — skipping schema migration")
+        return
+    try:
+        import psycopg2
+        schema_path = pathlib.Path(__file__).parent.parent.parent / "backend" / "db" / "schema.sql"
+        if not schema_path.exists():
+            # Fallback: schema is bundled next to this file in the container
+            schema_path = pathlib.Path(__file__).parent / "schema.sql"
+        if not schema_path.exists():
+            log.warning("schema.sql not found — skipping migration")
+            return
+        sql = schema_path.read_text()
+        conn = psycopg2.connect(settings.database_url, connect_timeout=10)
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute(sql)
+        conn.close()
+        log.info("Schema migration applied successfully")
+    except Exception as exc:
+        log.warning("Schema migration failed (non-fatal): %s", exc)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _apply_schema()
+    yield
+
+
+app = FastAPI(title="Archon Analysis Endpoint", version="2.1.0", lifespan=lifespan)
 
 
 def _s3():
