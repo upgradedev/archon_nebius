@@ -14,7 +14,7 @@ def build_summary(report: FinancialReport) -> str:
         base_url=os.environ["NEBIUS_INFERENCE_BASE_URL"],
         api_key=os.environ["NEBIUS_INFERENCE_API_KEY"],
     )
-    model = os.getenv("ANALYSIS_MODEL", "Qwen/Qwen2.5-72B-Instruct")
+    model = os.getenv("ANALYSIS_MODEL", "meta-llama/Llama-3.3-70B-Instruct")
 
     prompt = f"""You are a CFO-level financial analyst. Write a concise executive summary (3-4 sentences, plain English, no bullet points) for the following monthly financial data.
 
@@ -33,7 +33,16 @@ Top Expense Categories: {', '.join(e.category for e in report.expenseBreakdown[:
 
 Write the summary now:"""
 
-    return _call_llm(client, model, prompt)
+    try:
+        return _call_llm(client, model, prompt)
+    except Exception as exc:
+        import logging
+        logging.getLogger("archon.analysis").warning("Narrator LLM failed (non-fatal): %s", exc)
+        return (
+            f"Financial summary for {report.period}: Revenue €{report.pnl.revenue:,.2f}, "
+            f"Expenses €{report.pnl.expenses:,.2f}, Net Profit €{report.pnl.netProfit:,.2f}. "
+            f"(Executive narrative unavailable — LLM error)"
+        )
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=10))
