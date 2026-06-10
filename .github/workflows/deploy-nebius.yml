@@ -119,7 +119,7 @@ jobs:
             --env "AWS_SECRET_ACCESS_KEY=$NEBIUS_STORAGE_SECRET_KEY" \
             --env "NEBIUS_INFERENCE_BASE_URL=$NEBIUS_INFERENCE_BASE_URL" \
             --env "NEBIUS_INFERENCE_API_KEY=$NEBIUS_INFERENCE_API_KEY" \
-            --env "ANALYSIS_MODEL=Qwen/Qwen2.5-72B-Instruct" \
+            --env "ANALYSIS_MODEL=meta-llama/Llama-3.3-70B-Instruct" \
             --env "DATABASE_URL=$DATABASE_URL"
 
       - name: Show endpoint token
