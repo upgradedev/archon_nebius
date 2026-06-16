@@ -1,0 +1,106 @@
+name: Teardown Nebius Resources
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: 'What to tear down'
+        type: choice
+        required: true
+        default: endpoint-only
+        options:
+          - endpoint-only
+          - endpoint-and-vm
+
+jobs:
+  teardown:
+    name: Teardown (${{ inputs.scope }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Install Nebius CLI
+        run: |
+          curl -sSL https://storage.eu-north1.nebius.cloud/cli/install.sh | bash
+          echo "$HOME/.nebius/bin" >> $GITHUB_PATH
+
+      - name: Authenticate Nebius CLI
+        env:
+          NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
+        run: |
+          mkdir -p ~/.nebius
+          cat > ~/.nebius/config.yaml << 'NEBIUS_CONFIG'
+          default: ci
+          profiles:
+              ci:
+                  endpoint: api.nebius.cloud
+                  auth-type: federation
+                  federation-endpoint: auth.nebius.com
+                  parent-id: project-e01mmzejpr00e93rgqgf3q
+                  tenant-id: tenant-e00e1r6ntpkd0ws76b
+          NEBIUS_CONFIG
+          cat > ~/.nebius/credentials.yaml << NEBIUS_CREDS
+          tokens:
+              federation/auth.nebius.com//ci:
+                  token: ${NEBIUS_IAM_TOKEN}
+                  expires_at: 9999999999
+          NEBIUS_CREDS
+
+      - name: Delete analysis endpoint
+        env:
+          NEBIUS_PROJECT_ID: ${{ vars.NEBIUS_PROJECT_ID }}
+        run: |
+          ENDPOINT_ID=$(nebius ai endpoint list --parent-id "$NEBIUS_PROJECT_ID" --format json 2>/dev/null | \
+            python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for ep in data.get('items', []):
+              if ep.get('metadata', {}).get('name') == 'archon-analysis':
+                  print(ep['metadata']['id'])
+                  break
+          " 2>/dev/null || echo "")
+
+          if [ -n "$ENDPOINT_ID" ]; then
+            echo "Deleting endpoint $ENDPOINT_ID (archon-analysis)..."
+            nebius ai endpoint delete --id "$ENDPOINT_ID"
+            echo "Endpoint deleted. GPU billing stopped."
+          else
+            echo "No archon-analysis endpoint found — already gone."
+          fi
+
+      - name: Stop backend VM
+        if: ${{ inputs.scope == 'endpoint-and-vm' }}
+        env:
+          NEBIUS_PROJECT_ID: ${{ vars.NEBIUS_PROJECT_ID }}
+        run: |
+          VM_ID=$(nebius compute instance list --parent-id "$NEBIUS_PROJECT_ID" --format json 2>/dev/null | \
+            python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for vm in data.get('items', []):
+              name = vm.get('metadata', {}).get('name', '')
+              if 'archon' in name or 'backend' in name:
+                  print(vm['metadata']['id'])
+                  break
+          " 2>/dev/null || echo "")
+
+          if [ -n "$VM_ID" ]; then
+            echo "Stopping VM $VM_ID..."
+            nebius compute instance stop "$VM_ID"
+            echo "VM stopped."
+          else
+            echo "No archon VM found — already stopped or not deployed."
+          fi
+
+      - name: Summary
+        run: |
+          echo "============================================================"
+          echo "Teardown complete — scope: ${{ inputs.scope }}"
+          echo ""
+          echo "Still running (kept by design):"
+          echo "  Nebius Managed PostgreSQL  ~\$0.14/hr  (data persistence)"
+          echo "  Nebius Object Storage      ~\$0.00/hr  (negligible)"
+          echo "  Firebase Hosting           free"
+          echo ""
+          echo "To redeploy: GitHub Actions → Deploy to Nebius → Run workflow"
+          echo "============================================================"
