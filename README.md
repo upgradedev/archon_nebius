@@ -59,7 +59,7 @@ Built on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius Serverles
                             │ OpenAI-compatible API
 ┌───────────────────────────▼──────────────────────────────────────┐
 │              Nebius Inference API (studio.nebius.ai)             │
-│      Qwen2-VL-72B (vision)  ·  Qwen2.5-72B (analysis)           │
+│   Qwen2-VL-72B (vision)  ·  Llama-3.3-70B-Instruct (analysis)   │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -79,8 +79,8 @@ Built on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius Serverles
 |---|---|---|
 | Frontend | React 18, Vite, TypeScript, Ant Design, Recharts, TanStack Query | Firebase Hosting (Google CDN) |
 | Backend | Python 3.12, FastAPI, Pydantic v2, boto3 | Nebius Compute VM (CPU) |
-| AI Job | Python 3.12, Qwen2-VL (vision), pdfplumber, PyMuPDF, python-docx | Nebius Serverless AI Job |
-| AI Endpoint | Python 3.12, FastAPI, Qwen2.5-72B (analysis agent) | Nebius Serverless AI Endpoint |
+| AI Job | Python 3.12, Qwen2-VL-72B (vision), pdfplumber, PyMuPDF, python-docx | Nebius Serverless AI Job |
+| AI Endpoint | Python 3.12, FastAPI, Llama-3.3-70B-Instruct (analysis agent) | Nebius Serverless AI Endpoint |
 | Storage | boto3 (S3-compatible) | Nebius Object Storage |
 | Registry | Docker | Nebius Container Registry |
 
@@ -196,23 +196,86 @@ To switch providers, update the `JOB_RUNNER_BACKEND` and `STORAGE_BACKEND` env v
 
 ## Hardware Configuration
 
-| Component | Platform | Preset | Approx. cost |
-|---|---|---|---|
-| Extraction Job | `gpu-l40s-a` | `1gpu-8vcpu-32gb` | ~$0.15 / run |
-| Analysis Endpoint | `gpu-l40s-a` | `1gpu-8vcpu-32gb` | ~$0.90 / hr |
+| Component | Platform | Preset | Approx. runtime | Approx. cost |
+|---|---|---|---|---|
+| Extraction Job | `gpu-l40s-a` | `1gpu-8vcpu-32gb` | 3–5 min (20-doc batch) | ~$0.15 / run |
+| Analysis Endpoint | `gpu-l40s-a` | `1gpu-8vcpu-32gb` | ~90s cold start | ~$0.90 / hr |
+| Backend VM | CPU (4 vCPU / 8 GB) | — | always-on | ~$0.03 / hr |
 
-Approximate runtime for a 20-document batch: **3–5 minutes**.
+> **Cost tip:** Tear down the analysis endpoint between sessions — it accounts for ~95% of running costs. PostgreSQL and Object Storage are negligible and should be left running to preserve data.
 
 ---
 
 ## Sample Output
 
+A `POST /analyze` call returns a structured `FinancialReport` JSON. Abbreviated example:
+
+```json
+{
+  "period": "2026-01",
+  "generated_at": "2026-01-31T14:22:01Z",
+  "pnl": {
+    "total_revenue": 48500.00,
+    "total_expenses": 31200.00,
+    "net_profit": 17300.00,
+    "gross_margin_pct": 35.7,
+    "operating_margin_pct": 28.4,
+    "payroll_cost_total": 18400.00,
+    "payroll_cost_bank_net": 14350.00,
+    "payroll_gap_pct": 28.2
+  },
+  "cash_flow": {
+    "operating": 15200.00,
+    "investing": -3400.00,
+    "financing": 0.00,
+    "net": 11800.00
+  },
+  "employees": [
+    { "name": "Παπαδόπουλος Γ.", "gross_salary": 2400.00, "employer_cost": 2976.00 }
+  ],
+  "executive_summary": "January 2026 shows a healthy 28.4% operating margin. Payroll represents the largest cost centre at €18,400 — 28% above what the bank transfer alone would suggest, reflecting IKA employer contributions. Cash position improved by €11,800...",
+  "validation": { "rules_passed": 4, "rules_failed": 0 }
+}
+```
+
+The React dashboard renders this as:
 - Monthly P&L trend chart (revenue / expenses / net profit)
 - Cash flow waterfall (operating / investing / financing)
 - Expense breakdown by category (donut chart)
-- Top vendors table with invoice aging
+- Per-employee salary analytics table
 - Key ratios: gross margin, operating margin, burn rate
-- LLM-written executive summary in English
+- LLM-written executive summary card
+
+---
+
+## Managing Costs
+
+The analysis endpoint (~$0.90/hr) should be stopped after each session. Two options:
+
+**GitHub Actions (recommended — no local CLI needed):**
+> Actions → **Teardown Nebius Resources** → Run workflow → choose scope
+
+**Local script:**
+```bash
+bash nebius/teardown.sh            # endpoint only
+bash nebius/teardown.sh --all      # endpoint + backend VM
+
+bash nebius/redeploy.sh            # redeploy with existing images
+bash nebius/redeploy.sh --build    # rebuild images + redeploy
+```
+
+Always kept running (negligible cost): Nebius Managed PostgreSQL · Object Storage · Firebase Hosting
+
+---
+
+## Proof of Execution
+
+This project ran on Nebius Serverless AI infrastructure:
+
+- **Extraction Job** — `nebius ai job list` output showing completed jobs processing `raw-docs/2026-01/`
+- **Analysis Endpoint** — `aiendpoint-e01xgdhk0skzdcnfpf` deployed on `gpu-l40s-a`, responding at `http://66.201.5.233:8001`
+- **Object Storage** — seeded bucket `archon-bucket` with `raw-docs/`, `extracted/`, and `reports/` prefixes
+- **PostgreSQL** — cluster `postgresql-e01mek1w9re2vdxc8g`, 6 tables live (`documents`, `employees`, `payroll_events`, `employee_payroll`, `validation_results`, `financial_reports`)
 
 ---
 
