@@ -44,9 +44,15 @@ def test_upload_assigns_unique_upload_id(client):
 
 
 def test_upload_stores_raw_docs(client):
+    # Do NOT use _upload() here — it installs its own inner patch that would shadow
+    # the outer mock_upload, causing call_args_list to appear empty.
     with patch("services.storage.upload_file") as mock_upload, \
          patch("services.storage.put_json"):
-        _upload(client, ["doc.pdf"], period="2025-03")
+        client.post(
+            "/api/upload",
+            files=[("files", ("doc.pdf", io.BytesIO(_pdf_bytes("doc")), "application/pdf"))],
+            data={"period": "2025-03"},
+        )
     called_keys = [c.args[0] for c in mock_upload.call_args_list]
     assert any("raw-docs/2025-03/" in k for k in called_keys)
 
@@ -54,7 +60,11 @@ def test_upload_stores_raw_docs(client):
 def test_upload_writes_manifest(client):
     with patch("services.storage.upload_file"), \
          patch("services.storage.put_json") as mock_put:
-        _upload(client, ["x.pdf"], period="2025-06")
+        client.post(
+            "/api/upload",
+            files=[("files", ("x.pdf", io.BytesIO(_pdf_bytes("x")), "application/pdf"))],
+            data={"period": "2025-06"},
+        )
     keys_written = [c.args[0] for c in mock_put.call_args_list]
     assert any("manifest.json" in k for k in keys_written)
 
