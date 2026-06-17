@@ -74,7 +74,7 @@ export default function Login() {
 
   /* Redirect if already signed in */
   if (user) {
-    navigate('/upload', { replace: true })
+    navigate('/', { replace: true })
     return null
   }
 
@@ -90,7 +90,7 @@ export default function Login() {
     setLoading(true)
     try {
       await signInWithGoogle()
-      navigate('/upload', { replace: true })
+      navigate('/', { replace: true })
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : 'Sign-in failed')
       setLoading(false)

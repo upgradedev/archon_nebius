@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { auth } from '../firebase'
-import type { UploadResponse, Job, AnalysisResponse } from '../types/financial'
+import type { UploadResponse, Job, AnalysisResponse, PeriodInfo, CompanyProfile } from '../types/financial'
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
@@ -52,6 +52,30 @@ export const api = {
   // Read completed report from Object Storage
   getReport: async (period: string): Promise<AnalysisResponse> => {
     const { data } = await http.get<AnalysisResponse>(`/api/reports/${period}`)
+    return data
+  },
+
+  getPeriods: async (): Promise<PeriodInfo[]> => {
+    const { data } = await http.get<PeriodInfo[]>('/api/periods')
+    return data
+  },
+
+  deletePeriod: async (period: string): Promise<void> => {
+    await http.delete(`/api/periods/${period}`)
+  },
+
+  getDocuments: async (period: string): Promise<unknown[]> => {
+    const { data } = await http.get<unknown[]>(`/api/documents/${period}`)
+    return data
+  },
+
+  getCompanyProfile: async (): Promise<CompanyProfile> => {
+    const { data } = await http.get<CompanyProfile>('/api/company-profile')
+    return data
+  },
+
+  updateCompanyProfile: async (profile: CompanyProfile): Promise<CompanyProfile> => {
+    const { data } = await http.put<CompanyProfile>('/api/company-profile', profile)
     return data
   },
 }

@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ConfigProvider, Spin, theme } from 'antd'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Login from './pages/Login'
-import Upload from './pages/Upload'
 import Dashboard from './pages/Dashboard'
 import type { ReactNode } from 'react'
 
@@ -35,9 +34,14 @@ export default function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Navigate to="/upload" replace />} />
-            <Route path="/upload" element={<RequireAuth><Upload /></RequireAuth>} />
-            <Route path="/dashboard/:period" element={<RequireAuth><Dashboard /></RequireAuth>} />
+            <Route
+              path="/*"
+              element={
+                <RequireAuth>
+                  <Dashboard />
+                </RequireAuth>
+              }
+            />
           </Routes>
         </AuthProvider>
       </BrowserRouter>

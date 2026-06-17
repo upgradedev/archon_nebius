@@ -26,6 +26,22 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Backend unit tests (pytest)
+        run: |
+          pip install -r backend/requirements.txt
+          cd backend && python -m pytest tests/ -v --tb=short
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Frontend unit tests (Vitest)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test
+
       - name: Generate synthetic sample PDFs
         run: |
           pip install reportlab

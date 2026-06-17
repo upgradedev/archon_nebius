@@ -48,3 +48,34 @@ def list_keys(prefix: str) -> list[str]:
 def put_json(key: str, data: dict) -> str:
     body = json.dumps(data, ensure_ascii=False, indent=2).encode()
     return upload_file(key, body, "application/json")
+
+
+def delete_key(key: str) -> None:
+    _client().delete_object(Bucket=BUCKET, Key=key)
+
+
+def delete_prefix(prefix: str) -> int:
+    """Delete all S3 objects whose key starts with prefix. Returns count deleted."""
+    if not prefix:
+        return 0
+    paginator = _client().get_paginator("list_objects_v2")
+    objects: list[dict] = []
+    for page in paginator.paginate(Bucket=BUCKET, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            objects.append({"Key": obj["Key"]})
+    if not objects:
+        return 0
+    for i in range(0, len(objects), 1000):
+        _client().delete_objects(
+            Bucket=BUCKET,
+            Delete={"Objects": objects[i : i + 1000]},
+        )
+    return len(objects)
+
+
+def key_exists(key: str) -> bool:
+    try:
+        _client().head_object(Bucket=BUCKET, Key=key)
+        return True
+    except Exception:
+        return False
