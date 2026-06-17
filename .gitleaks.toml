@@ -1,0 +1,5 @@
+[allowlist]
+description = "Firebase client config is intentionally public — security is enforced by Firebase Security Rules and authorized domains, not by keeping the key secret."
+paths = [
+  "frontend/src/firebase.ts",
+]
