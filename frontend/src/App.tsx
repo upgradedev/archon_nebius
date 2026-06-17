@@ -1,7 +1,23 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { ConfigProvider, theme } from 'antd'
+import { ConfigProvider, Spin, theme } from 'antd'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import Login from './pages/Login'
 import Upload from './pages/Upload'
 import Dashboard from './pages/Dashboard'
+import type { ReactNode } from 'react'
+
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth()
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0f' }}>
+        <Spin size="large" />
+      </div>
+    )
+  }
+  if (!user) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
 
 export default function App() {
   return (
@@ -16,11 +32,14 @@ export default function App() {
       }}
     >
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Navigate to="/upload" replace />} />
-          <Route path="/upload" element={<Upload />} />
-          <Route path="/dashboard/:period" element={<Dashboard />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Navigate to="/upload" replace />} />
+            <Route path="/upload" element={<RequireAuth><Upload /></RequireAuth>} />
+            <Route path="/dashboard/:period" element={<RequireAuth><Dashboard /></RequireAuth>} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </ConfigProvider>
   )

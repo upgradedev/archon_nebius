@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic_settings import BaseSettings
 
+from auth import verify_firebase_token
 from routers import upload, jobs, analysis
 
 
@@ -28,9 +29,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(upload.router, prefix="/api")
-app.include_router(jobs.router, prefix="/api")
-app.include_router(analysis.router, prefix="/api")
+_auth = [Depends(verify_firebase_token)]
+app.include_router(upload.router, prefix="/api", dependencies=_auth)
+app.include_router(jobs.router, prefix="/api", dependencies=_auth)
+app.include_router(analysis.router, prefix="/api", dependencies=_auth)
 
 
 @app.get("/health")
