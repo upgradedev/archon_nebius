@@ -369,7 +369,7 @@ export default function Dashboard() {
         title="Upload Documents"
         width={580}
         maskClosable={uploadStep === 0}
-        destroyOnClose
+        destroyOnHidden
       >
         <Space direction="vertical" size={24} style={{ width: '100%' }}>
           <Steps
