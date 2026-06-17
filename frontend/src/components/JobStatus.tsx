@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Card, Progress, Space, Typography, Alert, Tag } from 'antd'
+import { Card, Progress, Space, Typography, Alert, Tag, Button } from 'antd'
 import { LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { api } from '../api/client'
 import type { Job } from '../types/financial'
@@ -13,6 +13,7 @@ interface Props {
   runningMessage?: string
   pollFn?: (jobId: string) => Promise<Job>
   onComplete: () => void
+  onDismiss?: () => void
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -28,6 +29,7 @@ export default function JobStatus({
   runningMessage,
   pollFn = api.getJob,
   onComplete,
+  onDismiss,
 }: Props) {
   const { data: job, error } = useQuery({
     queryKey: ['job', jobId],
@@ -75,6 +77,18 @@ export default function JobStatus({
           {job.status === 'completed' && 'Done.'}
           {job.status === 'failed'    && (job.errorMessage ?? 'Job failed')}
         </Text>
+
+        {job.status === 'failed' && onDismiss && (
+          <Button
+            size="small"
+            onClick={() => {
+              api.deleteJob(jobId).catch(() => {/* best-effort — backend sweep handles it next time */})
+              onDismiss()
+            }}
+          >
+            Dismiss &amp; Retry
+          </Button>
+        )}
       </Space>
     </Card>
   )
