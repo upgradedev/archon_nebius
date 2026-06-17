@@ -1,11 +1,10 @@
-import os
-import httpx
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-router = APIRouter()
+from services import nebius, storage
 
-ANALYSIS_ENDPOINT_URL = os.getenv("ANALYSIS_ENDPOINT_URL", "http://analysis:8001")
+router = APIRouter()
 
 
 class AnalyzeRequest(BaseModel):
@@ -13,29 +12,32 @@ class AnalyzeRequest(BaseModel):
 
 
 @router.post("/analyze")
-async def trigger_analysis(req: AnalyzeRequest):
-    """Call the Nebius AI Endpoint (financial analysis agent)."""
+def trigger_analysis(req: AnalyzeRequest):
+    """Submit an on-demand analysis job and return its ID for polling."""
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(
-                f"{ANALYSIS_ENDPOINT_URL}/analyze",
-                json={"period": req.period},
-            )
-            resp.raise_for_status()
-            return resp.json()
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Analysis endpoint error: {exc}") from exc
+        return nebius.submit_analysis_job(req.period)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to submit analysis job: {exc}") from exc
+
+
+@router.get("/analyze/{job_id}")
+def get_analysis_job(job_id: str):
+    """Poll the status of a running analysis job."""
+    try:
+        return nebius.get_job_status(job_id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to get job status: {exc}") from exc
 
 
 @router.get("/reports/{period}")
-async def get_report(period: str):
-    """Fetch a completed financial report for a period."""
+def get_report(period: str):
+    """Fetch a completed financial report for a period (reads from Object Storage)."""
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.get(
-                f"{ANALYSIS_ENDPOINT_URL}/reports/{period}",
-            )
-            resp.raise_for_status()
-            return resp.json()
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Analysis endpoint error: {exc}") from exc
+        return storage.download_json(f"reports/{period}/report.json")
+    except ClientError as exc:
+        code = exc.response["Error"]["Code"]
+        if code in ("NoSuchKey", "404"):
+            raise HTTPException(status_code=404, detail=f"Report not found for period {period}") from exc
+        raise HTTPException(status_code=502, detail=f"Storage error: {exc}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch report: {exc}") from exc

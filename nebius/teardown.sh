@@ -3,8 +3,13 @@
 # Run this after demos/judging to stop the billing clock.
 # PostgreSQL and Object Storage are NOT destroyed (data must survive).
 #
+# What runs and costs money:
+#   archon-backend  — Nebius Serverless AI Endpoint (CPU, always-on, ~$0.04/hr)
+#   extraction jobs — Nebius Serverless AI Jobs (GPU on-demand, auto-terminate)
+#   analysis jobs   — Nebius Serverless AI Jobs (CPU on-demand, auto-terminate)
+#
 # Usage:
-#   bash nebius/teardown.sh   # destroy both endpoints (analysis GPU + backend CPU)
+#   bash nebius/teardown.sh
 
 set -euo pipefail
 
@@ -41,9 +46,7 @@ for e in items:
     fi
 }
 
-_delete_endpoint "archon-analysis" "1/2"
-echo ""
-_delete_endpoint "archon-backend"  "2/2"
+_delete_endpoint "archon-backend" "1/1"
 
 echo ""
 echo "=== Teardown complete ==="
@@ -51,5 +54,8 @@ echo "Still running (by design):"
 echo "  - Nebius Managed PostgreSQL  (~\$0.14/hr — keep for data persistence)"
 echo "  - Nebius Object Storage      (~\$0.00/hr — negligible)"
 echo "  - Firebase Hosting           (free)"
+echo ""
+echo "Extraction and analysis jobs are on-demand — they auto-terminate."
+echo "No always-on GPU resources remain."
 echo ""
 echo "To redeploy:  bash nebius/redeploy.sh"
