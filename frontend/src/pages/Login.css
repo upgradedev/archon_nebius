@@ -1,0 +1,166 @@
+@keyframes floatOrb {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(24px, -18px) scale(1.04); }
+  66%       { transform: translate(-14px, 12px) scale(0.97); }
+}
+
+@keyframes cardEntrance {
+  from { opacity: 0; transform: translateY(32px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+@keyframes lineSlide {
+  from { stroke-dashoffset: 1200; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+/* ── Root ─────────────────────────────────────────── */
+.login-root {
+  min-height: 100vh;
+  background: #05050f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Ambient orbs ─────────────────────────────────── */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  will-change: transform;
+}
+.orb-1 {
+  width: 680px; height: 680px;
+  background: radial-gradient(circle, rgba(99,102,241,.22) 0%, transparent 65%);
+  top: -160px; left: -140px;
+  animation: floatOrb 11s ease-in-out infinite;
+}
+.orb-2 {
+  width: 520px; height: 520px;
+  background: radial-gradient(circle, rgba(139,92,246,.18) 0%, transparent 65%);
+  bottom: -80px; right: -80px;
+  animation: floatOrb 14s ease-in-out infinite reverse;
+  animation-delay: -4s;
+}
+.orb-3 {
+  width: 320px; height: 320px;
+  background: radial-gradient(circle, rgba(56,189,248,.10) 0%, transparent 65%);
+  top: 55%; left: 55%;
+  animation: floatOrb 9s ease-in-out infinite;
+  animation-delay: -7s;
+}
+
+/* ── Chart SVG overlay ────────────────────────────── */
+.chart-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.chart-line {
+  fill: none;
+  stroke-dasharray: 1200;
+  animation: lineSlide 2.4s ease-out forwards;
+}
+
+/* ── Glass card ───────────────────────────────────── */
+.login-card {
+  position: relative;
+  z-index: 10;
+  width: 400px;
+  padding: 52px 44px 44px;
+  background: rgba(12, 10, 24, 0.72);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(99,102,241,.22);
+  border-radius: 22px;
+  box-shadow:
+    0 30px 60px rgba(0,0,0,.55),
+    0 0 0 1px rgba(255,255,255,.04),
+    inset 0 1px 0 rgba(255,255,255,.08);
+  animation: cardEntrance .65s cubic-bezier(.22,.61,.36,1) both;
+  text-align: center;
+  transition: transform .12s ease-out;
+}
+.login-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(99,102,241,.07) 0%, transparent 55%, rgba(139,92,246,.05) 100%);
+  pointer-events: none;
+}
+
+/* ── Brand ────────────────────────────────────────── */
+.brand-greek {
+  font-size: 56px;
+  font-weight: 200;
+  color: #e2e8f0;
+  letter-spacing: 8px;
+  line-height: 1;
+  margin-bottom: 6px;
+  text-shadow: 0 0 48px rgba(99,102,241,.7), 0 0 80px rgba(99,102,241,.3);
+}
+.brand-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  color: #6366f1;
+  margin-bottom: 0;
+}
+
+/* ── Divider ──────────────────────────────────────── */
+.brand-divider {
+  width: 40px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(99,102,241,.7), transparent);
+  margin: 28px auto;
+}
+
+/* ── Tagline ──────────────────────────────────────── */
+.tagline {
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.65;
+  margin-bottom: 36px;
+}
+
+/* ── Button ───────────────────────────────────────── */
+.google-btn {
+  width: 100% !important;
+  height: 50px !important;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: #fff !important;
+  box-shadow: 0 4px 20px rgba(99,102,241,.35) !important;
+  transition: transform .15s ease, box-shadow .15s ease !important;
+  letter-spacing: 0.2px !important;
+}
+.google-btn:hover:not(:disabled) {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 28px rgba(99,102,241,.5) !important;
+}
+.google-btn:active:not(:disabled) {
+  transform: translateY(0) !important;
+}
+
+/* ── Footer ───────────────────────────────────────── */
+.login-footer {
+  font-size: 11.5px;
+  color: #1e293b;
+  margin-top: 28px;
+}

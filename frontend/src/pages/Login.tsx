@@ -1,70 +1,149 @@
-import { Button, Card, Typography } from 'antd'
+import { useState, useCallback } from 'react'
+import { Button, message } from 'antd'
 import { GoogleOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import './Login.css'
 
-const { Title, Text } = Typography
+/* Subtle P&L chart lines drawn as decorative SVG background */
+function ChartBackground() {
+  return (
+    <svg className="chart-bg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden>
+      {/* Grid lines */}
+      {[180, 360, 540, 720].map(y => (
+        <line key={y} x1="0" y1={y} x2="1440" y2={y}
+          stroke="rgba(99,102,241,0.05)" strokeWidth="1" />
+      ))}
+      {[240, 480, 720, 960, 1200].map(x => (
+        <line key={x} x1={x} y1="0" x2={x} y2="900"
+          stroke="rgba(99,102,241,0.04)" strokeWidth="1" />
+      ))}
+
+      {/* Primary P&L trend line — indigo, animated draw */}
+      <polyline
+        className="chart-line"
+        points="0,680 120,640 240,660 360,540 480,570 600,440 720,470 840,350 960,370 1080,270 1200,240 1320,190 1440,160"
+        stroke="rgba(99,102,241,0.28)" strokeWidth="2.5"
+      />
+
+      {/* Secondary line — violet, slower draw */}
+      <polyline
+        className="chart-line"
+        points="0,780 160,750 320,720 480,700 640,670 800,630 960,590 1120,560 1280,530 1440,510"
+        stroke="rgba(139,92,246,0.15)" strokeWidth="1.5"
+        style={{ animationDelay: '.4s', animationDuration: '3s' }}
+      />
+
+      {/* Area fill under primary line */}
+      <polyline
+        points="0,680 120,640 240,660 360,540 480,570 600,440 720,470 840,350 960,370 1080,270 1200,240 1320,190 1440,160 1440,900 0,900"
+        fill="url(#areaGradient)"
+        style={{ opacity: 0.12 }}
+      />
+
+      {/* Bar silhouettes at the bottom */}
+      {[
+        { x: 80,  h: 90 },
+        { x: 160, h: 130 },
+        { x: 240, h: 100 },
+        { x: 320, h: 170 },
+        { x: 400, h: 145 },
+        { x: 480, h: 195 },
+        { x: 560, h: 160 },
+        { x: 640, h: 220 },
+      ].map(({ x, h }) => (
+        <rect key={x} x={x} y={900 - h} width={38} height={h}
+          fill="rgba(99,102,241,0.09)" rx="3" />
+      ))}
+
+      <defs>
+        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="#6366f1" />
+          <stop offset="100%" stopColor="transparent" />
+        </linearGradient>
+      </defs>
+    </svg>
+  )
+}
 
 export default function Login() {
   const { signInWithGoogle, user } = useAuth()
   const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
+  const [cardOffset, setCardOffset] = useState({ x: 0, y: 0 })
 
+  /* Redirect if already signed in */
   if (user) {
     navigate('/upload', { replace: true })
     return null
   }
 
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const x = (e.clientX / window.innerWidth  - 0.5) * 14
+    const y = (e.clientY / window.innerHeight - 0.5) * 10
+    setCardOffset({ x, y })
+  }, [])
+
+  const handleMouseLeave = () => setCardOffset({ x: 0, y: 0 })
+
   const handleSignIn = async () => {
-    await signInWithGoogle()
-    navigate('/upload', { replace: true })
+    setLoading(true)
+    try {
+      await signInWithGoogle()
+      navigate('/upload', { replace: true })
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : 'Sign-in failed')
+      setLoading(false)
+    }
   }
 
   return (
     <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#0a0a0f',
-      }}
+      className="login-root"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
-      <Card
+      {/* Ambient glow orbs */}
+      <div className="orb orb-1" />
+      <div className="orb orb-2" />
+      <div className="orb orb-3" />
+
+      {/* Decorative chart lines */}
+      <ChartBackground />
+
+      {/* Glass card — shifts with cursor for parallax depth */}
+      <div
+        className="login-card"
         style={{
-          width: 400,
-          textAlign: 'center',
-          background: '#141420',
-          border: '1px solid #2a2a3d',
-          borderRadius: 16,
-          padding: '16px 0',
+          transform: `translate(${cardOffset.x}px, ${cardOffset.y}px)`,
         }}
       >
-        <div style={{ marginBottom: 24 }}>
-          <span style={{ fontSize: 48 }}>Αρχων</span>
-        </div>
-        <Title level={3} style={{ color: '#e2e8f0', marginBottom: 4 }}>
-          Archon
-        </Title>
-        <Text style={{ color: '#94a3b8', display: 'block', marginBottom: 32 }}>
-          P&L Intelligence for SMBs
-        </Text>
+        <div className="brand-greek">Αρχων</div>
+        <div className="brand-label">Archon</div>
+
+        <div className="brand-divider" />
+
+        <p className="tagline">
+          Agentic P&amp;L intelligence for SMBs.<br />
+          Upload Greek or English financial documents,<br />
+          get a boardroom-ready dashboard.
+        </p>
+
         <Button
+          className="google-btn"
           icon={<GoogleOutlined />}
           size="large"
+          loading={loading}
           onClick={handleSignIn}
-          style={{
-            width: '100%',
-            background: '#6366f1',
-            color: '#fff',
-            border: 'none',
-            height: 48,
-            fontSize: 15,
-            fontWeight: 500,
-          }}
         >
           Continue with Google
         </Button>
-      </Card>
+
+        <p className="login-footer">
+          Your documents are processed on Nebius Serverless AI.<br />
+          No data is stored beyond your session.
+        </p>
+      </div>
     </div>
   )
 }
