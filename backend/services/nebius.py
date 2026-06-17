@@ -10,11 +10,14 @@ API reference:     https://nebius.github.io/pysdk/apiReference.html
 gRPC host (Jobs + Endpoints): apps.msp.api.nebius.cloud:443
 """
 
+import logging
 import os
 import uuid
 from datetime import datetime, timezone
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 JOB_RUNNER_BACKEND = os.getenv("JOB_RUNNER_BACKEND", "nebius")
 EXTRACTION_SERVICE_URL = os.getenv("EXTRACTION_SERVICE_URL", "http://extraction:8002")
@@ -55,7 +58,9 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
     sdk = SDK()
     try:
         service = JobServiceClient(sdk)
-        operation = service.create(
+        # .wait() resolves the async operation and returns the Job proto directly.
+        # Do NOT call .wait_sync() after — that doubles the wait on an already-resolved result.
+        job = service.create(
             CreateJobRequest(
                 metadata=ResourceMetadata(
                     parent_id=os.environ["NEBIUS_PROJECT_ID"],
@@ -84,10 +89,12 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
                     timeout=Duration(seconds=7200),  # 2 hours
                 ),
             ),
-            timeout=120.0,
         ).wait()
-        operation.wait_sync()
-        job_id = operation.resource_id
+        job_id = job.metadata.id
+        logger.info("Extraction job created: %s (id=%s)", job_name, job_id)
+    except Exception:
+        logger.exception("Failed to submit extraction job %s", job_name)
+        raise
     finally:
         sdk.sync_close()
 
@@ -162,7 +169,7 @@ def _submit_nebius_analysis_job(period: str) -> dict:
     sdk = SDK()
     try:
         service = JobServiceClient(sdk)
-        operation = service.create(
+        job = service.create(
             CreateJobRequest(
                 metadata=ResourceMetadata(
                     parent_id=os.environ["NEBIUS_PROJECT_ID"],
@@ -191,10 +198,12 @@ def _submit_nebius_analysis_job(period: str) -> dict:
                     timeout=Duration(seconds=1800),  # 30 minutes
                 ),
             ),
-            timeout=120.0,
         ).wait()
-        operation.wait_sync()
-        job_id = operation.resource_id
+        job_id = job.metadata.id
+        logger.info("Analysis job created: %s (id=%s)", job_name, job_id)
+    except Exception:
+        logger.exception("Failed to submit analysis job %s", job_name)
+        raise
     finally:
         sdk.sync_close()
 

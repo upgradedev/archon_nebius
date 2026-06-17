@@ -81,3 +81,26 @@ export interface AnalysisResponse {
   report: FinancialReport
   generatedAt?: string
 }
+
+export interface PeriodInfo {
+  period: string
+  hasReport: boolean
+  hasExtraction: boolean
+}
+
+export interface CompanyProfile {
+  company_name: string
+  company_tax_id: string
+}
+
+export interface ExtractedDoc {
+  filename: string
+  doc_type: string
+  period?: string
+  vendor_name?: string
+  total_amount?: number
+  currency?: string
+  employer_cost_total?: number
+  bank_transfer_amount?: number
+  employee_count?: number
+}

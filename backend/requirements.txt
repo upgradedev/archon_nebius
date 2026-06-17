@@ -8,3 +8,6 @@ python-multipart==0.0.20
 python-dotenv==1.0.1
 nebius>=0.3.0
 PyJWT[cryptography]>=2.10.0
+# test
+pytest>=8.3.0
+pytest-mock>=3.14.0
