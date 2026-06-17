@@ -47,17 +47,8 @@ for p in items:
 
 echo "    Available: $AVAILABLE_PLATFORMS"
 
-EXTRACTION_PLATFORM="${EXTRACTION_JOB_PLATFORM:-gpu-l40s-a}"
-EXTRACTION_PRESET="${EXTRACTION_JOB_PRESET:-1gpu-8vcpu-32gb}"
-
-# Warn if L40S is not listed — H200 will be 5x more expensive
-if [[ "$AVAILABLE_PLATFORMS" != "unknown" ]] && ! echo "$AVAILABLE_PLATFORMS" | grep -q "l40s"; then
-    echo ""
-    echo "  WARNING: gpu-l40s-a not listed as available in eu-west1."
-    echo "     Nebius may silently assign H200 NVLink (~\$4.50/hr vs \$0.90/hr for L40S)."
-    echo "     Press Ctrl+C to abort, or Enter to continue anyway."
-    read -r
-fi
+EXTRACTION_PLATFORM="${EXTRACTION_JOB_PLATFORM:-cpu-d3}"
+EXTRACTION_PRESET="${EXTRACTION_JOB_PRESET:-4vcpu-16gb}"
 echo ""
 
 # ── Step 3: Build and push images (optional) ──────────────────────────────────
@@ -118,8 +109,8 @@ nebius ai endpoint create \
   --env "NEBIUS_INFERENCE_BASE_URL=$NEBIUS_INFERENCE_BASE_URL" \
   --env "NEBIUS_INFERENCE_API_KEY=$NEBIUS_INFERENCE_API_KEY" \
   --env "EXTRACTION_JOB_IMAGE=$REGISTRY/archon-extraction:latest" \
-  --env "EXTRACTION_JOB_PLATFORM=${EXTRACTION_JOB_PLATFORM:-gpu-l40s-a}" \
-  --env "EXTRACTION_JOB_PRESET=${EXTRACTION_JOB_PRESET:-1gpu-8vcpu-32gb}" \
+  --env "EXTRACTION_JOB_PLATFORM=${EXTRACTION_JOB_PLATFORM:-cpu-d3}" \
+  --env "EXTRACTION_JOB_PRESET=${EXTRACTION_JOB_PRESET:-4vcpu-16gb}" \
   --env "ANALYSIS_JOB_IMAGE=$REGISTRY/archon-analysis:latest" \
   --env "ANALYSIS_JOB_PLATFORM=${ANALYSIS_JOB_PLATFORM:-cpu-d3}" \
   --env "ANALYSIS_JOB_PRESET=${ANALYSIS_JOB_PRESET:-4vcpu-16gb}" \
@@ -132,7 +123,7 @@ echo ""
 echo "Architecture (fully serverless — zero always-on GPU cost):"
 echo "  Firebase Hosting    → React frontend (static CDN, free)"
 echo "  archon-backend      → Nebius Serverless AI Endpoint (CPU cpu-d3/4vcpu-16gb, ~\$0.04/hr)"
-echo "  archon-extraction   → Nebius Serverless AI Job      (GPU $EXTRACTION_PLATFORM/$EXTRACTION_PRESET, ~\$0.15/run)"
+echo "  archon-extraction   → Nebius Serverless AI Job      (CPU $EXTRACTION_PLATFORM/$EXTRACTION_PRESET, ~\$0.01/run — vision via Nebius Inference API)"
 echo "  archon-analysis     → Nebius Serverless AI Job      (CPU cpu-d3/4vcpu-16gb, ~\$0.01/run)"
 echo ""
 echo "Check endpoint status:"

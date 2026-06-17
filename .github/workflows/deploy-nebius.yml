@@ -119,8 +119,8 @@ jobs:
             --env "NEBIUS_INFERENCE_BASE_URL=https://api.studio.nebius.ai/v1" \
             --env "NEBIUS_INFERENCE_API_KEY=$NEBIUS_INFERENCE_API_KEY" \
             --env "EXTRACTION_JOB_IMAGE=$REGISTRY/$REGISTRY_PROJECT/archon-extraction:latest" \
-            --env "EXTRACTION_JOB_PLATFORM=gpu-l40s-a" \
-            --env "EXTRACTION_JOB_PRESET=1gpu-8vcpu-32gb" \
+            --env "EXTRACTION_JOB_PLATFORM=cpu-d3" \
+            --env "EXTRACTION_JOB_PRESET=4vcpu-16gb" \
             --env "ANALYSIS_JOB_IMAGE=$REGISTRY/$REGISTRY_PROJECT/archon-analysis:latest" \
             --env "ANALYSIS_JOB_PLATFORM=cpu-d3" \
             --env "ANALYSIS_JOB_PRESET=4vcpu-16gb" \
