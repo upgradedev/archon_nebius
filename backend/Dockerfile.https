@@ -1,0 +1,26 @@
+# Stage 1 — build Caddy with DuckDNS DNS provider plugin
+FROM caddy:2-builder AS caddy-builder
+RUN xcaddy build --with github.com/caddy-dns/duckdns
+
+# Stage 2 — final image
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install Caddy binary from builder stage
+COPY --from=caddy-builder /usr/bin/caddy /usr/bin/caddy
+
+# Install curl (for DuckDNS IP update on startup)
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN chmod +x start.sh
+
+# Caddy listens on 443 (HTTPS); FastAPI on 8000 (internal only)
+EXPOSE 443
+
+CMD ["./start.sh"]
