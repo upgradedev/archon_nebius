@@ -66,10 +66,10 @@ jobs:
           docker build -t "$IMAGE" jobs/analysis/
           docker push "$IMAGE"
 
-      - name: Build and push backend endpoint image (CPU)
+      - name: Build and push backend endpoint image (CPU + HTTPS)
         run: |
           IMAGE="$REGISTRY/$REGISTRY_PROJECT/archon-backend:latest"
-          docker build -t "$IMAGE" backend/
+          docker build -f backend/Dockerfile.https -t "$IMAGE" backend/
           docker push "$IMAGE"
 
       - name: Delete existing backend endpoint if present
@@ -99,12 +99,13 @@ jobs:
           NEBIUS_STORAGE_ACCESS_KEY_ID: ${{ secrets.NEBIUS_STORAGE_ACCESS_KEY_ID }}
           NEBIUS_STORAGE_SECRET_KEY: ${{ secrets.NEBIUS_STORAGE_SECRET_KEY }}
           NEBIUS_INFERENCE_API_KEY: ${{ secrets.NEBIUS_INFERENCE_API_KEY }}
+          DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
         run: |
           nebius ai endpoint create \
             --name archon-backend \
             --parent-id "$NEBIUS_PROJECT_ID" \
             --image "$REGISTRY/$REGISTRY_PROJECT/archon-backend:latest" \
-            --container-port 8000 \
+            --container-port 443 \
             --platform cpu-d3 \
             --preset 4vcpu-16gb \
             --subnet-id vpcsubnet-e01x810n0mmhj19k9b \
@@ -125,7 +126,10 @@ jobs:
             --env "ANALYSIS_JOB_PLATFORM=cpu-d3" \
             --env "ANALYSIS_JOB_PRESET=4vcpu-16gb" \
             --env "CORS_ORIGINS=https://archon-pnl.web.app,http://localhost:3000" \
-            --env "JOB_RUNNER_BACKEND=nebius"
+            --env "JOB_RUNNER_BACKEND=nebius" \
+            --env "DUCKDNS_TOKEN=$DUCKDNS_TOKEN" \
+            --env "DUCKDNS_SUBDOMAIN=archon-api" \
+            --env "CADDY_DOMAIN=archon-api.duckdns.org"
 
       - name: Get backend public URL
         run: |
@@ -147,10 +151,9 @@ jobs:
               echo ""
               echo "========================================================"
               echo "Backend deployed successfully!"
-              echo "Public URL: http://$URL"
-              echo ""
-              echo "Next: update VITE_API_BASE_URL in the Firebase env and"
-              echo "      run: firebase deploy"
+              echo "Container IP: $URL (port 443)"
+              echo "Public HTTPS URL: https://archon-api.duckdns.org"
+              echo "(DuckDNS IP will be updated by start.sh on first boot)"
               echo "========================================================"
               break
             fi

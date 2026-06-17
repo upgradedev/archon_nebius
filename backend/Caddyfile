@@ -1,0 +1,7 @@
+{env.CADDY_DOMAIN} {
+	reverse_proxy localhost:8000
+
+	tls {
+		dns duckdns {env.DUCKDNS_TOKEN}
+	}
+}

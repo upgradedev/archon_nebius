@@ -71,9 +71,10 @@ if [[ "$BUILD" == "true" ]]; then
       "$(dirname "$SCRIPT_DIR")/jobs/analysis"
     docker push "$REGISTRY/archon-analysis:latest"
 
-    # Backend endpoint image (CPU)
+    # Backend endpoint image (CPU + HTTPS via Caddy)
     echo "  Building archon-backend..."
-    docker build -t "$REGISTRY/archon-backend:latest" \
+    docker build -f "$(dirname "$SCRIPT_DIR")/backend/Dockerfile.https" \
+      -t "$REGISTRY/archon-backend:latest" \
       "$(dirname "$SCRIPT_DIR")/backend"
     docker push "$REGISTRY/archon-backend:latest"
 
@@ -90,7 +91,7 @@ nebius ai endpoint create \
   --name "archon-backend" \
   --parent-id "$NEBIUS_PROJECT_ID" \
   --image "$REGISTRY/archon-backend:latest" \
-  --container-port 8000 \
+  --container-port 443 \
   --platform cpu-d3 \
   --preset 4vcpu-16gb \
   --public \
@@ -115,7 +116,10 @@ nebius ai endpoint create \
   --env "ANALYSIS_JOB_PLATFORM=${ANALYSIS_JOB_PLATFORM:-cpu-d3}" \
   --env "ANALYSIS_JOB_PRESET=${ANALYSIS_JOB_PRESET:-4vcpu-16gb}" \
   --env "CORS_ORIGINS=${CORS_ORIGINS:-https://archon-pnl.web.app,http://localhost:3000}" \
-  --env "JOB_RUNNER_BACKEND=nebius"
+  --env "JOB_RUNNER_BACKEND=nebius" \
+  --env "DUCKDNS_TOKEN=${DUCKDNS_TOKEN}" \
+  --env "DUCKDNS_SUBDOMAIN=archon-api" \
+  --env "CADDY_DOMAIN=archon-api.duckdns.org"
 
 echo ""
 echo "=== Redeploy complete ==="
