@@ -63,8 +63,8 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
                 ),
                 spec=JobSpec(
                     image=os.environ["EXTRACTION_JOB_IMAGE"],
-                    platform=os.getenv("EXTRACTION_JOB_PLATFORM", "gpu-l40s-a"),
-                    preset=os.getenv("EXTRACTION_JOB_PRESET", "1gpu-8vcpu-32gb"),
+                    platform=os.getenv("EXTRACTION_JOB_PLATFORM", "cpu-d3"),
+                    preset=os.getenv("EXTRACTION_JOB_PRESET", "4vcpu-16gb"),
                     subnet_id=os.environ["NEBIUS_SUBNET_ID"],
                     disk=JobSpec.DiskSpec(
                         type=1,  # NETWORK_SSD
