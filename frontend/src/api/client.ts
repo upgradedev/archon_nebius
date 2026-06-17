@@ -64,6 +64,10 @@ export const api = {
     await http.delete(`/api/periods/${period}`)
   },
 
+  deleteJob: async (jobId: string): Promise<void> => {
+    await http.delete(`/api/jobs/${jobId}`)
+  },
+
   getDocuments: async (period: string): Promise<unknown[]> => {
     const { data } = await http.get<unknown[]>(`/api/documents/${period}`)
     return data

@@ -443,6 +443,7 @@ export default function Dashboard() {
               label="Extraction job"
               runningMessage="Processing documents with vision LLM (Qwen2-VL-72B)…"
               onComplete={handleExtractionComplete}
+              onDismiss={closeUploadModal}
             />
           )}
 
@@ -453,6 +454,7 @@ export default function Dashboard() {
               runningMessage="Running 7-agent financial analysis pipeline…"
               pollFn={api.getAnalysisJob}
               onComplete={handleAnalysisComplete}
+              onDismiss={closeUploadModal}
             />
           )}
 

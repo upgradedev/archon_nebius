@@ -46,3 +46,11 @@ def get_job(job_id: str):
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.delete("/jobs/{job_id}", status_code=204)
+def delete_job(job_id: str):
+    try:
+        nebius.delete_job(job_id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

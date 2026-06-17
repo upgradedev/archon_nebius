@@ -55,6 +55,8 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
 
     job_name = f"archon-extract-{period}-{uuid.uuid4().hex[:6]}"
 
+    _delete_nebius_error_jobs(period, "archon-extract")
+
     sdk = SDK()
     try:
         service = JobServiceClient(sdk)
@@ -106,6 +108,53 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
         "createdAt": datetime.now(timezone.utc).isoformat(),
         "nebius_job_name": job_name,
     }
+
+
+def _delete_nebius_error_jobs(period: str, prefix: str) -> None:
+    """List all jobs whose name starts with prefix-period and delete ERROR/FAILED ones."""
+    from nebius.sdk import SDK
+    from nebius.api.nebius.ai.v1 import JobServiceClient, ListJobsRequest, DeleteJobRequest
+
+    sdk = SDK()
+    try:
+        service = JobServiceClient(sdk)
+        result = service.list(
+            ListJobsRequest(parent_id=os.environ["NEBIUS_PROJECT_ID"])
+        ).wait()
+        name_prefix = f"{prefix}-{period}-"
+        for job in result.items:
+            name = job.metadata.name or ""
+            if not name.startswith(name_prefix):
+                continue
+            state = job.status.state
+            # States 7=FAILED, 8=CANCELLED, 9=ERROR
+            if state in (7, 8, 9):
+                job_id = job.metadata.id
+                logger.info("Deleting stale %s job %s (state=%s)", prefix, job_id, state)
+                try:
+                    service.delete(DeleteJobRequest(id=job_id)).wait()
+                except Exception:
+                    logger.warning("Could not delete job %s — skipping", job_id)
+    except Exception:
+        logger.warning("Could not sweep stale jobs for period %s — continuing", period)
+    finally:
+        sdk.sync_close()
+
+
+def delete_job(job_id: str) -> None:
+    """Delete a Nebius job by ID (used to clear ERROR state jobs from the UI)."""
+    if JOB_RUNNER_BACKEND != "nebius":
+        return
+    from nebius.sdk import SDK
+    from nebius.api.nebius.ai.v1 import JobServiceClient, DeleteJobRequest
+
+    sdk = SDK()
+    try:
+        service = JobServiceClient(sdk)
+        service.delete(DeleteJobRequest(id=job_id)).wait()
+        logger.info("Deleted job %s", job_id)
+    finally:
+        sdk.sync_close()
 
 
 def _get_nebius_job_status(job_id: str) -> dict:
@@ -165,6 +214,8 @@ def _submit_nebius_analysis_job(period: str) -> dict:
 
     job_name = f"archon-analysis-{period}-{uuid.uuid4().hex[:6]}"
     job_id_env = uuid.uuid4().hex[:8]
+
+    _delete_nebius_error_jobs(period, "archon-analysis")
 
     sdk = SDK()
     try:
