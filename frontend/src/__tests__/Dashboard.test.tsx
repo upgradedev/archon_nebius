@@ -1,21 +1,37 @@
 /**
  * Tests for the Dashboard page.
  *
- * Mocks React Query, API client, AuthContext, and Firebase so
- * the component renders in isolation with injected data.
+ * vi.hoisted() is used for mock variables that are referenced inside vi.mock()
+ * factories — those factories run before any top-level const declarations.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConfigProvider, theme } from 'antd'
+import React from 'react'
+
+// Hoist mock functions so they're available inside vi.mock() factories
+const mocks = vi.hoisted(() => ({
+  signOut: vi.fn(),
+  getPeriods: vi.fn(),
+  getReport: vi.fn(),
+  getCompanyProfile: vi.fn(),
+  deletePeriod: vi.fn(),
+  updateCompanyProfile: vi.fn(),
+  upload: vi.fn(),
+  submitJob: vi.fn(),
+  analyze: vi.fn(),
+  getJob: vi.fn(),
+  getAnalysisJob: vi.fn(),
+}))
 
 // Firebase mocks
 vi.mock('../firebase', () => ({ auth: {}, googleProvider: {} }))
 vi.mock('firebase/auth', () => ({
   signInWithPopup: vi.fn(),
   signOut: vi.fn(),
-  onAuthStateChanged: vi.fn((_a, cb) => { cb(null); return () => {} }),
+  onAuthStateChanged: vi.fn((_a: unknown, cb: (u: null) => void) => { cb(null); return () => {} }),
   GoogleAuthProvider: class {},
   getAuth: vi.fn(),
 }))
@@ -26,33 +42,29 @@ vi.mock('firebase/app', () => ({
 }))
 
 // Auth context
-const mockSignOut = vi.fn()
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({
     user: { uid: 'u1', email: 'test@archon.local', photoURL: null },
     loading: false,
     signInWithGoogle: vi.fn(),
-    signOut: mockSignOut,
+    signOut: mocks.signOut,
   }),
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
 
 // API client
-const mockGetPeriods = vi.fn()
-const mockGetReport = vi.fn()
-const mockGetCompanyProfile = vi.fn()
 vi.mock('../api/client', () => ({
   api: {
-    getPeriods: mockGetPeriods,
-    getReport: mockGetReport,
-    getCompanyProfile: mockGetCompanyProfile,
-    deletePeriod: vi.fn(),
-    updateCompanyProfile: vi.fn(),
-    upload: vi.fn(),
-    submitJob: vi.fn(),
-    analyze: vi.fn(),
-    getJob: vi.fn(),
-    getAnalysisJob: vi.fn(),
+    getPeriods: mocks.getPeriods,
+    getReport: mocks.getReport,
+    getCompanyProfile: mocks.getCompanyProfile,
+    deletePeriod: mocks.deletePeriod,
+    updateCompanyProfile: mocks.updateCompanyProfile,
+    upload: mocks.upload,
+    submitJob: mocks.submitJob,
+    analyze: mocks.analyze,
+    getJob: mocks.getJob,
+    getAnalysisJob: mocks.getAnalysisJob,
   },
 }))
 
@@ -76,9 +88,9 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 
 describe('Dashboard — empty state', () => {
   beforeEach(() => {
-    mockGetPeriods.mockResolvedValue([])
-    mockGetCompanyProfile.mockResolvedValue({ company_name: '', company_tax_id: '' })
     vi.clearAllMocks()
+    mocks.getPeriods.mockResolvedValue([])
+    mocks.getCompanyProfile.mockResolvedValue({ company_name: '', company_tax_id: '' })
   })
 
   it('renders Archon header', async () => {
@@ -86,16 +98,17 @@ describe('Dashboard — empty state', () => {
     await waitFor(() => expect(screen.getByText('Archon')).toBeTruthy())
   })
 
-  it('shows empty state when no periods', async () => {
-    mockGetPeriods.mockResolvedValue([])
+  it('shows two Upload buttons in empty state (header + empty-state CTA)', async () => {
+    // When no periods exist the Dashboard renders both the header Upload button
+    // and an empty-state "Upload documents" CTA — assert at least two are present.
     render(<Dashboard />, { wrapper: Wrapper })
-    await waitFor(() =>
-      expect(screen.getByText(/No period selected|upload documents/i)).toBeTruthy()
-    )
+    await waitFor(() => {
+      const btns = screen.getAllByRole('button', { name: /upload/i })
+      expect(btns.length).toBeGreaterThanOrEqual(2)
+    })
   })
 
-  it('shows Upload button', async () => {
-    mockGetPeriods.mockResolvedValue([])
+  it('shows Upload button in header', async () => {
     render(<Dashboard />, { wrapper: Wrapper })
     await waitFor(() => {
       const btns = screen.getAllByRole('button', { name: /upload/i })
@@ -105,55 +118,57 @@ describe('Dashboard — empty state', () => {
 })
 
 describe('Dashboard — with periods', () => {
-  const periods = [
-    { period: '2025-01', hasReport: true, hasExtraction: true },
-    { period: '2024-12', hasReport: false, hasExtraction: true },
-  ]
-
   beforeEach(() => {
-    mockGetPeriods.mockResolvedValue(periods)
-    mockGetCompanyProfile.mockResolvedValue({ company_name: 'Acme', company_tax_id: '' })
-    mockGetReport.mockRejectedValue(new Error('not found'))
     vi.clearAllMocks()
+    mocks.getPeriods.mockResolvedValue([
+      { period: '2025-01', hasReport: true, hasExtraction: true },
+      { period: '2024-12', hasReport: false, hasExtraction: true },
+    ])
+    mocks.getCompanyProfile.mockResolvedValue({ company_name: 'Acme', company_tax_id: '' })
+    mocks.getReport.mockRejectedValue(new Error('not found'))
   })
 
-  it('renders period tabs', async () => {
+  it('renders Jan 2025 period tab', async () => {
     render(<Dashboard />, { wrapper: Wrapper })
-    await waitFor(() => {
-      // Jan 2025 / Dec 2024 tabs should appear
-      expect(screen.getByText(/Jan 2025/i)).toBeTruthy()
-    })
+    await waitFor(() => expect(screen.getByText(/Jan 2025/i)).toBeTruthy())
+  })
+
+  it('renders Dec 2024 period tab', async () => {
+    render(<Dashboard />, { wrapper: Wrapper })
+    await waitFor(() => expect(screen.getByText(/Dec 2024/i)).toBeTruthy())
   })
 })
 
 describe('Dashboard — upload modal', () => {
   beforeEach(() => {
-    mockGetPeriods.mockResolvedValue([])
-    mockGetCompanyProfile.mockResolvedValue({ company_name: '', company_tax_id: '' })
+    vi.clearAllMocks()
+    mocks.getPeriods.mockResolvedValue([])
+    mocks.getCompanyProfile.mockResolvedValue({ company_name: '', company_tax_id: '' })
   })
 
-  it('opens upload modal when Upload button clicked', async () => {
+  it('opens upload modal when header Upload button is clicked', async () => {
     render(<Dashboard />, { wrapper: Wrapper })
     await waitFor(() => screen.getAllByRole('button', { name: /upload/i }))
-    const uploadBtns = screen.getAllByRole('button', { name: /upload/i })
-    fireEvent.click(uploadBtns[0])
-    await waitFor(() =>
-      expect(screen.getByText(/Upload Documents|Select files|Reporting period/i)).toBeTruthy()
+    fireEvent.click(screen.getAllByRole('button', { name: /upload/i })[0])
+    // Ant Design v5 Modal renders a portal with role="dialog" when open
+    await waitFor(
+      () => expect(screen.queryByRole('dialog')).toBeTruthy(),
+      { timeout: 3000 }
     )
   })
 })
 
 describe('Dashboard — sign out', () => {
   beforeEach(() => {
-    mockGetPeriods.mockResolvedValue([])
-    mockGetCompanyProfile.mockResolvedValue({ company_name: '', company_tax_id: '' })
+    vi.clearAllMocks()
+    mocks.getPeriods.mockResolvedValue([])
+    mocks.getCompanyProfile.mockResolvedValue({ company_name: '', company_tax_id: '' })
   })
 
-  it('calls signOut when logout button clicked', async () => {
+  it('calls signOut when the sign-out button is clicked', async () => {
     render(<Dashboard />, { wrapper: Wrapper })
-    await waitFor(() => screen.getByRole('button', { name: /sign.?out|logout/i }))
-    const logoutBtn = screen.getByRole('button', { name: /sign.?out|logout/i })
-    fireEvent.click(logoutBtn)
-    expect(mockSignOut).toHaveBeenCalledTimes(1)
+    await waitFor(() => screen.getByRole('button', { name: /sign.?out/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sign.?out/i }))
+    expect(mocks.signOut).toHaveBeenCalledTimes(1)
   })
 })

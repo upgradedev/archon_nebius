@@ -1,28 +1,26 @@
 /**
  * Unit tests for src/api/client.ts
  *
- * Mocks axios so no network calls are made.
+ * Uses vi.hoisted() so mock objects are available inside vi.mock() factories,
+ * which Vitest hoists to the top of the file before other variable declarations.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import axios from 'axios'
 
-// Mock Firebase auth before importing client
-vi.mock('../firebase', () => ({
-  auth: { currentUser: null },
-}))
-
-// Mock axios.create to return a simple mock
-const mockHttp = {
+// vi.hoisted() runs before everything else — safe to reference in vi.mock factories
+const mockHttp = vi.hoisted(() => ({
   post: vi.fn(),
   get: vi.fn(),
   put: vi.fn(),
   delete: vi.fn(),
-  interceptors: {
-    request: { use: vi.fn() },
-  },
-}
+  interceptors: { request: { use: vi.fn() } },
+}))
+
+vi.mock('../firebase', () => ({
+  auth: { currentUser: null },
+}))
+
 vi.mock('axios', async () => {
-  const actual = await vi.importActual<typeof axios>('axios')
+  const actual = await vi.importActual<{ default: typeof import('axios').default }>('axios')
   return {
     ...actual,
     default: {
@@ -32,7 +30,7 @@ vi.mock('axios', async () => {
   }
 })
 
-// Import after mocks
+// Import after mocks are registered
 import { api } from '../api/client'
 
 describe('api.getPeriods', () => {
