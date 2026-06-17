@@ -79,4 +79,5 @@ export interface FinancialReport {
 export interface AnalysisResponse {
   jobId: string
   report: FinancialReport
+  generatedAt?: string
 }

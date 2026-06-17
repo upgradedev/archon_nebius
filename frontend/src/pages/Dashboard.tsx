@@ -48,7 +48,7 @@ export default function DashboardPage() {
     )
   }
 
-  const { report } = data
+  const { report, generatedAt } = data
 
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
@@ -67,7 +67,7 @@ export default function DashboardPage() {
             </Col>
             <Col>
               <Text type="secondary">
-                Generated {new Date(report.generatedAt).toLocaleString()}
+                {generatedAt ? `Generated ${new Date(generatedAt).toLocaleString()}` : ''}
               </Text>
             </Col>
           </Row>

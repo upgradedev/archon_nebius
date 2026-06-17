@@ -3,11 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { Card, Progress, Space, Typography, Alert, Tag } from 'antd'
 import { LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { api } from '../api/client'
+import type { Job } from '../types/financial'
 
 const { Text } = Typography
 
 interface Props {
   jobId: string
+  label?: string
+  runningMessage?: string
+  pollFn?: (jobId: string) => Promise<Job>
   onComplete: () => void
 }
 
@@ -18,10 +22,16 @@ const STATUS_COLOR: Record<string, string> = {
   failed: 'error',
 }
 
-export default function JobStatus({ jobId, onComplete }: Props) {
+export default function JobStatus({
+  jobId,
+  label = 'Extraction job',
+  runningMessage,
+  pollFn = api.getJob,
+  onComplete,
+}: Props) {
   const { data: job, error } = useQuery({
     queryKey: ['job', jobId],
-    queryFn: () => api.getJob(jobId),
+    queryFn: () => pollFn(jobId),
     refetchInterval: query => {
       const status = query.state.data?.status
       return status === 'completed' || status === 'failed' ? false : 3000
@@ -38,6 +48,8 @@ export default function JobStatus({ jobId, onComplete }: Props) {
 
   if (!job) return null
 
+  const defaultRunningMsg = runningMessage ?? `Processing ${job.documentsCount} documents…`
+
   const icon =
     job.status === 'completed' ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> :
     job.status === 'failed'    ? <CloseCircleOutlined style={{ color: '#ff4d4f' }} /> :
@@ -48,7 +60,7 @@ export default function JobStatus({ jobId, onComplete }: Props) {
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <Space>
           {icon}
-          <Text strong>Extraction job</Text>
+          <Text strong>{label}</Text>
           <Tag color={STATUS_COLOR[job.status]}>{job.status.toUpperCase()}</Tag>
         </Space>
 
@@ -58,9 +70,9 @@ export default function JobStatus({ jobId, onComplete }: Props) {
         />
 
         <Text type="secondary">
-          {job.status === 'pending'   && 'Waiting for GPU instance…'}
-          {job.status === 'running'   && `Processing ${job.documentsCount} documents with vision LLM…`}
-          {job.status === 'completed' && 'All documents extracted. Loading analysis…'}
+          {job.status === 'pending'   && 'Waiting for compute instance…'}
+          {job.status === 'running'   && defaultRunningMsg}
+          {job.status === 'completed' && 'Done.'}
           {job.status === 'failed'    && (job.errorMessage ?? 'Job failed')}
         </Text>
       </Space>
