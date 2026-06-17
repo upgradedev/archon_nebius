@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import {
   Layout, Typography, Upload as AntUpload, Button, DatePicker,
-  Steps, Card, Space, Alert, Tag, theme,
+  Steps, Card, Space, Alert, Tag, theme, Row, Col, Avatar, Tooltip,
 } from 'antd'
-import { InboxOutlined, RocketOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { InboxOutlined, RocketOutlined, CheckCircleOutlined, LogoutOutlined } from '@ant-design/icons'
 import type { UploadFile } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { api } from '../api/client'
 import JobStatus from '../components/JobStatus'
+import { useAuth } from '../contexts/AuthContext'
 
 const { Content } = Layout
 const { Title, Text } = Typography
@@ -20,6 +21,7 @@ const ACCEPTED_TYPES = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.tiff,.tif,.webp'
 export default function UploadPage() {
   const { token } = useToken()
   const navigate = useNavigate()
+  const { user, signOut } = useAuth()
   const [fileList, setFileList] = useState<UploadFile[]>([])
   const [period, setPeriod] = useState<string>('')
   const [step, setStep] = useState(0)
@@ -67,10 +69,22 @@ export default function UploadPage() {
     <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Content style={{ maxWidth: 800, margin: '0 auto', padding: '48px 24px' }}>
         <Space direction="vertical" size={32} style={{ width: '100%' }}>
-          <div>
-            <Title level={2} style={{ margin: 0 }}>Archon</Title>
-            <Text type="secondary">Agentic Financial Intelligence — upload documents, get P&L insights</Text>
-          </div>
+          <Row align="middle" justify="space-between">
+            <Col>
+              <Title level={2} style={{ margin: 0 }}>Archon</Title>
+              <Text type="secondary">Agentic Financial Intelligence — upload documents, get P&amp;L insights</Text>
+            </Col>
+            <Col>
+              <Space>
+                {user?.photoURL && <Avatar src={user.photoURL} size={32} />}
+                <Tooltip title={user?.email}>
+                  <Button icon={<LogoutOutlined />} onClick={signOut} type="text">
+                    Sign out
+                  </Button>
+                </Tooltip>
+              </Space>
+            </Col>
+          </Row>
 
           <Steps
             current={step}

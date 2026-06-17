@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Layout, Typography, Row, Col, Card, Button, Spin, Alert, Space, theme,
+  Layout, Typography, Row, Col, Card, Button, Spin, Alert, Space, theme, Avatar, Tooltip,
 } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, LogoutOutlined } from '@ant-design/icons'
 import { api } from '../api/client'
+import { useAuth } from '../contexts/AuthContext'
 import PnLChart from '../components/PnLChart'
 import CashFlowChart from '../components/CashFlowChart'
 import ExpenseBreakdown from '../components/ExpenseBreakdown'
@@ -19,6 +20,7 @@ export default function DashboardPage() {
   const { period } = useParams<{ period: string }>()
   const navigate = useNavigate()
   const { token } = useToken()
+  const { user, signOut } = useAuth()
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['report', period],
@@ -66,9 +68,17 @@ export default function DashboardPage() {
               </Title>
             </Col>
             <Col>
-              <Text type="secondary">
-                {generatedAt ? `Generated ${new Date(generatedAt).toLocaleString()}` : ''}
-              </Text>
+              <Space>
+                <Text type="secondary">
+                  {generatedAt ? `Generated ${new Date(generatedAt).toLocaleString()}` : ''}
+                </Text>
+                {user?.photoURL && <Avatar src={user.photoURL} size={32} />}
+                <Tooltip title={user?.email}>
+                  <Button icon={<LogoutOutlined />} onClick={signOut} type="text" size="small">
+                    Sign out
+                  </Button>
+                </Tooltip>
+              </Space>
             </Col>
           </Row>
 

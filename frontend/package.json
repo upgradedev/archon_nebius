@@ -18,7 +18,8 @@
     "recharts": "^2.14.1",
     "@tanstack/react-query": "^5.62.0",
     "axios": "^1.7.9",
-    "dayjs": "^1.11.13"
+    "dayjs": "^1.11.13",
+    "firebase": "^11.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.14",
