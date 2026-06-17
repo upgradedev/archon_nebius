@@ -24,6 +24,7 @@ export default function UploadPage() {
   const [period, setPeriod] = useState<string>('')
   const [step, setStep] = useState(0)
   const [jobId, setJobId] = useState<string | null>(null)
+  const [analysisJobId, setAnalysisJobId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -44,8 +45,21 @@ export default function UploadPage() {
     }
   }
 
-  const handleJobComplete = () => {
-    setStep(2)
+  // Extraction complete → submit analysis job
+  const handleExtractionComplete = async () => {
+    try {
+      const analysisJob = await api.analyze(period)
+      setAnalysisJobId(analysisJob.id)
+      setStep(2)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to submit analysis job')
+      setStep(0)
+    }
+  }
+
+  // Analysis complete → navigate to dashboard
+  const handleAnalysisComplete = () => {
+    setStep(3)
     setTimeout(() => navigate(`/dashboard/${period}`), 1500)
   }
 
@@ -62,8 +76,9 @@ export default function UploadPage() {
             current={step}
             items={[
               { title: 'Upload documents' },
-              { title: 'Extracting data' },
-              { title: 'Ready', icon: step === 2 ? <CheckCircleOutlined /> : undefined },
+              { title: 'Extract data' },
+              { title: 'Analyse' },
+              { title: 'Ready', icon: step === 3 ? <CheckCircleOutlined /> : undefined },
             ]}
           />
 
@@ -126,20 +141,35 @@ export default function UploadPage() {
                   disabled={!period || fileList.length === 0}
                   onClick={handleSubmit}
                 >
-                  Extract & Analyze
+                  Extract & Analyse
                 </Button>
               </Space>
             </Card>
           )}
 
           {step === 1 && jobId && (
-            <JobStatus jobId={jobId} onComplete={handleJobComplete} />
+            <JobStatus
+              jobId={jobId}
+              label="Extraction job"
+              runningMessage="Processing documents with vision LLM (Qwen2-VL-72B)…"
+              onComplete={handleExtractionComplete}
+            />
           )}
 
-          {step === 2 && (
+          {step === 2 && analysisJobId && (
+            <JobStatus
+              jobId={analysisJobId}
+              label="Analysis job"
+              runningMessage="Running 7-agent financial analysis pipeline…"
+              pollFn={api.getAnalysisJob}
+              onComplete={handleAnalysisComplete}
+            />
+          )}
+
+          {step === 3 && (
             <Alert
               type="success"
-              message="Extraction complete — loading dashboard..."
+              message="Analysis complete — loading dashboard…"
               showIcon
             />
           )}

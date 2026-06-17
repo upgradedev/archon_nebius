@@ -27,11 +27,19 @@ export const api = {
     return data
   },
 
-  analyze: async (period: string): Promise<AnalysisResponse> => {
-    const { data } = await http.post<AnalysisResponse>('/api/analyze', { period })
+  // Submit an on-demand analysis job; returns a Job for polling
+  analyze: async (period: string): Promise<Job> => {
+    const { data } = await http.post<Job>('/api/analyze', { period })
     return data
   },
 
+  // Poll analysis job status
+  getAnalysisJob: async (jobId: string): Promise<Job> => {
+    const { data } = await http.get<Job>(`/api/analyze/${jobId}`)
+    return data
+  },
+
+  // Read completed report from Object Storage
   getReport: async (period: string): Promise<AnalysisResponse> => {
     const { data } = await http.get<AnalysisResponse>(`/api/reports/${period}`)
     return data
