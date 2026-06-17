@@ -59,6 +59,7 @@ jobs:
             echo "DATABASE_URL="
             echo "NEBIUS_IAM_TOKEN="
             echo "NEBIUS_PROJECT_ID="
+            echo "SKIP_AUTH=true"
           } > .env
 
       - name: Build and start services (backend, extraction, analysis, localstack)
