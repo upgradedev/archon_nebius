@@ -1,19 +1,22 @@
 name: Deploy to Nebius
 
+# Builds 3 images (extraction job, analysis job, backend endpoint)
+# and deploys the backend as a Nebius Serverless AI Endpoint (CPU).
+# Extraction and analysis run as on-demand Jobs — no persistent endpoint for them.
+
 on:
   workflow_dispatch:
-    inputs:
-      deploy_endpoint:
-        description: 'Deploy analysis endpoint'
-        type: boolean
-        default: true
 
 jobs:
-  deploy-endpoint:
-    name: Deploy Analysis Endpoint
+  deploy:
+    name: Build & Deploy
     runs-on: ubuntu-latest
-    if: ${{ inputs.deploy_endpoint }}
-    timeout-minutes: 20
+    timeout-minutes: 30
+
+    env:
+      REGISTRY: cr.eu-west1.nebius.cloud
+      REGISTRY_PROJECT: e01f86ag28zc4gcrvk
+      NEBIUS_PROJECT_ID: ${{ vars.NEBIUS_PROJECT_ID }}
 
     steps:
       - uses: actions/checkout@v4
@@ -49,36 +52,36 @@ jobs:
         env:
           NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
         run: |
-          echo "$NEBIUS_IAM_TOKEN" | docker login cr.eu-west1.nebius.cloud -u iam --password-stdin
+          echo "$NEBIUS_IAM_TOKEN" | docker login "$REGISTRY" --username iam --password-stdin
 
-      - name: Build and push analysis image
-        env:
-          NEBIUS_REGISTRY: cr.eu-west1.nebius.cloud
-          NEBIUS_REGISTRY_PATH: e01f86ag28zc4gcrvk
+      - name: Build and push extraction job image (GPU)
         run: |
-          IMAGE="$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PATH/archon-analysis:latest"
-          # Bundle schema.sql so the endpoint can apply it from inside the Nebius network
-          cp backend/db/schema.sql endpoints/analysis/schema.sql
-          docker build -t "$IMAGE" endpoints/analysis/
+          IMAGE="$REGISTRY/$REGISTRY_PROJECT/archon-extraction:latest"
+          docker build -t "$IMAGE" jobs/extraction/
           docker push "$IMAGE"
 
-      - name: Generate endpoint token
-        id: token
+      - name: Build and push analysis job image (CPU)
         run: |
-          TOKEN=$(openssl rand -hex 32)
-          echo "endpoint_token=$TOKEN" >> $GITHUB_OUTPUT
-          echo "::add-mask::$TOKEN"
+          IMAGE="$REGISTRY/$REGISTRY_PROJECT/archon-analysis:latest"
+          docker build -t "$IMAGE" jobs/analysis/
+          docker push "$IMAGE"
 
-      - name: Delete existing endpoint if present
-        env:
-          NEBIUS_PROJECT_ID: ${{ vars.NEBIUS_PROJECT_ID }}
+      - name: Build and push backend endpoint image (CPU)
         run: |
-          EXISTING=$(nebius ai endpoint list --parent-id "$NEBIUS_PROJECT_ID" --format json 2>/dev/null | \
+          IMAGE="$REGISTRY/$REGISTRY_PROJECT/archon-backend:latest"
+          docker build -t "$IMAGE" backend/
+          docker push "$IMAGE"
+
+      - name: Delete existing backend endpoint if present
+        run: |
+          EXISTING=$(nebius ai endpoint list \
+            --parent-id "$NEBIUS_PROJECT_ID" \
+            --format json 2>/dev/null | \
             python3 -c "
           import sys, json
           data = json.load(sys.stdin)
           for ep in data.get('items', []):
-              if ep.get('metadata', {}).get('name') == 'archon-analysis':
+              if ep.get('metadata', {}).get('name') == 'archon-backend':
                   print(ep['metadata']['id'])
                   break
           " 2>/dev/null || echo "")
@@ -87,46 +90,70 @@ jobs:
             nebius ai endpoint delete --id "$EXISTING"
             sleep 15
           else
-            echo "No existing endpoint to delete"
+            echo "No existing backend endpoint to delete"
           fi
 
-      - name: Deploy analysis endpoint
+      - name: Deploy archon-backend (CPU endpoint)
         env:
-          NEBIUS_PROJECT_ID: ${{ vars.NEBIUS_PROJECT_ID }}
-          NEBIUS_REGISTRY: cr.eu-west1.nebius.cloud
-          NEBIUS_REGISTRY_PATH: e01f86ag28zc4gcrvk
-          NEBIUS_BUCKET_NAME: archon-bucket
-          NEBIUS_STORAGE_ENDPOINT_URL: https://storage.eu-west1.nebius.cloud
+          NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
           NEBIUS_STORAGE_ACCESS_KEY_ID: ${{ secrets.NEBIUS_STORAGE_ACCESS_KEY_ID }}
           NEBIUS_STORAGE_SECRET_KEY: ${{ secrets.NEBIUS_STORAGE_SECRET_KEY }}
-          NEBIUS_INFERENCE_BASE_URL: https://api.studio.nebius.ai/v1
           NEBIUS_INFERENCE_API_KEY: ${{ secrets.NEBIUS_INFERENCE_API_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          ANALYSIS_ENDPOINT_TOKEN: ${{ steps.token.outputs.endpoint_token }}
         run: |
           nebius ai endpoint create \
-            --name archon-analysis \
+            --name archon-backend \
             --parent-id "$NEBIUS_PROJECT_ID" \
-            --image "$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PATH/archon-analysis:latest" \
-            --container-port 8001 \
-            --platform gpu-l40s-a \
-            --preset 1gpu-8vcpu-32gb \
+            --image "$REGISTRY/$REGISTRY_PROJECT/archon-backend:latest" \
+            --container-port 8000 \
+            --platform cpu-d3 \
+            --preset 4vcpu-16gb \
             --subnet-id vpcsubnet-e01x810n0mmhj19k9b \
             --public \
-            --auth token \
-            --token "$ANALYSIS_ENDPOINT_TOKEN" \
-            --env "NEBIUS_BUCKET_NAME=$NEBIUS_BUCKET_NAME" \
-            --env "STORAGE_ENDPOINT_URL=$NEBIUS_STORAGE_ENDPOINT_URL" \
+            --env "NEBIUS_IAM_TOKEN=$NEBIUS_IAM_TOKEN" \
+            --env "NEBIUS_PROJECT_ID=$NEBIUS_PROJECT_ID" \
+            --env "NEBIUS_SUBNET_ID=vpcsubnet-e01x810n0mmhj19k9b" \
+            --env "NEBIUS_BUCKET_NAME=archon-bucket" \
+            --env "STORAGE_ENDPOINT_URL=https://storage.eu-west1.nebius.cloud" \
             --env "AWS_ACCESS_KEY_ID=$NEBIUS_STORAGE_ACCESS_KEY_ID" \
             --env "AWS_SECRET_ACCESS_KEY=$NEBIUS_STORAGE_SECRET_KEY" \
-            --env "NEBIUS_INFERENCE_BASE_URL=$NEBIUS_INFERENCE_BASE_URL" \
+            --env "NEBIUS_INFERENCE_BASE_URL=https://api.studio.nebius.ai/v1" \
             --env "NEBIUS_INFERENCE_API_KEY=$NEBIUS_INFERENCE_API_KEY" \
-            --env "ANALYSIS_MODEL=meta-llama/Llama-3.3-70B-Instruct" \
-            --env "DATABASE_URL=$DATABASE_URL"
+            --env "EXTRACTION_JOB_IMAGE=$REGISTRY/$REGISTRY_PROJECT/archon-extraction:latest" \
+            --env "EXTRACTION_JOB_PLATFORM=gpu-l40s-a" \
+            --env "EXTRACTION_JOB_PRESET=1gpu-8vcpu-32gb" \
+            --env "ANALYSIS_JOB_IMAGE=$REGISTRY/$REGISTRY_PROJECT/archon-analysis:latest" \
+            --env "ANALYSIS_JOB_PLATFORM=cpu-d3" \
+            --env "ANALYSIS_JOB_PRESET=4vcpu-16gb" \
+            --env "CORS_ORIGINS=https://archon-pnl.web.app,http://localhost:3000" \
+            --env "JOB_RUNNER_BACKEND=nebius"
 
-      - name: Show endpoint token
+      - name: Get backend public URL
         run: |
-          echo "============================================================"
-          echo "Endpoint deployed. Save this token as ANALYSIS_ENDPOINT_TOKEN"
-          echo "Token: ${{ steps.token.outputs.endpoint_token }}"
-          echo "============================================================"
+          echo "Waiting for endpoint to receive a public IP..."
+          for i in $(seq 1 20); do
+            URL=$(nebius ai endpoint list \
+              --parent-id "$NEBIUS_PROJECT_ID" \
+              --format json 2>/dev/null | \
+              python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for ep in data.get('items', []):
+              if ep.get('metadata', {}).get('name') == 'archon-backend':
+                  eps = ep.get('status', {}).get('public_endpoints', [])
+                  if eps: print(eps[0])
+                  break
+          " 2>/dev/null || true)
+            if [ -n "$URL" ]; then
+              echo ""
+              echo "========================================================"
+              echo "Backend deployed successfully!"
+              echo "Public URL: http://$URL"
+              echo ""
+              echo "Next: update VITE_API_BASE_URL in the Firebase env and"
+              echo "      run: firebase deploy"
+              echo "========================================================"
+              break
+            fi
+            echo "  Attempt $i/20 — waiting 15s..."
+            sleep 15
+          done
