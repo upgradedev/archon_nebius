@@ -72,6 +72,37 @@ jobs:
           docker build -f backend/Dockerfile.https -t "$IMAGE" backend/
           docker push "$IMAGE"
 
+      - name: Verify SA credentials can list Nebius jobs
+        env:
+          NEBIUS_SA_KEY_B64: ${{ secrets.NEBIUS_SA_KEY_B64 }}
+          NEBIUS_SA_KEY_ID: ${{ secrets.NEBIUS_SA_KEY_ID }}
+          NEBIUS_SA_ID: ${{ secrets.NEBIUS_SA_ID }}
+        run: |
+          pip install nebius --quiet
+          python3 - <<'PYEOF'
+          import base64, os, sys, tempfile
+          sa_key_b64 = os.environ["NEBIUS_SA_KEY_B64"]
+          sa_key_id  = os.environ["NEBIUS_SA_KEY_ID"]
+          sa_id      = os.environ["NEBIUS_SA_ID"]
+          pem = base64.b64decode(sa_key_b64).decode()
+          tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False)
+          tmp.write(pem); tmp.flush(); tmp.close()
+          from nebius.sdk import SDK
+          from nebius.api.nebius.ai.v1 import JobServiceClient, ListJobsRequest
+          sdk = SDK(service_account_private_key_file_name=tmp.name,
+                    service_account_public_key_id=sa_key_id,
+                    service_account_id=sa_id)
+          try:
+              svc = JobServiceClient(sdk)
+              svc.list(ListJobsRequest(parent_id="project-e01mmzejpr00e93rgqgf3q")).wait()
+              print("SA permissions check: PASSED")
+          except Exception as e:
+              print(f"SA permissions check: FAILED — {e}", file=sys.stderr)
+              sys.exit(1)
+          finally:
+              sdk.sync_close()
+          PYEOF
+
       - name: Delete existing backend endpoint if present
         run: |
           EXISTING=$(nebius ai endpoint list \

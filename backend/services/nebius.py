@@ -70,6 +70,23 @@ _JOB_STATE_MAP = {
 }
 
 
+def check_nebius_permissions() -> dict:
+    """Smoke-test SA credentials at startup. Returns {"ok": True} or {"ok": False, "error": "..."}."""
+    if JOB_RUNNER_BACKEND != "nebius":
+        return {"ok": True, "backend": JOB_RUNNER_BACKEND}
+    from nebius.api.nebius.ai.v1 import JobServiceClient, ListJobsRequest
+
+    sdk = _make_sdk()
+    try:
+        svc = JobServiceClient(sdk)
+        svc.list(ListJobsRequest(parent_id=os.environ["NEBIUS_PROJECT_ID"])).wait()
+        return {"ok": True}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    finally:
+        sdk.sync_close()
+
+
 def submit_extraction_job(upload_id: str, period: str) -> dict:
     """Submit a document extraction job and return job metadata."""
     if JOB_RUNNER_BACKEND == "nebius":
