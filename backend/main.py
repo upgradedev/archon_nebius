@@ -1,9 +1,15 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic_settings import BaseSettings
 
 from auth import verify_firebase_token
 from routers import upload, jobs, analysis, periods
+from services import nebius as nebius_service
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -15,7 +21,19 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    result = nebius_service.check_nebius_permissions()
+    if result.get("ok"):
+        logger.info("Nebius SDK check: OK (backend=%s)", result.get("backend", "nebius"))
+    else:
+        logger.error("Nebius SDK check FAILED — jobs will return 500: %s", result.get("error"))
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Archon API",
     description="Orchestration backend for the Archon financial intelligence platform",
     version="1.0.0",
