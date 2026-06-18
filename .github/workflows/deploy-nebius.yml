@@ -95,6 +95,7 @@ jobs:
 
       - name: Deploy archon-backend (CPU endpoint)
         env:
+          NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
           NEBIUS_SA_KEY_B64: ${{ secrets.NEBIUS_SA_KEY_B64 }}
           NEBIUS_SA_KEY_ID: ${{ secrets.NEBIUS_SA_KEY_ID }}
           NEBIUS_SA_ID: ${{ secrets.NEBIUS_SA_ID }}
@@ -107,6 +108,8 @@ jobs:
             --name archon-backend \
             --parent-id "$NEBIUS_PROJECT_ID" \
             --image "$REGISTRY/$REGISTRY_PROJECT/archon-backend:latest" \
+            --registry-username iam \
+            --registry-password "$NEBIUS_IAM_TOKEN" \
             --container-port 443 \
             --platform cpu-d3 \
             --preset 4vcpu-16gb \
