@@ -72,3 +72,13 @@ def test_get_job_status_service_error(client):
     with patch("httpx.get", side_effect=httpx.HTTPError("not found")):
         resp = client.get("/api/jobs/does-not-exist")
     assert resp.status_code == 500
+
+
+def test_submit_job_rejects_invalid_period(client):
+    resp = client.post("/api/jobs", json={"uploadId": "abc123", "period": "not-a-period"})
+    assert resp.status_code == 422
+
+
+def test_submit_job_rejects_invalid_month(client):
+    resp = client.post("/api/jobs", json={"uploadId": "abc123", "period": "2026-13"})
+    assert resp.status_code == 422

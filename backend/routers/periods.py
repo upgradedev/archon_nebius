@@ -1,10 +1,12 @@
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path
 from pydantic import BaseModel
 
 from services import storage
 
 router = APIRouter()
+
+_PERIOD_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
 
 
 class CompanyProfile(BaseModel):
@@ -49,7 +51,7 @@ def list_periods():
 
 
 @router.delete("/periods/{period}")
-def delete_period(period: str):
+def delete_period(period: str = Path(..., pattern=_PERIOD_PATTERN)):
     """Delete all Object Storage data for a period."""
     count = storage.delete_prefix(f"raw-docs/{period}/")
     count += storage.delete_prefix(f"extracted/{period}/")
@@ -58,7 +60,7 @@ def delete_period(period: str):
 
 
 @router.get("/documents/{period}")
-def get_documents(period: str):
+def get_documents(period: str = Path(..., pattern=_PERIOD_PATTERN)):
     """Return the extraction documents.json for a period."""
     try:
         return storage.download_json(f"extracted/{period}/documents.json")

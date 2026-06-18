@@ -1,13 +1,15 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from services import nebius
 
 router = APIRouter()
 
+_PERIOD_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
+
 
 class JobRequest(BaseModel):
     uploadId: str
-    period: str
+    period: str = Field(..., pattern=_PERIOD_PATTERN)
 
 
 class JobResponse(BaseModel):
