@@ -20,7 +20,7 @@ BUILD=false
 [[ "${1:-}" == "--build" ]] && BUILD=true
 
 SCRIPT_DIR="$(dirname "$0")"
-REGISTRY="$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PROJECT"
+REGISTRY="$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PATH"
 
 echo "=== Archon Redeploy ==="
 echo "Project:  $NEBIUS_PROJECT_ID"
