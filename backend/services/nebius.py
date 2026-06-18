@@ -10,8 +10,10 @@ API reference:     https://nebius.github.io/pysdk/apiReference.html
 gRPC host (Jobs + Endpoints): apps.msp.api.nebius.cloud:443
 """
 
+import base64
 import logging
 import os
+import tempfile
 import uuid
 from datetime import datetime, timezone
 
@@ -22,6 +24,36 @@ logger = logging.getLogger(__name__)
 JOB_RUNNER_BACKEND = os.getenv("JOB_RUNNER_BACKEND", "nebius")
 EXTRACTION_SERVICE_URL = os.getenv("EXTRACTION_SERVICE_URL", "http://extraction:8002")
 ANALYSIS_SERVICE_URL = os.getenv("ANALYSIS_SERVICE_URL", "http://analysis:8001")
+
+
+def _make_sdk():
+    """Return a Nebius SDK instance.
+
+    Prefers service account credentials (NEBIUS_SA_KEY_B64 + NEBIUS_SA_KEY_ID +
+    NEBIUS_SA_ID) which never expire. Falls back to NEBIUS_IAM_TOKEN session
+    token for local dev where a service account is not configured.
+    """
+    from nebius.sdk import SDK
+
+    sa_key_b64 = os.getenv("NEBIUS_SA_KEY_B64")
+    sa_key_id = os.getenv("NEBIUS_SA_KEY_ID")
+    sa_id = os.getenv("NEBIUS_SA_ID")
+
+    if sa_key_b64 and sa_key_id and sa_id:
+        pem = base64.b64decode(sa_key_b64).decode()
+        # Write PEM to a temp file — SDK requires a file path, not a string
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False)
+        tmp.write(pem)
+        tmp.flush()
+        tmp.close()
+        return SDK(
+            service_account_private_key_file_name=tmp.name,
+            service_account_public_key_id=sa_key_id,
+            service_account_id=sa_id,
+        )
+
+    # Local dev fallback: NEBIUS_IAM_TOKEN session token (expires every 12 h)
+    return SDK()
 
 # JobStatus.State enum values from nebius.ai.v1.JobStatus
 _JOB_STATE_MAP = {
@@ -48,7 +80,6 @@ def submit_extraction_job(upload_id: str, period: str) -> dict:
 
 
 def _submit_nebius_job(upload_id: str, period: str) -> dict:
-    from nebius.sdk import SDK
     from nebius.api.nebius.ai.v1 import JobServiceClient, CreateJobRequest, JobSpec
     from nebius.api.nebius.common.v1 import ResourceMetadata
     from google.protobuf.duration_pb2 import Duration
@@ -57,7 +88,7 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
 
     _delete_nebius_error_jobs(period, "archon-extract")
 
-    sdk = SDK()
+    sdk = _make_sdk()
     try:
         service = JobServiceClient(sdk)
         # .wait() resolves the async operation and returns the Job proto directly.
@@ -112,10 +143,9 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
 
 def _delete_nebius_error_jobs(period: str, prefix: str) -> None:
     """List all jobs whose name starts with prefix-period and delete ERROR/FAILED ones."""
-    from nebius.sdk import SDK
     from nebius.api.nebius.ai.v1 import JobServiceClient, ListJobsRequest, DeleteJobRequest
 
-    sdk = SDK()
+    sdk = _make_sdk()
     try:
         service = JobServiceClient(sdk)
         result = service.list(
@@ -145,10 +175,9 @@ def delete_job(job_id: str) -> None:
     """Delete a Nebius job by ID (used to clear ERROR state jobs from the UI)."""
     if JOB_RUNNER_BACKEND != "nebius":
         return
-    from nebius.sdk import SDK
     from nebius.api.nebius.ai.v1 import JobServiceClient, DeleteJobRequest
 
-    sdk = SDK()
+    sdk = _make_sdk()
     try:
         service = JobServiceClient(sdk)
         service.delete(DeleteJobRequest(id=job_id)).wait()
@@ -158,10 +187,9 @@ def delete_job(job_id: str) -> None:
 
 
 def _get_nebius_job_status(job_id: str) -> dict:
-    from nebius.sdk import SDK
     from nebius.api.nebius.ai.v1 import JobServiceClient, GetJobRequest
 
-    sdk = SDK()
+    sdk = _make_sdk()
     try:
         service = JobServiceClient(sdk)
         job = service.get(GetJobRequest(id=job_id)).wait()
@@ -207,7 +235,6 @@ def submit_analysis_job(period: str) -> dict:
 
 
 def _submit_nebius_analysis_job(period: str) -> dict:
-    from nebius.sdk import SDK
     from nebius.api.nebius.ai.v1 import JobServiceClient, CreateJobRequest, JobSpec
     from nebius.api.nebius.common.v1 import ResourceMetadata
     from google.protobuf.duration_pb2 import Duration
@@ -217,7 +244,7 @@ def _submit_nebius_analysis_job(period: str) -> dict:
 
     _delete_nebius_error_jobs(period, "archon-analysis")
 
-    sdk = SDK()
+    sdk = _make_sdk()
     try:
         service = JobServiceClient(sdk)
         job = service.create(
