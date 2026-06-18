@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -24,7 +25,8 @@ settings = Settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    result = nebius_service.check_nebius_permissions()
+    # Run sync SDK call in a thread so it doesn't conflict with the running event loop
+    result = await asyncio.to_thread(nebius_service.check_nebius_permissions)
     if result.get("ok"):
         logger.info("Nebius SDK check: OK (backend=%s)", result.get("backend", "nebius"))
     else:
