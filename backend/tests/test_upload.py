@@ -88,3 +88,42 @@ def test_upload_rejects_too_many_files(client):
     resp = _upload(client, names)
     assert resp.status_code == 400
     assert "50" in resp.json()["detail"]
+
+
+def test_upload_rejects_invalid_period_month(client):
+    resp = _upload(client, ["invoice.pdf"], period="2026-13")
+    assert resp.status_code == 422
+
+
+def test_upload_rejects_invalid_period_string(client):
+    resp = _upload(client, ["invoice.pdf"], period="january")
+    assert resp.status_code == 422
+
+
+def test_upload_rejects_invalid_period_traversal(client):
+    resp = _upload(client, ["invoice.pdf"], period="../admin")
+    assert resp.status_code == 422
+
+
+def test_upload_sanitizes_path_traversal_filename(client):
+    with patch("services.storage.upload_file") as mock_upload, \
+         patch("services.storage.put_json"):
+        resp = client.post(
+            "/api/upload",
+            files=[("files", ("../../etc/passwd.pdf", io.BytesIO(_pdf_bytes("x")), "application/pdf"))],
+            data={"period": "2025-01"},
+        )
+    assert resp.status_code == 200
+    called_keys = [c.args[0] for c in mock_upload.call_args_list]
+    assert not any(".." in k for k in called_keys)
+
+
+def test_upload_rejects_oversized_file(client):
+    large_data = b"x" * (50 * 1024 * 1024 + 1)
+    with patch("services.storage.upload_file"), patch("services.storage.put_json"):
+        resp = client.post(
+            "/api/upload",
+            files=[("files", ("big.pdf", io.BytesIO(large_data), "application/pdf"))],
+            data={"period": "2025-01"},
+        )
+    assert resp.status_code == 413

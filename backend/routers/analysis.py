@@ -1,14 +1,16 @@
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Path
+from pydantic import BaseModel, Field
 
 from services import nebius, storage
 
 router = APIRouter()
 
+_PERIOD_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
+
 
 class AnalyzeRequest(BaseModel):
-    period: str
+    period: str = Field(..., pattern=_PERIOD_PATTERN)
 
 
 @router.post("/analyze")
@@ -30,7 +32,7 @@ def get_analysis_job(job_id: str):
 
 
 @router.get("/reports/{period}")
-def get_report(period: str):
+def get_report(period: str = Path(..., pattern=_PERIOD_PATTERN)):
     """Fetch a completed financial report for a period (reads from Object Storage)."""
     try:
         return storage.download_json(f"reports/{period}/report.json")
