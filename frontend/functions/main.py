@@ -1,5 +1,5 @@
 """
-Firebase Cloud Function — BFF proxy for the Archon backend.
+Firebase Cloud Function (Gen 2) — BFF proxy for the Archon backend.
 
 Forwards /api/** from Firebase Hosting to the Nebius backend so that TLS
 termination lives at Firebase (Google-managed cert, no Let's Encrypt rate
@@ -7,9 +7,11 @@ limits). The Nebius container's Caddy TLS cert is only used for the
 server-to-server hop, which is not browser-visible.
 """
 
+import json
 import os
-import functions_framework
+
 import httpx
+from firebase_functions import https_fn
 
 BACKEND_URL = os.environ.get(
     "NEBIUS_BACKEND_URL", "https://archon-api.duckdns.org"
@@ -23,33 +25,45 @@ _DROP_RESP_HEADERS = frozenset({
 })
 
 
-@functions_framework.http
-def archon_proxy(request):
-    path = request.full_path if request.query_string else request.path
+@https_fn.on_request(timeout_sec=120, memory=256, region="us-central1")
+def archon_proxy(req: https_fn.Request) -> https_fn.Response:
+    path = req.full_path if req.query_string else req.path
     url = f"{BACKEND_URL}{path}"
 
     fwd_headers = {
-        k: v for k, v in request.headers
+        k: v for k, v in req.headers.items()
         if k.lower() not in _DROP_REQ_HEADERS
     }
 
     try:
         resp = httpx.request(
-            method=request.method,
+            method=req.method,
             url=url,
             headers=fwd_headers,
-            content=request.get_data(),
+            content=req.get_data(),
             verify=False,   # server-to-server: staging cert is fine
             timeout=120.0,
             follow_redirects=False,
         )
     except httpx.TimeoutException:
-        return {"error": "backend timeout"}, 504
+        return https_fn.Response(
+            response=json.dumps({"error": "backend timeout"}),
+            status=504,
+            headers={"Content-Type": "application/json"},
+        )
     except httpx.RequestError as exc:
-        return {"error": f"backend unreachable: {exc}"}, 502
+        return https_fn.Response(
+            response=json.dumps({"error": f"backend unreachable: {exc}"}),
+            status=502,
+            headers={"Content-Type": "application/json"},
+        )
 
     resp_headers = {
         k: v for k, v in resp.headers.items()
         if k.lower() not in _DROP_RESP_HEADERS
     }
-    return resp.content, resp.status_code, resp_headers
+    return https_fn.Response(
+        response=resp.content,
+        status=resp.status_code,
+        headers=resp_headers,
+    )
