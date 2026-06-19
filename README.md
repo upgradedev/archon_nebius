@@ -59,7 +59,7 @@ Built on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius Serverles
                             │ OpenAI-compatible API
 ┌───────────────────────────▼──────────────────────────────────────┐
 │              Nebius Inference API (studio.nebius.ai)             │
-│   Qwen2-VL-72B (vision)  ·  Llama-3.3-70B-Instruct (analysis)   │
+│  Qwen2.5-VL-72B (vision)  ·  Llama-3.3-70B-Instruct (analysis)  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -79,7 +79,7 @@ Built on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius Serverles
 |---|---|---|
 | Frontend | React 18, Vite, TypeScript, Ant Design, Recharts, TanStack Query | Firebase Hosting (Google CDN) |
 | Backend | Python 3.12, FastAPI, Pydantic v2, boto3 | Nebius Compute VM (CPU) |
-| AI Job | Python 3.12, Qwen2-VL-72B (vision), pdfplumber, PyMuPDF, python-docx | Nebius Serverless AI Job |
+| AI Job | Python 3.12, Qwen2.5-VL-72B (vision), pdfplumber, PyMuPDF, python-docx | Nebius Serverless AI Job |
 | AI Endpoint | Python 3.12, FastAPI, Llama-3.3-70B-Instruct (analysis agent) | Nebius Serverless AI Endpoint |
 | Storage | boto3 (S3-compatible) | Nebius Object Storage |
 | Registry | Docker | Nebius Container Registry |

@@ -441,7 +441,7 @@ export default function Dashboard() {
             <JobStatus
               jobId={extractJobId}
               label="Extraction job"
-              runningMessage="Processing documents with vision LLM (Qwen2-VL-72B)…"
+              runningMessage="Processing documents with vision LLM (Qwen2.5-VL-72B)…"
               onComplete={handleExtractionComplete}
               onDismiss={closeUploadModal}
             />

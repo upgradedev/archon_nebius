@@ -200,7 +200,7 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
                         JobSpec.EnvironmentVariable(name="AWS_SECRET_ACCESS_KEY", value=os.environ["AWS_SECRET_ACCESS_KEY"]),
                         JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_BASE_URL", value=os.environ["NEBIUS_INFERENCE_BASE_URL"]),
                         JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_API_KEY", value=os.environ["NEBIUS_INFERENCE_API_KEY"]),
-                        JobSpec.EnvironmentVariable(name="VISION_MODEL", value=os.getenv("VISION_MODEL", "Qwen/Qwen2-VL-72B-Instruct")),
+                        JobSpec.EnvironmentVariable(name="VISION_MODEL", value=os.getenv("VISION_MODEL", "Qwen/Qwen2.5-VL-72B-Instruct")),
                     ],
                     timeout=Duration(seconds=7200),  # 2 hours
                 ),
