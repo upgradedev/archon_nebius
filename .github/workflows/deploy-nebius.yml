@@ -157,6 +157,8 @@ jobs:
             --env "AWS_SECRET_ACCESS_KEY=$NEBIUS_STORAGE_SECRET_KEY" \
             --env "NEBIUS_INFERENCE_BASE_URL=https://api.studio.nebius.ai/v1" \
             --env "NEBIUS_INFERENCE_API_KEY=$NEBIUS_INFERENCE_API_KEY" \
+            --env "VISION_MODEL=Qwen/Qwen2.5-VL-72B-Instruct" \
+            --env "ANALYSIS_MODEL=meta-llama/Llama-3.3-70B-Instruct" \
             --env "EXTRACTION_JOB_IMAGE=$REGISTRY/$REGISTRY_PROJECT/archon-extraction:latest" \
             --env "EXTRACTION_JOB_PLATFORM=cpu-d3" \
             --env "EXTRACTION_JOB_PRESET=4vcpu-16gb" \
