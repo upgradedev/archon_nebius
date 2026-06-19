@@ -1,7 +1,7 @@
 """
 Vision extractor — handles JPG, PNG, TIFF, WEBP, and scanned PDF pages.
 
-Uses Qwen2-VL via the Nebius Inference API (OpenAI-compatible).
+Uses Qwen2.5-VL via the Nebius Inference API (OpenAI-compatible).
 The model reads Greek natively; no translation step is needed.
 """
 
@@ -58,7 +58,7 @@ class ImageExtractor(BaseExtractor):
             base_url=os.environ["NEBIUS_INFERENCE_BASE_URL"],
             api_key=os.environ["NEBIUS_INFERENCE_API_KEY"],
         )
-        self.model = os.getenv("VISION_MODEL", "Qwen/Qwen2-VL-72B-Instruct")
+        self.model = os.getenv("VISION_MODEL", "Qwen/Qwen2.5-VL-72B-Instruct")
 
     def can_handle(self, path: Path) -> bool:
         return path.suffix.lower() in IMAGE_EXTENSIONS

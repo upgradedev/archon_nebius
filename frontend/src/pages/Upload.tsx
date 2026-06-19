@@ -165,7 +165,7 @@ export default function UploadPage() {
             <JobStatus
               jobId={jobId}
               label="Extraction job"
-              runningMessage="Processing documents with vision LLM (Qwen2-VL-72B)…"
+              runningMessage="Processing documents with vision LLM (Qwen2.5-VL-72B)…"
               onComplete={handleExtractionComplete}
             />
           )}
