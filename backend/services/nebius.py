@@ -14,14 +14,71 @@ import base64
 import logging
 import os
 import tempfile
+import time
 import uuid
 from datetime import datetime, timezone
 
 import httpx
+import requests
 
 logger = logging.getLogger(__name__)
 
 JOB_RUNNER_BACKEND = os.getenv("JOB_RUNNER_BACKEND", "nebius")
+
+
+def _get_registry_token() -> str:
+    """Return a bearer token for Nebius Container Registry auth.
+
+    Preference order:
+    1. Service account credentials (NEBIUS_SA_KEY_B64 + NEBIUS_SA_KEY_ID + NEBIUS_SA_ID)
+       — generates a fresh short-lived IAM token via JWT bearer flow.
+    2. NEBIUS_IAM_TOKEN env var (12-hour session token, fine for local dev).
+    3. Empty string if nothing is configured (will cause FAILED_PRECONDITION on
+       private images — operator must provide credentials).
+    """
+    sa_key_b64 = os.getenv("NEBIUS_SA_KEY_B64")
+    sa_key_id = os.getenv("NEBIUS_SA_KEY_ID")
+    sa_id = os.getenv("NEBIUS_SA_ID")
+
+    if sa_key_b64 and sa_key_id and sa_id:
+        try:
+            import jwt  # PyJWT
+
+            pem = base64.b64decode(sa_key_b64).decode()
+            now = int(time.time())
+            aud = "https://auth.nebius.com/oauth/token"
+            payload = {
+                "iss": sa_id,
+                "sub": sa_id,
+                "aud": aud,
+                "iat": now,
+                "exp": now + 600,
+            }
+            signed_jwt = jwt.encode(
+                payload,
+                pem,
+                algorithm="RS256",
+                headers={"kid": sa_key_id},
+            )
+            resp = requests.post(
+                aud,
+                json={
+                    "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                    "assertion": signed_jwt,
+                },
+                timeout=10,
+            )
+            resp.raise_for_status()
+            token = resp.json()["access_token"]
+            logger.debug("Fetched fresh IAM token for registry auth (SA=%s)", sa_id)
+            return token
+        except Exception:
+            logger.exception("Failed to generate IAM token from SA credentials — falling back to NEBIUS_IAM_TOKEN")
+
+    iam_token = os.getenv("NEBIUS_IAM_TOKEN", "")
+    if iam_token:
+        logger.debug("Using NEBIUS_IAM_TOKEN for registry auth")
+    return iam_token
 EXTRACTION_SERVICE_URL = os.getenv("EXTRACTION_SERVICE_URL", "http://extraction:8002")
 ANALYSIS_SERVICE_URL = os.getenv("ANALYSIS_SERVICE_URL", "http://analysis:8001")
 
@@ -76,7 +133,10 @@ def check_nebius_permissions() -> dict:
         return {"ok": True, "backend": JOB_RUNNER_BACKEND}
     from nebius.api.nebius.ai.v1 import JobServiceClient, ListJobsRequest
 
-    sdk = _make_sdk()
+    try:
+        sdk = _make_sdk()
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
     try:
         svc = JobServiceClient(sdk)
         svc.list(ListJobsRequest(parent_id=os.environ["NEBIUS_PROJECT_ID"])).wait()
@@ -125,6 +185,12 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
                         type=1,  # NETWORK_SSD
                         size_bytes=30 * 1024 * 1024 * 1024,  # 30 GB
                     ),
+                    registry_credentials=[
+                        JobSpec.RegistryCredentials(
+                            username="iam",
+                            password=_get_registry_token(),
+                        )
+                    ],
                     environment_variables=[
                         JobSpec.EnvironmentVariable(name="UPLOAD_ID", value=upload_id),
                         JobSpec.EnvironmentVariable(name="PERIOD", value=period),
@@ -279,6 +345,12 @@ def _submit_nebius_analysis_job(period: str) -> dict:
                         type=1,  # NETWORK_SSD
                         size_bytes=20 * 1024 * 1024 * 1024,  # 20 GB
                     ),
+                    registry_credentials=[
+                        JobSpec.RegistryCredentials(
+                            username="iam",
+                            password=_get_registry_token(),
+                        )
+                    ],
                     environment_variables=[
                         JobSpec.EnvironmentVariable(name="PERIOD", value=period),
                         JobSpec.EnvironmentVariable(name="JOB_ID", value=job_id_env),
