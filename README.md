@@ -12,7 +12,7 @@
 
 Archon is an end-to-end agentic pipeline that turns raw business documents — scanned invoices, payroll PDFs, vendor bills, expense photos — into structured financial intelligence. It supports **multilingual documents** (including Greek), handles every common file format, and produces a modern dashboard with P&L trends, cash flow analysis, and an LLM-written executive summary.
 
-Built on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius Serverless AI Endpoints** (financial analysis agent), with a React frontend hosted on Firebase and a FastAPI orchestration layer running on Nebius Compute.
+Built entirely on **Nebius Serverless AI** — a FastAPI orchestration backend running as a **CPU AI Endpoint**, plus two on-demand **CPU AI Jobs** for document extraction and financial analysis. Frontier vision and language models are called over the **Nebius Inference API**, so the containers stay cheap CPU instances and the GPU lives in the inference layer. The React frontend is hosted on Firebase.
 
 ---
 
@@ -27,7 +27,7 @@ Built on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius Serverles
 └───────────────────────────┬─────────────────────────────────────┘
                             │ REST / JSON
 ┌───────────────────────────▼─────────────────────────────────────┐
-│              Nebius Compute VM  (CPU · always-on)               │
+│         Nebius Serverless AI Endpoint  (CPU · always-on)        │
 │                 FastAPI Orchestration Backend                    │
 │   /upload  ·  /jobs  ·  /analyze  ·  /reports                   │
 │         JobRunner abstraction (cloud-portable)                  │
@@ -35,7 +35,7 @@ Built on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius Serverles
        │ submit job                   │ call endpoint
 ┌──────▼──────────────────┐  ┌────────▼───────────────────────────┐
 │  Nebius Serverless      │  │  Nebius Serverless                 │
-│  AI Job                 │  │  AI Endpoint                       │
+│  AI Job (CPU)           │  │  AI Job (CPU)                      │
 │  ─────────────────────  │  │  ─────────────────────────────     │
 │  Document Extraction    │  │  Financial Analysis Agent          │
 │                         │  │                                    │
@@ -68,7 +68,7 @@ Built on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius Serverles
 1. **Upload** — user drops documents (any format) into the React UI
 2. **Store** — backend writes raw files to Nebius Object Storage
 3. **Extract** — Nebius AI Job spins up, auto-detects each file type, calls vision or text LLM, writes structured JSON per document
-4. **Analyze** — Nebius AI Endpoint reads all JSONs, runs agentic financial reasoning, returns chart-ready metrics + executive narrative
+4. **Analyze** — a second Nebius AI Job reads all JSONs, runs the 6-agent financial reasoning pipeline, returns chart-ready metrics + executive narrative
 5. **Dashboard** — React renders P&L charts, cash flow waterfall, expense breakdown, and the executive summary card
 
 ---
@@ -78,10 +78,11 @@ Built on **Nebius Serverless AI Jobs** (batch extraction) and **Nebius Serverles
 | Layer | Technology | Hosting |
 |---|---|---|
 | Frontend | React 18, Vite, TypeScript, Ant Design, Recharts, TanStack Query | Firebase Hosting (Google CDN) |
-| Backend | Python 3.12, FastAPI, Pydantic v2, boto3 | Nebius Compute VM (CPU) |
-| AI Job | Python 3.12, Qwen2.5-VL-72B (vision), pdfplumber, PyMuPDF, python-docx | Nebius Serverless AI Job |
-| AI Endpoint | Python 3.12, FastAPI, Llama-3.3-70B-Instruct (analysis agent) | Nebius Serverless AI Endpoint |
+| Backend | Python 3.12, FastAPI, Pydantic v2, boto3, Caddy (TLS) | **Nebius Serverless AI Endpoint** (CPU `cpu-d3`) |
+| Extraction Job | Python 3.12, Qwen2.5-VL-72B (vision), pdfplumber, PyMuPDF, python-docx | **Nebius Serverless AI Job** (CPU `cpu-d3`) |
+| Analysis Job | Python 3.12, Llama-3.3-70B-Instruct (6-agent pipeline) | **Nebius Serverless AI Job** (CPU `cpu-d3`) |
 | Storage | boto3 (S3-compatible) | Nebius Object Storage |
+| Database | PostgreSQL | Nebius Managed PostgreSQL |
 | Registry | Docker | Nebius Container Registry |
 
 ---
@@ -111,9 +112,11 @@ Edit `.env` with your Nebius credentials:
 NEBIUS_IAM_TOKEN=your_iam_token_here
 NEBIUS_BUCKET_NAME=archon-docs
 NEBIUS_PROJECT_ID=your_project_id
-NEBIUS_REGION=eu-north1
+NEBIUS_REGION=eu-west1
 NEBIUS_INFERENCE_BASE_URL=https://api.studio.nebius.ai/v1
 NEBIUS_INFERENCE_API_KEY=your_inference_api_key
+VISION_MODEL=Qwen/Qwen2.5-VL-72B-Instruct
+ANALYSIS_MODEL=meta-llama/Llama-3.3-70B-Instruct
 ```
 
 ### 2. Create object storage bucket
@@ -122,28 +125,17 @@ NEBIUS_INFERENCE_API_KEY=your_inference_api_key
 nebius storage bucket create --name archon-docs
 ```
 
-### 3. Deploy the extraction job image
+### 3. Build, push, and deploy on Nebius
+
+One script builds all three images (backend, extraction job, analysis job), pushes them to the Nebius Container Registry, and deploys the backend as a CPU AI Endpoint:
 
 ```bash
-cd jobs/extraction
-docker build -t cr.nebius.com/YOUR_PROJECT/archon-extraction:latest .
-docker push cr.nebius.com/YOUR_PROJECT/archon-extraction:latest
-cd ../..
+bash nebius/redeploy.sh --build
 ```
 
-### 4. Deploy the analysis endpoint
+The two jobs are submitted on demand by the backend via the Nebius Python SDK — no separate deploy step. (CI/CD alternative: the **Deploy to Nebius** GitHub Actions workflow does the same with repository secrets.)
 
-```bash
-cd endpoints/analysis
-docker build -t cr.nebius.com/YOUR_PROJECT/archon-analysis:latest .
-docker push cr.nebius.com/YOUR_PROJECT/archon-analysis:latest
-cd ../..
-
-# Deploy as Nebius Serverless AI Endpoint
-bash nebius/deploy-endpoint.sh
-```
-
-### 5. Run locally with Docker Compose
+### 4. Run locally with Docker Compose
 
 ```bash
 docker compose up --build
@@ -151,14 +143,14 @@ docker compose up --build
 
 Open [http://localhost:3000](http://localhost:3000)
 
-### 6. Try with sample data
+### 5. Try with sample data
 
 ```bash
 python scripts/generate-sample-data.py   # generates synthetic Greek invoices
 # Then upload the files from sample-data/ via the UI
 ```
 
-### 7. Deploy the frontend to Firebase
+### 6. Deploy the frontend to Firebase
 
 ```bash
 cd frontend
@@ -184,10 +176,10 @@ Archon is designed to run on any cloud with minimal changes. Only two components
 | Component | Nebius | AWS | Azure | GCP | OCI |
 |---|---|---|---|---|---|
 | **Frontend** | Firebase Hosting | S3 + CloudFront | Static Web Apps | Firebase Hosting | Object Storage |
-| **Backend** | Compute VM | EC2 / ECS | Container Apps | Cloud Run | Compute |
-| **Batch Job** | AI Jobs | AWS Batch | Container Apps Jobs | Cloud Run Jobs | Container Instances |
-| **Endpoint** | AI Endpoints | ECS / Fargate | Container Apps | Cloud Run | Functions |
+| **Backend (Endpoint)** | AI Endpoint (CPU) | ECS / Fargate | Container Apps | Cloud Run | Functions |
+| **Batch Jobs** | AI Jobs | AWS Batch | Container Apps Jobs | Cloud Run Jobs | Container Instances |
 | **Storage** | Object Storage | S3 | Blob Storage | GCS | Object Storage |
+| **Database** | Managed PostgreSQL | RDS | Azure Database | Cloud SQL | Autonomous DB |
 | **Registry** | Container Registry | ECR | ACR | Artifact Registry | OCIR |
 
 To switch providers, update the `JOB_RUNNER_BACKEND` and `STORAGE_BACKEND` env vars and replace the two deploy scripts.
@@ -198,11 +190,11 @@ To switch providers, update the `JOB_RUNNER_BACKEND` and `STORAGE_BACKEND` env v
 
 | Component | Platform | Preset | Approx. runtime | Approx. cost |
 |---|---|---|---|---|
-| Extraction Job | `gpu-l40s-a` | `1gpu-8vcpu-32gb` | 3–5 min (20-doc batch) | ~$0.15 / run |
-| Analysis Endpoint | `gpu-l40s-a` | `1gpu-8vcpu-32gb` | ~90s cold start | ~$0.90 / hr |
-| Backend VM | CPU (4 vCPU / 8 GB) | — | always-on | ~$0.03 / hr |
+| Backend Endpoint | `cpu-d3` | `4vcpu-16gb` | always-on | ~$0.04 / hr |
+| Extraction Job | `cpu-d3` | `4vcpu-16gb` | 3–5 min (20-doc batch), self-terminates | ~$0.01 / run |
+| Analysis Job | `cpu-d3` | `4vcpu-16gb` | ~1–2 min, self-terminates | ~$0.01 / run |
 
-> **Cost tip:** Tear down the analysis endpoint between sessions — it accounts for ~95% of running costs. PostgreSQL and Object Storage are negligible and should be left running to preserve data.
+> **No always-on GPU.** Every frontier model call runs on the Nebius Inference API, so the containers are cheap CPU instances — the GPU lives in the inference layer. The only always-on cost is the backend endpoint (~$0.04/hr); both jobs are on-demand and self-terminate. PostgreSQL and Object Storage are negligible and should be left running to preserve data.
 
 ---
 
@@ -250,15 +242,14 @@ The React dashboard renders this as:
 
 ## Managing Costs
 
-The analysis endpoint (~$0.90/hr) should be stopped after each session. Two options:
+The only always-on component is the backend CPU endpoint (~$0.04/hr); both AI Jobs are on-demand and self-terminate, so there is no GPU running between sessions. To stop the backend endpoint entirely between demos:
 
 **GitHub Actions (recommended — no local CLI needed):**
 > Actions → **Teardown Nebius Resources** → Run workflow → choose scope
 
 **Local script:**
 ```bash
-bash nebius/teardown.sh            # endpoint only
-bash nebius/teardown.sh --all      # endpoint + backend VM
+bash nebius/teardown.sh            # delete the backend endpoint
 
 bash nebius/redeploy.sh            # redeploy with existing images
 bash nebius/redeploy.sh --build    # rebuild images + redeploy
@@ -270,12 +261,12 @@ Always kept running (negligible cost): Nebius Managed PostgreSQL · Object Stora
 
 ## Proof of Execution
 
-This project ran on Nebius Serverless AI infrastructure:
+This project runs on Nebius Serverless AI infrastructure:
 
-- **Extraction Job** — `nebius ai job list` output showing completed jobs processing `raw-docs/2026-01/`
-- **Analysis Endpoint** — `aiendpoint-e01xgdhk0skzdcnfpf` deployed on `gpu-l40s-a`, responding at `http://66.201.5.233:8001`
-- **Object Storage** — seeded bucket `archon-bucket` with `raw-docs/`, `extracted/`, and `reports/` prefixes
-- **PostgreSQL** — cluster `postgresql-e01mek1w9re2vdxc8g`, 6 tables live (`documents`, `employees`, `payroll_events`, `employee_payroll`, `validation_results`, `financial_reports`)
+- **Backend AI Endpoint** (CPU `cpu-d3`) — live and judge-verifiable: `GET https://archon-api.duckdns.org/health` → `{"status":"ok","service":"archon-backend"}`. List it with `nebius ai endpoint list --parent-id <project-id>`.
+- **Extraction & Analysis AI Jobs** (CPU `cpu-d3`) — submitted on demand by the backend via the Nebius Python SDK; completed runs appear in `nebius ai job list`.
+- **Object Storage** — bucket `archon-bucket` with `raw-docs/`, `extracted/`, and `reports/` prefixes.
+- **Managed PostgreSQL** — cluster `postgresql-e01mek1w9re2vdxc8g`, 6 tables live (`documents`, `employees`, `payroll_events`, `employee_payroll`, `validation_results`, `financial_reports`).
 
 ---
 
