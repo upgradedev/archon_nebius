@@ -169,6 +169,15 @@ CORS_ORIGINS=https://archon-pnl.web.app
 
 ---
 
+## Testing & CI
+
+Two GitHub Actions pipelines guard every change:
+
+- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **122 backend unit/integration tests** (pytest) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
+- **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), including the **28% payroll-gap invariant** (`employer_cost_total ≥ bank net`). Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
+
+---
+
 ## Cloud Portability
 
 Archon is designed to run on any cloud with minimal changes. Only two components are Nebius-specific — both are abstracted behind environment variables.
