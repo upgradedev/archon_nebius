@@ -1,0 +1,123 @@
+name: Exhaustive E2E Pipeline
+
+# The fast per-PR gate is "Pipeline Smoke Test" (smoke-test.yml). This workflow
+# is the EXHAUSTIVE end-to-end suite: it drives the live stack through the whole
+# pipeline (upload -> extract -> link -> validate -> analyze -> report ->
+# dashboard) with deep assertions, using the real Nebius Inference API.
+# It makes real (billable) model calls, so it runs on master, on demand, and
+# weekly — not on every PR.
+
+on:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 1" # Mondays 04:00 UTC
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate synthetic sample PDFs
+        run: |
+          pip install reportlab -q
+          python scripts/generate-sample-data.py
+
+      - name: Create .env (local runner, auth skipped)
+        env:
+          NEBIUS_KEY: ${{ secrets.NEBIUS_INFERENCE_API_KEY }}
+        run: |
+          {
+            echo "JOB_RUNNER_BACKEND=local"
+            echo "EXTRACTION_SERVICE_URL=http://extraction:8002"
+            echo "ANALYSIS_SERVICE_URL=http://analysis:8001"
+            echo "ANALYSIS_ENDPOINT_URL=http://analysis:8001"
+            echo "NEBIUS_BUCKET_NAME=archon-bucket"
+            echo "STORAGE_ENDPOINT_URL=http://localstack:4566"
+            echo "AWS_ACCESS_KEY_ID=test"
+            echo "AWS_SECRET_ACCESS_KEY=test"
+            echo "NEBIUS_REGION=us-east-1"
+            echo "NEBIUS_INFERENCE_BASE_URL=https://api.studio.nebius.ai/v1"
+            echo "NEBIUS_INFERENCE_API_KEY=${NEBIUS_KEY}"
+            echo "VISION_MODEL=Qwen/Qwen2.5-VL-72B-Instruct"
+            echo "ANALYSIS_MODEL=meta-llama/Llama-3.3-70B-Instruct"
+            echo "BACKEND_HOST=0.0.0.0"
+            echo "BACKEND_PORT=8000"
+            echo "CORS_ORIGINS=http://localhost:3000"
+            echo "POSTGRES_HOST="
+            echo "POSTGRES_PORT=6432"
+            echo "POSTGRES_DB=archon"
+            echo "POSTGRES_USER=archon_user"
+            echo "POSTGRES_PASSWORD="
+            echo "DATABASE_URL="
+            echo "NEBIUS_IAM_TOKEN="
+            echo "NEBIUS_PROJECT_ID="
+            echo "SKIP_AUTH=true"
+          } > .env
+
+      - name: Build and start stack
+        run: docker compose up --build -d localstack extraction analysis backend
+        timeout-minutes: 15
+
+      - name: Wait for services to be healthy
+        run: |
+          wait_for() {
+            echo "Waiting for $1 at $2 ..."
+            for i in $(seq 1 48); do
+              curl -sf "$2" >/dev/null 2>&1 && { echo "  $1 up (attempt $i)"; return 0; }
+              sleep 5
+            done
+            echo "ERROR: $1 did not start"; return 1
+          }
+          wait_for localstack http://localhost:4566/_localstack/health
+          wait_for extraction http://localhost:8002/health
+          wait_for analysis   http://localhost:8001/health
+          wait_for backend    http://localhost:8000/health
+
+      - name: Create S3 bucket in LocalStack
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+        run: |
+          pip install awscli -q
+          aws --endpoint-url=http://localhost:4566 --region us-east-1 s3 mb s3://archon-bucket || true
+
+      - name: Run exhaustive E2E suite
+        env:
+          BACKEND_URL: http://localhost:8000
+          STORAGE_ENDPOINT_URL: http://localhost:4566
+          NEBIUS_BUCKET_NAME: archon-bucket
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          NEBIUS_REGION: us-east-1
+          E2E_PERIOD: "2026-01"
+          E2E_EXTRACT_TIMEOUT_S: "600"
+        run: |
+          pip install -r e2e/requirements.txt -q
+          python -m pytest e2e/ -v --junitxml=/tmp/e2e-results.xml
+        timeout-minutes: 25
+
+      - name: Upload E2E results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: /tmp/e2e-results.xml
+          if-no-files-found: ignore
+
+      - name: Dump service logs on failure
+        if: failure()
+        run: docker compose logs --tail=200
