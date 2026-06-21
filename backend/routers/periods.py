@@ -61,16 +61,32 @@ def delete_period(period: str = Path(..., pattern=_PERIOD_PATTERN)):
 
 @router.get("/documents/{period}")
 def get_documents(period: str = Path(..., pattern=_PERIOD_PATTERN)):
-    """Return the extraction documents.json for a period."""
+    """Return all extracted documents for a period, as a flat list.
+
+    Extraction writes one file per upload batch at
+    ``extracted/{period}/{upload_id}/documents.json`` (shape:
+    ``{period, upload_id, documents: [...]}``). We aggregate across all batches
+    — mirroring the analysis loader — and return the merged ``documents`` list,
+    which is what the frontend (and the analysis pipeline) expect.
+    """
     try:
-        return storage.download_json(f"extracted/{period}/documents.json")
-    except ClientError as exc:
-        code = exc.response["Error"]["Code"]
-        if code in ("NoSuchKey", "404"):
+        keys = storage.list_keys(f"extracted/{period}/")
+        doc_keys = sorted(k for k in keys if k.endswith("documents.json"))
+        if not doc_keys:
             raise HTTPException(
                 status_code=404,
                 detail=f"No extracted documents for period {period}",
-            ) from exc
+            )
+        merged: list = []
+        for key in doc_keys:
+            payload = storage.download_json(key)
+            docs = payload.get("documents", []) if isinstance(payload, dict) else payload
+            if isinstance(docs, list):
+                merged.extend(docs)
+        return merged
+    except HTTPException:
+        raise
+    except ClientError as exc:
         raise HTTPException(status_code=502, detail=f"Storage error: {exc}") from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

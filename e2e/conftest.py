@@ -157,9 +157,13 @@ def completed_pipeline(http, base_url, period, sample_pdfs):
     an.raise_for_status()
     analysis = an.json()
 
-    # 6. Fetch the report.
+    # 6. Fetch the report. The endpoint returns an envelope
+    #    {jobId, report: {<FinancialReport>}, generatedAt}; unwrap to the report.
     rep = http.get(f"{base_url}/api/reports/{period}", timeout=60)
-    report = rep.json() if rep.status_code == 200 else None
+    report = None
+    if rep.status_code == 200:
+        envelope = rep.json()
+        report = envelope.get("report", envelope) if isinstance(envelope, dict) else envelope
 
     return {
         "upload": upload,

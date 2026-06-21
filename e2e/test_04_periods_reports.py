@@ -26,7 +26,9 @@ def test_documents_endpoint_matches_pipeline(http, base_url, completed_pipeline,
 def test_report_endpoint_matches_pipeline(http, base_url, completed_pipeline, period):
     r = http.get(f"{base_url}/api/reports/{period}", timeout=30)
     assert r.status_code == 200
-    assert r.json()["period"] == period
+    envelope = r.json()
+    report = envelope.get("report", envelope)
+    assert report["period"] == period
 
 
 @pytest.mark.parametrize("bad", ["2026-13", "../x", "nope"])
