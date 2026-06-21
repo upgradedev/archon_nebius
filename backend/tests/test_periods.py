@@ -81,14 +81,34 @@ def test_delete_period(client):
 
 def test_get_documents_found(client):
     docs = [{"filename": "invoice.pdf", "doc_type": "invoice", "total_amount": 1200.0}]
-    with patch("services.storage.download_json", return_value=docs):
+    with patch("services.storage.list_keys", return_value=["extracted/2025-01/up1/documents.json"]), \
+         patch("services.storage.download_json",
+               return_value={"period": "2025-01", "upload_id": "up1", "documents": docs}):
         resp = client.get("/api/documents/2025-01")
     assert resp.status_code == 200
     assert resp.json() == docs
 
 
+def test_get_documents_aggregates_multiple_uploads(client):
+    """Extraction writes one documents.json per upload batch; the endpoint merges them."""
+    def _dl(key):
+        if "up1" in key:
+            return {"documents": [{"filename": "a.pdf", "doc_type": "invoice", "total_amount": 1.0}]}
+        return {"documents": [{"filename": "b.pdf", "doc_type": "payslip", "total_amount": 2.0}]}
+
+    with patch("services.storage.list_keys", return_value=[
+                "extracted/2025-01/up1/documents.json",
+                "extracted/2025-01/up2/documents.json"]), \
+         patch("services.storage.download_json", side_effect=_dl):
+        resp = client.get("/api/documents/2025-01")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 2
+    assert {d["filename"] for d in body} == {"a.pdf", "b.pdf"}
+
+
 def test_get_documents_not_found(client):
-    with patch("services.storage.download_json", side_effect=_client_error("NoSuchKey")):
+    with patch("services.storage.list_keys", return_value=[]):
         resp = client.get("/api/documents/2025-01")
     assert resp.status_code == 404
 
