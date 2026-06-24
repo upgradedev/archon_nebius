@@ -6,7 +6,7 @@ boto3==1.35.86
 httpx==0.28.1
 python-multipart==0.0.20
 python-dotenv==1.0.1
-nebius>=0.3.0
+nebius==0.3.76  # pinned: loose >=0.3.0 silently upgraded the SDK and broke the registry_credentials proto contract (500 on /api/jobs). 0.3.76 is the validated known-good version.
 requests>=2.32.0
 PyJWT[cryptography]>=2.10.0
 # test

@@ -338,6 +338,29 @@ def test_submit_analysis_job_closes_sdk_on_error(monkeypatch):
     sdk.sync_close.assert_called_once()
 
 
+# ── REAL-SDK proto contract (integration-level) ───────────────────────────────
+# The mock-based tests above assert the *shape* we pass, but a FakeJobSpec can
+# never catch an SDK proto-contract change — which is exactly how the list form
+# reached production (CI green, prod 500). This test exercises the REAL Nebius
+# SDK setter, so a future SDK that changes the registry_credentials arity fails
+# here instead of in production.
+
+def test_registry_credentials_singular_against_real_sdk():
+    """JobSpec.registry_credentials is singular; passing a list raises in-SDK."""
+    JobSpec = pytest.importorskip("nebius.api.nebius.ai.v1").JobSpec
+
+    rc = JobSpec.RegistryCredentials(username="iam", password="x")
+
+    # The fix: a singular message is accepted and round-trips.
+    spec = JobSpec(registry_credentials=rc)
+    assert spec.registry_credentials.username == "iam"
+
+    # The old bug: a one-element list makes the singular setter call .extend()
+    # on a non-repeated wrapper -> AttributeError -> the prod 500 on /api/jobs.
+    with pytest.raises(AttributeError):
+        JobSpec(registry_credentials=[rc])
+
+
 # ── submit_extraction_job routing ─────────────────────────────────────────────
 
 def test_submit_extraction_job_routes_to_nebius_backend(monkeypatch):
