@@ -152,6 +152,7 @@ jobs:
             --env "NEBIUS_PROJECT_ID=$NEBIUS_PROJECT_ID" \
             --env "NEBIUS_SUBNET_ID=vpcsubnet-e01x810n0mmhj19k9b" \
             --env "NEBIUS_BUCKET_NAME=archon-bucket" \
+            --env "NEBIUS_REGION=eu-west1" \
             --env "STORAGE_ENDPOINT_URL=https://storage.eu-west1.nebius.cloud" \
             --env "AWS_ACCESS_KEY_ID=$NEBIUS_STORAGE_ACCESS_KEY_ID" \
             --env "AWS_SECRET_ACCESS_KEY=$NEBIUS_STORAGE_SECRET_KEY" \

@@ -7,9 +7,28 @@ Switch providers by changing STORAGE_ENDPOINT_URL in .env.
 """
 
 import os
+import re
 import json
 import boto3
 from botocore.config import Config
+
+
+def _region() -> str:
+    """Resolve the S3 signing region.
+
+    Order: explicit NEBIUS_REGION -> derived from the endpoint host
+    (e.g. ``storage.eu-west1.nebius.cloud`` -> ``eu-west1``) -> ``eu-west1``.
+
+    A wrong region makes Nebius Object Storage reject the SigV4 signature, which
+    surfaced as an unhandled 500 on /upload. The previous default (``eu-north1``)
+    did not match the deployed ``eu-west1`` endpoint.
+    """
+    explicit = os.getenv("NEBIUS_REGION")
+    if explicit:
+        return explicit
+    endpoint = os.getenv("STORAGE_ENDPOINT_URL", "")
+    m = re.search(r"\.([a-z]{2}-[a-z]+\d+)\.", endpoint)
+    return m.group(1) if m else "eu-west1"
 
 
 def _client():
@@ -18,7 +37,7 @@ def _client():
         endpoint_url=os.getenv("STORAGE_ENDPOINT_URL"),
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.getenv("NEBIUS_REGION", "eu-north1"),
+        region_name=_region(),
         config=Config(signature_version="s3v4"),
     )
 
