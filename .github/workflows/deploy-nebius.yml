@@ -172,6 +172,33 @@ jobs:
             --env "DUCKDNS_SUBDOMAIN=archon-api" \
             --env "CADDY_DOMAIN=archon-api.duckdns.org"
 
+      - name: Verify Object Storage round-trip (real region/creds)
+        # Catches storage misconfig (e.g. the eu-north1-vs-eu-west1 SigV4 mismatch
+        # that produced the /upload 500) at deploy time — the live external
+        # dependency the mocked unit tests can't cover.
+        env:
+          NEBIUS_BUCKET_NAME: archon-bucket
+          NEBIUS_REGION: eu-west1
+          STORAGE_ENDPOINT_URL: https://storage.eu-west1.nebius.cloud
+          AWS_ACCESS_KEY_ID: ${{ secrets.NEBIUS_STORAGE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.NEBIUS_STORAGE_SECRET_KEY }}
+        run: |
+          pip install boto3 --quiet
+          python3 - <<'PYEOF'
+          import sys
+          sys.path.insert(0, "backend")
+          from services import storage
+          key = "raw-docs/_ci_smoke/roundtrip.txt"
+          try:
+              storage.upload_file(key, b"ci-smoke", "text/plain")
+              assert storage.key_exists(key), "uploaded object not found after put"
+              storage.delete_key(key)
+              print(f"Object Storage round-trip OK (region={storage._region()})")
+          except Exception as e:
+              print(f"Object Storage round-trip FAILED: {type(e).__name__}: {e}", file=sys.stderr)
+              sys.exit(1)
+          PYEOF
+
       - name: Get backend public URL
         run: |
           echo "Waiting for endpoint to receive a public IP..."

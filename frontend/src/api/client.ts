@@ -17,10 +17,10 @@ http.interceptors.request.use(async (config) => {
 })
 
 export const api = {
-  upload: async (files: File[], period: string): Promise<UploadResponse> => {
+  upload: async (files: File[], period?: string): Promise<UploadResponse> => {
     const form = new FormData()
     files.forEach(f => form.append('files', f))
-    form.append('period', period)
+    if (period) form.append('period', period)  // optional — backend auto-detects from filenames
     const { data } = await http.post<UploadResponse>('/api/upload', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })

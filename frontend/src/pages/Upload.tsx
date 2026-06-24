@@ -31,13 +31,16 @@ export default function UploadPage() {
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async () => {
-    if (!period || fileList.length === 0) return
+    if (fileList.length === 0) return
     setError(null)
     setSubmitting(true)
     try {
       const files = fileList.map(f => f.originFileObj as File)
-      const { uploadId } = await api.upload(files, period)
-      const job = await api.submitJob(uploadId, period)
+      // period is optional — the backend auto-detects it from the filenames and
+      // returns it; use the detected value for the rest of the pipeline.
+      const { uploadId, period: detectedPeriod } = await api.upload(files, period || undefined)
+      setPeriod(detectedPeriod)
+      const job = await api.submitJob(uploadId, detectedPeriod)
       setJobId(job.id)
       setStep(1)
     } catch (err: unknown) {
@@ -101,13 +104,16 @@ export default function UploadPage() {
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
                 <div>
                   <Text strong>Reporting period</Text>
+                  <Text type="secondary" style={{ marginLeft: 8 }}>
+                    optional — auto-detected from your files
+                  </Text>
                   <br />
                   <DatePicker
                     picker="month"
                     style={{ marginTop: 8, width: '100%' }}
                     onChange={(_, s) => setPeriod(s as string)}
                     disabledDate={d => d.isAfter(dayjs())}
-                    placeholder="Select month"
+                    placeholder="Auto-detect (or override)"
                   />
                 </div>
 
@@ -152,7 +158,7 @@ export default function UploadPage() {
                   icon={<RocketOutlined />}
                   block
                   loading={submitting}
-                  disabled={!period || fileList.length === 0}
+                  disabled={fileList.length === 0}
                   onClick={handleSubmit}
                 >
                   Extract & Analyse
