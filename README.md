@@ -1,3 +1,24 @@
+---
+title: Archon — Agentic Financial Intelligence Platform
+category: agents
+runtime: nebius-serverless-ai
+frameworks:
+  - fastapi
+  - react
+  - pydantic
+keywords:
+  - serverless
+  - ai-jobs
+  - ai-endpoints
+  - object-storage
+  - managed-postgresql
+  - inference-api
+  - document-extraction
+  - vision-llm
+  - financial-intelligence
+difficulty: advanced
+---
+
 # Archon — Agentic Financial Intelligence Platform
 
 > Upload your business documents. Archon extracts, reasons, and delivers a boardroom-ready P&L dashboard — powered by Nebius Serverless AI.
