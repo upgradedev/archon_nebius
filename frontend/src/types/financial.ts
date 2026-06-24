@@ -11,6 +11,7 @@ export interface UploadedFile {
 
 export interface UploadResponse {
   uploadId: string
+  period: string
   files: UploadedFile[]
 }
 
