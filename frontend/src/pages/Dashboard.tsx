@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Layout, Typography, Row, Col, Card, Button, Spin, Alert, Space, theme,
   Avatar, Tooltip, Modal, Drawer, Form, Input, Popconfirm, Tag, Upload as AntUpload,
-  DatePicker, Steps, Empty, Badge, message as antMessage, Tabs,
+  Steps, Empty, Badge, message as antMessage, Tabs,
 } from 'antd'
 import {
   UploadOutlined, SettingOutlined, LogoutOutlined, DeleteOutlined,
@@ -10,7 +10,6 @@ import {
 } from '@ant-design/icons'
 import type { UploadFile } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import dayjs from 'dayjs'
 import { api } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import PnLChart from '../components/PnLChart'
@@ -96,13 +95,16 @@ export default function Dashboard() {
   const [profileForm] = Form.useForm<CompanyProfile>()
 
   const handleUploadSubmit = async () => {
-    if (!uploadPeriod || fileList.length === 0) return
+    if (fileList.length === 0) return
     setUploadError(null)
     setSubmitting(true)
     try {
       const files = fileList.map(f => f.originFileObj as File)
-      const { uploadId } = await api.upload(files, uploadPeriod)
-      const job = await api.submitJob(uploadId, uploadPeriod)
+      // period is optional — the backend auto-detects it from the filenames and
+      // returns it; use the detected value for the rest of the pipeline.
+      const { uploadId, period: detectedPeriod } = await api.upload(files, uploadPeriod || undefined)
+      setUploadPeriod(detectedPeriod)
+      const job = await api.submitJob(uploadId, detectedPeriod)
       setExtractJobId(job.id)
       setUploadStep(1)
     } catch (err) {
@@ -386,17 +388,6 @@ export default function Dashboard() {
           {uploadStep === 0 && (
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
               <div>
-                <Text strong>Reporting period</Text>
-                <DatePicker
-                  picker="month"
-                  style={{ marginTop: 6, width: '100%' }}
-                  onChange={(_, s) => setUploadPeriod(s as string)}
-                  disabledDate={d => d.isAfter(dayjs())}
-                  placeholder="Select month"
-                />
-              </div>
-
-              <div>
                 <Text strong>Documents</Text>
                 <Text type="secondary" style={{ marginLeft: 8 }}>
                   Invoices · Payroll · Expenses · Sales
@@ -429,7 +420,7 @@ export default function Dashboard() {
                 icon={<RocketOutlined />}
                 block
                 loading={submitting}
-                disabled={!uploadPeriod || fileList.length === 0}
+                disabled={fileList.length === 0}
                 onClick={handleUploadSubmit}
               >
                 Extract &amp; Analyse
