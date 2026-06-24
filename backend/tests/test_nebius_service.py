@@ -243,10 +243,14 @@ def test_submit_extraction_job_passes_registry_credentials(monkeypatch):
     assert len(captured_specs) == 1
     spec = captured_specs[0]
     assert hasattr(spec, "registry_credentials")
+    # registry_credentials is a SINGULAR RegistryCredentials message in the
+    # Nebius proto (JobSpec.registry_credentials = 10), not a repeated field.
+    # Passing a list made the SDK setter call .extend() on a non-repeated
+    # wrapper -> AttributeError -> 500 on POST /api/jobs.
     creds = spec.registry_credentials
-    assert creds is not None and len(creds) == 1
-    assert creds[0].username == "iam"
-    assert creds[0].password == "test-token"
+    assert creds is not None
+    assert creds.username == "iam"
+    assert creds.password == "test-token"
 
 
 # ── _submit_nebius_analysis_job ───────────────────────────────────────────────
@@ -308,9 +312,9 @@ def test_submit_analysis_job_passes_registry_credentials(monkeypatch):
 
     assert len(captured_specs) == 1
     creds = captured_specs[0].registry_credentials
-    assert creds is not None and len(creds) == 1
-    assert creds[0].username == "iam"
-    assert creds[0].password == "analysis-token"
+    assert creds is not None
+    assert creds.username == "iam"
+    assert creds.password == "analysis-token"
 
 
 def test_submit_analysis_job_closes_sdk_on_error(monkeypatch):
