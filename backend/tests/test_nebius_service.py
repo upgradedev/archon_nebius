@@ -243,10 +243,14 @@ def test_submit_extraction_job_passes_registry_credentials(monkeypatch):
     assert len(captured_specs) == 1
     spec = captured_specs[0]
     assert hasattr(spec, "registry_credentials")
+    # registry_credentials is a SINGULAR RegistryCredentials message in the
+    # Nebius proto (JobSpec.registry_credentials = 10), not a repeated field.
+    # Passing a list made the SDK setter call .extend() on a non-repeated
+    # wrapper -> AttributeError -> 500 on POST /api/jobs.
     creds = spec.registry_credentials
-    assert creds is not None and len(creds) == 1
-    assert creds[0].username == "iam"
-    assert creds[0].password == "test-token"
+    assert creds is not None
+    assert creds.username == "iam"
+    assert creds.password == "test-token"
 
 
 # ── _submit_nebius_analysis_job ───────────────────────────────────────────────
@@ -308,9 +312,9 @@ def test_submit_analysis_job_passes_registry_credentials(monkeypatch):
 
     assert len(captured_specs) == 1
     creds = captured_specs[0].registry_credentials
-    assert creds is not None and len(creds) == 1
-    assert creds[0].username == "iam"
-    assert creds[0].password == "analysis-token"
+    assert creds is not None
+    assert creds.username == "iam"
+    assert creds.password == "analysis-token"
 
 
 def test_submit_analysis_job_closes_sdk_on_error(monkeypatch):
@@ -332,6 +336,29 @@ def test_submit_analysis_job_closes_sdk_on_error(monkeypatch):
             _submit_nebius_analysis_job("2025-06")
 
     sdk.sync_close.assert_called_once()
+
+
+# ── REAL-SDK proto contract (integration-level) ───────────────────────────────
+# The mock-based tests above assert the *shape* we pass, but a FakeJobSpec can
+# never catch an SDK proto-contract change — which is exactly how the list form
+# reached production (CI green, prod 500). This test exercises the REAL Nebius
+# SDK setter, so a future SDK that changes the registry_credentials arity fails
+# here instead of in production.
+
+def test_registry_credentials_singular_against_real_sdk():
+    """JobSpec.registry_credentials is singular; passing a list raises in-SDK."""
+    JobSpec = pytest.importorskip("nebius.api.nebius.ai.v1").JobSpec
+
+    rc = JobSpec.RegistryCredentials(username="iam", password="x")
+
+    # The fix: a singular message is accepted and round-trips.
+    spec = JobSpec(registry_credentials=rc)
+    assert spec.registry_credentials.username == "iam"
+
+    # The old bug: a one-element list makes the singular setter call .extend()
+    # on a non-repeated wrapper -> AttributeError -> the prod 500 on /api/jobs.
+    with pytest.raises(AttributeError):
+        JobSpec(registry_credentials=[rc])
 
 
 # ── submit_extraction_job routing ─────────────────────────────────────────────

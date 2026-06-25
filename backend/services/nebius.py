@@ -185,12 +185,10 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
                         type=1,  # NETWORK_SSD
                         size_bytes=30 * 1024 * 1024 * 1024,  # 30 GB
                     ),
-                    registry_credentials=[
-                        JobSpec.RegistryCredentials(
-                            username="iam",
-                            password=_get_registry_token(),
-                        )
-                    ],
+                    registry_credentials=JobSpec.RegistryCredentials(
+                        username="iam",
+                        password=_get_registry_token(),
+                    ),
                     environment_variables=[
                         JobSpec.EnvironmentVariable(name="UPLOAD_ID", value=upload_id),
                         JobSpec.EnvironmentVariable(name="PERIOD", value=period),
@@ -345,12 +343,10 @@ def _submit_nebius_analysis_job(period: str) -> dict:
                         type=1,  # NETWORK_SSD
                         size_bytes=20 * 1024 * 1024 * 1024,  # 20 GB
                     ),
-                    registry_credentials=[
-                        JobSpec.RegistryCredentials(
-                            username="iam",
-                            password=_get_registry_token(),
-                        )
-                    ],
+                    registry_credentials=JobSpec.RegistryCredentials(
+                        username="iam",
+                        password=_get_registry_token(),
+                    ),
                     environment_variables=[
                         JobSpec.EnvironmentVariable(name="PERIOD", value=period),
                         JobSpec.EnvironmentVariable(name="JOB_ID", value=job_id_env),
