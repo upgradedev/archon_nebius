@@ -65,6 +65,41 @@ jobs:
           print("Fresh Nebius IAM token generated from service account.")
           PYEOF
 
+      - name: Generate deploy token from service-account credentials file
+        env:
+          NEBIUS_SA_CREDENTIALS: ${{ secrets.NEBIUS_SA_CREDENTIALS }}
+        run: |
+          if [ -z "$NEBIUS_SA_CREDENTIALS" ]; then
+            echo "NEBIUS_SA_CREDENTIALS secret is not set; falling back to NEBIUS_IAM_TOKEN secret." >&2
+            exit 0
+          fi
+          python3 - <<'PYEOF'
+          import asyncio
+          import os
+          import tempfile
+
+          async def main() -> str:
+              from nebius.sdk import SDK
+
+              tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+              tmp.write(os.environ["NEBIUS_SA_CREDENTIALS"])
+              tmp.flush()
+              tmp.close()
+
+              sdk = SDK(credentials_file_name=tmp.name)
+              try:
+                  token = await sdk._token_bearer.receiver().fetch(timeout=30)
+                  return token.token
+              finally:
+                  await sdk.close()
+
+          token = asyncio.run(main())
+          print(f"::add-mask::{token}")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"NEBIUS_DEPLOY_IAM_TOKEN={token}\n")
+          print("Deploy token generated from NEBIUS_SA_CREDENTIALS.")
+          PYEOF
+
       - name: Install Nebius CLI
         run: |
           curl -sSL https://storage.eu-north1.nebius.cloud/cli/install.sh | bash
@@ -72,10 +107,11 @@ jobs:
 
       - name: Authenticate Nebius CLI
         env:
-          NEBIUS_DEPLOY_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
+          NEBIUS_IAM_TOKEN_SECRET: ${{ secrets.NEBIUS_IAM_TOKEN }}
         run: |
-          if [ -z "$NEBIUS_DEPLOY_IAM_TOKEN" ]; then
-            echo "NEBIUS_IAM_TOKEN secret is required for endpoint create/delete permissions." >&2
+          TOKEN="${NEBIUS_DEPLOY_IAM_TOKEN:-$NEBIUS_IAM_TOKEN_SECRET}"
+          if [ -z "$TOKEN" ]; then
+            echo "A deploy-capable Nebius token is required for endpoint create/delete permissions." >&2
             exit 1
           fi
           mkdir -p ~/.nebius
@@ -92,7 +128,7 @@ jobs:
           cat > ~/.nebius/credentials.yaml << NEBIUS_CREDS
           tokens:
               federation/auth.nebius.com//ci:
-                  token: ${NEBIUS_DEPLOY_IAM_TOKEN}
+                  token: ${TOKEN}
                   expires_at: 9999999999
           NEBIUS_CREDS
 
