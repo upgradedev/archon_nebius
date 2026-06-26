@@ -71,7 +71,13 @@ jobs:
           echo "$HOME/.nebius/bin" >> $GITHUB_PATH
 
       - name: Authenticate Nebius CLI
+        env:
+          NEBIUS_DEPLOY_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
         run: |
+          if [ -z "$NEBIUS_DEPLOY_IAM_TOKEN" ]; then
+            echo "NEBIUS_IAM_TOKEN secret is required for endpoint create/delete permissions." >&2
+            exit 1
+          fi
           mkdir -p ~/.nebius
           cat > ~/.nebius/config.yaml << 'NEBIUS_CONFIG'
           default: ci
@@ -86,7 +92,7 @@ jobs:
           cat > ~/.nebius/credentials.yaml << NEBIUS_CREDS
           tokens:
               federation/auth.nebius.com//ci:
-                  token: ${NEBIUS_FRESH_IAM_TOKEN}
+                  token: ${NEBIUS_DEPLOY_IAM_TOKEN}
                   expires_at: 9999999999
           NEBIUS_CREDS
 
