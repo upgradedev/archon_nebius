@@ -21,14 +21,63 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Generate fresh Nebius IAM token from service account
+        env:
+          NEBIUS_SA_KEY_B64: ${{ secrets.NEBIUS_SA_KEY_B64 }}
+          NEBIUS_SA_KEY_ID: ${{ secrets.NEBIUS_SA_KEY_ID }}
+          NEBIUS_SA_ID: ${{ secrets.NEBIUS_SA_ID }}
+        run: |
+          pip install "PyJWT[cryptography]" requests --quiet
+          python3 - <<'PYEOF'
+          import base64
+          import os
+          import time
+
+          import jwt
+          import requests
+
+          sa_key_b64 = os.environ["NEBIUS_SA_KEY_B64"]
+          sa_key_id = os.environ["NEBIUS_SA_KEY_ID"]
+          sa_id = os.environ["NEBIUS_SA_ID"]
+
+          now = int(time.time())
+          audience = "https://auth.nebius.com/oauth/token"
+          payload = {
+              "iss": sa_id,
+              "sub": sa_id,
+              "aud": audience,
+              "iat": now,
+              "exp": now + 600,
+          }
+          private_key = base64.b64decode(sa_key_b64).decode()
+          assertion = jwt.encode(
+              payload,
+              private_key,
+              algorithm="RS256",
+              headers={"kid": sa_key_id},
+          )
+          response = requests.post(
+              audience,
+              json={
+                  "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                  "assertion": assertion,
+              },
+              timeout=20,
+          )
+          response.raise_for_status()
+          token = response.json()["access_token"]
+          print(f"::add-mask::{token}")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"NEBIUS_FRESH_IAM_TOKEN={token}\n")
+          print("Fresh Nebius IAM token generated from service account.")
+          PYEOF
+
       - name: Install Nebius CLI
         run: |
           curl -sSL https://storage.eu-north1.nebius.cloud/cli/install.sh | bash
           echo "$HOME/.nebius/bin" >> $GITHUB_PATH
 
       - name: Authenticate Nebius CLI
-        env:
-          NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
         run: |
           mkdir -p ~/.nebius
           cat > ~/.nebius/config.yaml << 'NEBIUS_CONFIG'
@@ -44,15 +93,13 @@ jobs:
           cat > ~/.nebius/credentials.yaml << NEBIUS_CREDS
           tokens:
               federation/auth.nebius.com//ci:
-                  token: ${NEBIUS_IAM_TOKEN}
+                  token: ${NEBIUS_FRESH_IAM_TOKEN}
                   expires_at: 9999999999
           NEBIUS_CREDS
 
       - name: Log in to Nebius Container Registry
-        env:
-          NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
         run: |
-          echo "$NEBIUS_IAM_TOKEN" | docker login "$REGISTRY" --username iam --password-stdin
+          echo "$NEBIUS_FRESH_IAM_TOKEN" | docker login "$REGISTRY" --username iam --password-stdin
 
       - name: Build and push extraction job image (GPU)
         run: |
@@ -126,7 +173,6 @@ jobs:
 
       - name: Deploy archon-backend (CPU endpoint)
         env:
-          NEBIUS_IAM_TOKEN: ${{ secrets.NEBIUS_IAM_TOKEN }}
           NEBIUS_SA_KEY_B64: ${{ secrets.NEBIUS_SA_KEY_B64 }}
           NEBIUS_SA_KEY_ID: ${{ secrets.NEBIUS_SA_KEY_ID }}
           NEBIUS_SA_ID: ${{ secrets.NEBIUS_SA_ID }}
@@ -140,7 +186,7 @@ jobs:
             --parent-id "$NEBIUS_PROJECT_ID" \
             --image "$REGISTRY/$REGISTRY_PROJECT/archon-backend:latest" \
             --registry-username iam \
-            --registry-password "$NEBIUS_IAM_TOKEN" \
+            --registry-password "$NEBIUS_FRESH_IAM_TOKEN" \
             --container-port 443 \
             --platform cpu-d3 \
             --preset 4vcpu-16gb \

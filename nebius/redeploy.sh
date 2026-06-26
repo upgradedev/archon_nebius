@@ -21,6 +21,12 @@ BUILD=false
 
 SCRIPT_DIR="$(dirname "$0")"
 REGISTRY="$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PATH"
+RUNTIME_IAM_TOKEN=$(nebius iam get-access-token 2>/dev/null || echo "${NEBIUS_IAM_TOKEN:-}")
+
+if [[ -z "${RUNTIME_IAM_TOKEN:-}" ]]; then
+    echo "ERROR: could not obtain a Nebius IAM token. Run 'nebius iam get-access-token' or set NEBIUS_IAM_TOKEN." >&2
+    exit 1
+fi
 
 echo "=== Archon Redeploy ==="
 echo "Project:  $NEBIUS_PROJECT_ID"
@@ -56,8 +62,7 @@ if [[ "$BUILD" == "true" ]]; then
     echo "[3/4] Building and pushing images..."
 
     # Docker login to Nebius CR
-    IAM_TOKEN=$(nebius iam get-access-token 2>/dev/null || echo "$NEBIUS_IAM_TOKEN")
-    echo "$IAM_TOKEN" | docker login "$NEBIUS_REGISTRY" --username iam --password-stdin
+    echo "$RUNTIME_IAM_TOKEN" | docker login "$NEBIUS_REGISTRY" --username iam --password-stdin
 
     # Extraction job image (GPU)
     echo "  Building archon-extraction..."
@@ -95,7 +100,10 @@ nebius ai endpoint create \
   --platform cpu-d3 \
   --preset 4vcpu-16gb \
   --public \
-  --env "NEBIUS_IAM_TOKEN=$NEBIUS_IAM_TOKEN" \
+  --env "NEBIUS_IAM_TOKEN=$RUNTIME_IAM_TOKEN" \
+  --env "NEBIUS_SA_KEY_B64=${NEBIUS_SA_KEY_B64:-}" \
+  --env "NEBIUS_SA_KEY_ID=${NEBIUS_SA_KEY_ID:-}" \
+  --env "NEBIUS_SA_ID=${NEBIUS_SA_ID:-}" \
   --env "NEBIUS_PROJECT_ID=$NEBIUS_PROJECT_ID" \
   --env "NEBIUS_SUBNET_ID=${NEBIUS_SUBNET_ID:-}" \
   --env "NEBIUS_BUCKET_NAME=$NEBIUS_BUCKET_NAME" \
