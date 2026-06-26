@@ -75,14 +75,47 @@ jobs:
           fi
           python3 - <<'PYEOF'
           import asyncio
+          import base64
+          import json
           import os
+          import re
           import tempfile
+
+          def credentials_payload() -> str:
+              raw = os.environ["NEBIUS_SA_CREDENTIALS"]
+              try:
+                  json.loads(raw)
+                  return raw
+              except json.JSONDecodeError:
+                  pass
+
+              try:
+                  decoded = base64.b64decode(raw).decode()
+                  json.loads(decoded)
+                  return decoded
+              except Exception:
+                  pass
+
+              # Some secret stores preserve raw PEM newlines inside the
+              # JSON "private-key" field. Escape only that field and leave
+              # the rest of the credentials document untouched.
+              match = re.search(
+                  r'("private-key"\s*:\s*")(.*?)("\s*,\s*"kid")',
+                  raw,
+                  flags=re.S,
+              )
+              if not match:
+                  raise ValueError("NEBIUS_SA_CREDENTIALS is not valid JSON, base64 JSON, or raw-PEM credentials JSON")
+              pem = match.group(2).replace("\\", "\\\\").replace("\r", "").replace("\n", "\\n")
+              fixed = raw[:match.start(2)] + pem + raw[match.end(2):]
+              json.loads(fixed)
+              return fixed
 
           async def main() -> str:
               from nebius.sdk import SDK
 
               tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
-              tmp.write(os.environ["NEBIUS_SA_CREDENTIALS"])
+              tmp.write(credentials_payload())
               tmp.flush()
               tmp.close()
 
