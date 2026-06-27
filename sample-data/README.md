@@ -29,5 +29,5 @@ This creates 15 realistic synthetic Greek documents in the directories above.
 4. Drag all files from this directory into the upload area
 5. Click **Extract & Analyze**
 
-Expected runtime on Nebius L40S: **2–4 minutes** for 15 documents.
-Expected cost: **~$0.10–$0.20** per run.
+Expected runtime on Nebius CPU Jobs plus the Nebius Inference API: **3–5 minutes** for a typical 15-document batch.
+Expected Nebius job cost: **~$0.02–$0.05** per run, depending on Inference API token usage.

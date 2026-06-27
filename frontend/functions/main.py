@@ -28,10 +28,11 @@ BACKEND_URL = os.environ.get(
     "NEBIUS_BACKEND_URL", "https://archon-api.duckdns.org"
 ).rstrip("/")
 
-# Short connect timeout so a dropped-SYN attempt is abandoned in ~8s instead of
-# hanging ~20s; generous read/write so real upload + analysis work can finish.
-_TIMEOUT = httpx.Timeout(connect=8.0, read=115.0, write=115.0, pool=8.0)
-_CONNECT_ATTEMPTS = 4
+# Short connect timeout so a dropped-SYN attempt is abandoned quickly; generous
+# read/write so real upload + analysis work can finish. More short attempts are
+# better than fewer long attempts for the Nebius public-IP flake observed here.
+_TIMEOUT = httpx.Timeout(connect=4.0, read=115.0, write=115.0, pool=4.0)
+_CONNECT_ATTEMPTS = 8
 
 # Transport failures where the request never produced a response. Safe to retry
 # even for non-idempotent POSTs because nothing was delivered to the backend.
@@ -53,6 +54,13 @@ _DROP_RESP_HEADERS = frozenset({
 
 @https_fn.on_request(timeout_sec=120, memory=256, region="us-central1")
 def archon_proxy(req: https_fn.Request) -> https_fn.Response:
+    if not req.headers.get("authorization"):
+        return https_fn.Response(
+            response=json.dumps({"detail": "Missing bearer token"}),
+            status=401,
+            headers={"Content-Type": "application/json"},
+        )
+
     path = req.full_path if req.query_string else req.path
     url = f"{BACKEND_URL}{path}"
 

@@ -16,6 +16,17 @@ Built entirely on **Nebius Serverless AI** — a FastAPI orchestration backend r
 
 ---
 
+## Judge Verification
+
+- **Live frontend:** https://archon-pnl.web.app
+- **BFF auth path:** `https://archon-pnl.web.app/api/periods` returns `401` when unauthenticated, proving the Firebase proxy/auth gate is live without waiting on the Nebius endpoint.
+- **Public repo:** https://github.com/upgradedev/archon_nebius
+- **Nebius services used:** AI Endpoint, AI Jobs, Inference API, Object Storage, Managed PostgreSQL, Container Registry
+- **Local run:** `docker compose up --build`
+- **Core invariant:** linked payroll events use employer payroll cost, not bank-net transfer, surfacing the roughly 28% hidden payroll gap.
+
+---
+
 ## Architecture
 
 ```
@@ -68,7 +79,7 @@ Built entirely on **Nebius Serverless AI** — a FastAPI orchestration backend r
 1. **Upload** — user drops documents (any format) into the React UI
 2. **Store** — backend writes raw files to Nebius Object Storage
 3. **Extract** — Nebius AI Job spins up, auto-detects each file type, calls vision or text LLM, writes structured JSON per document
-4. **Analyze** — a second Nebius AI Job reads all JSONs, runs the 6-agent financial reasoning pipeline, returns chart-ready metrics + executive narrative
+4. **Analyze** — a second Nebius AI Job reads all JSONs, runs the 7-stage financial reasoning pipeline, returns chart-ready metrics + executive narrative
 5. **Dashboard** — React renders P&L charts, cash flow waterfall, expense breakdown, and the executive summary card
 
 ---
@@ -80,7 +91,7 @@ Built entirely on **Nebius Serverless AI** — a FastAPI orchestration backend r
 | Frontend | React 18, Vite, TypeScript, Ant Design, Recharts, TanStack Query | Firebase Hosting (Google CDN) |
 | Backend | Python 3.12, FastAPI, Pydantic v2, boto3, Caddy (TLS) | **Nebius Serverless AI Endpoint** (CPU `cpu-d3`) |
 | Extraction Job | Python 3.12, Qwen2.5-VL-72B (vision), pdfplumber, PyMuPDF, python-docx | **Nebius Serverless AI Job** (CPU `cpu-d3`) |
-| Analysis Job | Python 3.12, Llama-3.3-70B-Instruct (6-agent pipeline) | **Nebius Serverless AI Job** (CPU `cpu-d3`) |
+| Analysis Job | Python 3.12, Llama-3.3-70B-Instruct (7-stage pipeline) | **Nebius Serverless AI Job** (CPU `cpu-d3`) |
 | Storage | boto3 (S3-compatible) | Nebius Object Storage |
 | Database | PostgreSQL | Nebius Managed PostgreSQL |
 | Registry | Docker | Nebius Container Registry |
@@ -272,7 +283,7 @@ Always kept running (negligible cost): Nebius Managed PostgreSQL · Object Stora
 
 This project runs on Nebius Serverless AI infrastructure:
 
-- **Backend AI Endpoint** (CPU `cpu-d3`) — live and judge-verifiable: `GET https://archon-api.duckdns.org/health` → `{"status":"ok","service":"archon-backend"}`. List it with `nebius ai endpoint list --parent-id <project-id>`.
+- **Backend AI Endpoint** (CPU `cpu-d3`) — target backend behind the Firebase BFF. Unauthenticated `GET https://archon-pnl.web.app/api/periods` returns `401` at the proxy/auth gate; authenticated upload/analyze requests require the Nebius endpoint deployment to be restored. List the endpoint with `nebius ai endpoint list --parent-id <project-id>`.
 - **Extraction & Analysis AI Jobs** (CPU `cpu-d3`) — submitted on demand by the backend via the Nebius Python SDK; completed runs appear in `nebius ai job list`.
 - **Object Storage** — bucket `archon-bucket` with `raw-docs/`, `extracted/`, and `reports/` prefixes.
 - **Managed PostgreSQL** — cluster `postgresql-e01mek1w9re2vdxc8g`, 6 tables live (`documents`, `employees`, `payroll_events`, `employee_payroll`, `validation_results`, `financial_reports`).
