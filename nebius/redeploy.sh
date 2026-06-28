@@ -38,19 +38,15 @@ echo "[1/4] Tearing down existing endpoints..."
 bash "$SCRIPT_DIR/teardown.sh" || true   # non-fatal if nothing to tear down
 echo ""
 
-# ── Step 2: Verify GPU platform availability ───────────────────────────────────
-echo "[2/4] Checking available GPU platforms..."
-AVAILABLE_PLATFORMS=$(nebius ai endpoint platform list \
-  --format json 2>/dev/null \
-  | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-items = data.get('items', data) if isinstance(data, dict) else data
-for p in items:
-    print(p.get('id','') or p.get('name',''))
-" 2>/dev/null || echo "unknown")
-
-echo "    Available: $AVAILABLE_PLATFORMS"
+# ── Step 2: Verify endpoint API access ─────────────────────────────────────────
+echo "[2/4] Checking Nebius endpoint API access..."
+if nebius ai endpoint list --parent-id "$NEBIUS_PROJECT_ID" --format json >/tmp/nebius-endpoints.json 2>/tmp/nebius-endpoints.err; then
+  echo "    Endpoint API access OK."
+else
+  echo "    Endpoint API access failed:"
+  cat /tmp/nebius-endpoints.err
+  exit 1
+fi
 
 EXTRACTION_PLATFORM="${EXTRACTION_JOB_PLATFORM:-cpu-d3}"
 EXTRACTION_PRESET="${EXTRACTION_JOB_PRESET:-4vcpu-16gb}"
