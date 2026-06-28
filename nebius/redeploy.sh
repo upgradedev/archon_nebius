@@ -41,7 +41,6 @@ echo ""
 # ── Step 2: Verify GPU platform availability ───────────────────────────────────
 echo "[2/4] Checking available GPU platforms..."
 AVAILABLE_PLATFORMS=$(nebius ai endpoint platform list \
-  --parent-id "$NEBIUS_PROJECT_ID" \
   --format json 2>/dev/null \
   | python3 -c "
 import json, sys

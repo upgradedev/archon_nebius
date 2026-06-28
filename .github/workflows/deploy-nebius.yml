@@ -169,7 +169,6 @@ jobs:
         run: |
           set +e
           nebius ai endpoint platform list \
-            --parent-id "$NEBIUS_PROJECT_ID" \
             --format json > /tmp/nebius-endpoint-platforms.json 2>/tmp/nebius-endpoint-preflight.err
           STATUS=$?
           set -e
