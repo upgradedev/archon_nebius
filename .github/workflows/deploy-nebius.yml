@@ -176,7 +176,7 @@ jobs:
           if [ "$STATUS" -ne 0 ]; then
             echo "Nebius endpoint permission preflight failed before Docker build/push." >&2
             echo "The deploy token/service account can generate IAM tokens and may access jobs/registry, but it cannot list/create Serverless AI Endpoints." >&2
-            echo "Grant the deploy identity permission on appbox-e01jdde6ndexnh7xmx / project $NEBIUS_PROJECT_ID, or replace NEBIUS_IAM_TOKEN/NEBIUS_SA_CREDENTIALS with a deploy-capable identity." >&2
+            echo "Grant the deploy identity permission on the Serverless AI Endpoint appbox returned by Nebius for project $NEBIUS_PROJECT_ID, or replace NEBIUS_IAM_TOKEN/NEBIUS_SA_CREDENTIALS with a deploy-capable identity." >&2
             cat /tmp/nebius-endpoint-preflight.err >&2
             exit "$STATUS"
           fi
