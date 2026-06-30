@@ -71,13 +71,15 @@ if [[ "$BUILD" == "true" ]]; then
       "$(dirname "$SCRIPT_DIR")/jobs/analysis"
     docker push "$REGISTRY/archon-analysis:latest"
 
-    # Backend endpoint image (plain uvicorn on 0.0.0.0:8000). The Nebius public
-    # tunnel terminates TLS and forwards PLAINTEXT to the container port, so the
-    # old Caddy tls-internal-on-443 image is incompatible (tunnel → Caddy = 400
-    # "HTTP request to an HTTPS server"). Use the plain image + --container-port 8000;
-    # the tunnel provides public TLS, so no Caddy / self-signed cert is needed.
+    # Backend endpoint image: Caddy (tls internal) on 443 + uvicorn on 8000.
+    # The LIVE path is the Firebase BFF (frontend/functions/main.py) →
+    # https://archon-api.duckdns.org (verify=False) → the endpoint's Caddy on :443;
+    # start.sh updates the DuckDNS A-record to the endpoint's current IP on boot, so
+    # the BFF target stays stable across redeploys. (The Nebius public tunnel URL is
+    # NOT used by the BFF — do NOT switch to a plain image; that removes Caddy/443/
+    # DuckDNS and breaks the live path.)
     echo "  Building archon-backend..."
-    docker build -f "$(dirname "$SCRIPT_DIR")/backend/Dockerfile" \
+    docker build -f "$(dirname "$SCRIPT_DIR")/backend/Dockerfile.https" \
       -t "$REGISTRY/archon-backend:latest" \
       "$(dirname "$SCRIPT_DIR")/backend"
     docker push "$REGISTRY/archon-backend:latest"
@@ -96,7 +98,7 @@ nebius ai endpoint create \
   --parent-id "$NEBIUS_PROJECT_ID" \
   --subnet-id "$NEBIUS_SUBNET_ID" \
   --image "$REGISTRY/archon-backend:latest" \
-  --container-port 8000 \
+  --container-port 443 \
   --platform cpu-d3 \
   --preset 4vcpu-16gb \
   --public \
