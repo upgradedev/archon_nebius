@@ -3,7 +3,7 @@
 #
 # Architecture after this script:
 #   archon-backend    — Nebius Serverless AI Endpoint (CPU, always-on orchestration)
-#   archon-extraction — Nebius Serverless AI Job      (GPU L40S, on-demand per upload)
+#   archon-extraction — Nebius Serverless AI Job      (CPU, on-demand per upload; vision via Inference API)
 #   archon-analysis   — Nebius Serverless AI Job      (CPU, on-demand per analysis request)
 #
 # Images are only rebuilt if --build flag is passed; otherwise existing tags are reused.
@@ -59,7 +59,7 @@ if [[ "$BUILD" == "true" ]]; then
     # Docker login to Nebius CR
     echo "$RUNTIME_IAM_TOKEN" | docker login "$NEBIUS_REGISTRY" --username iam --password-stdin
 
-    # Extraction job image (GPU)
+    # Extraction job image (CPU; vision LLM called over the Nebius Inference API)
     echo "  Building archon-extraction..."
     docker build -t "$REGISTRY/archon-extraction:latest" \
       "$(dirname "$SCRIPT_DIR")/jobs/extraction"
@@ -120,7 +120,7 @@ nebius ai endpoint create \
   --env "ANALYSIS_JOB_PRESET=${ANALYSIS_JOB_PRESET:-4vcpu-16gb}" \
   --env "CORS_ORIGINS=${CORS_ORIGINS:-https://archon-pnl.web.app,http://localhost:3000}" \
   --env "JOB_RUNNER_BACKEND=nebius" \
-  --env "DUCKDNS_TOKEN=${DUCKDNS_TOKEN}" \
+  --env "DUCKDNS_TOKEN=${DUCKDNS_TOKEN:-}" \
   --env "DUCKDNS_SUBDOMAIN=archon-api" \
   --env "CADDY_DOMAIN=archon-api.duckdns.org"
 
