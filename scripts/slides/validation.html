@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { --bg:#0d2b22; --panel:#123a2f; --emerald:#34d399; --gray:#9ca3af; --line:#1f5141; --amber:#fbbf24; --red:#f87171; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1920px; height: 1080px; background: var(--bg); color: #fff;
+    font-family: "Segoe UI", "DejaVu Sans", Arial, sans-serif; overflow: hidden;
+  }
+  .wrap { padding: 64px 90px 190px; height: 100%; display: flex; flex-direction: column; }
+  h1 { font-size: 60px; font-weight: 800; letter-spacing: -1px; }
+  h1 .accent { color: var(--emerald); }
+  .sub { color: var(--gray); font-size: 28px; margin-top: 12px; }
+
+  .rules { display: flex; gap: 26px; margin-top: 46px; }
+  .rule { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 26px 28px; }
+  .rule .id { font-size: 34px; font-weight: 900; }
+  .rule .chk { color: #fff; font-size: 24px; font-weight: 600; margin-top: 10px; line-height: 1.3; }
+  .rule .state { font-size: 22px; font-weight: 800; margin-top: 16px; }
+  .rule .fires { color: var(--gray); font-size: 21px; margin-top: 4px; }
+  .rule.active { border-color: var(--emerald); }
+  .rule.active .id { color: var(--emerald); }
+  .rule.active .state { color: var(--emerald); }
+  .rule.dormant { background: #2a2210; border-color: var(--amber); }
+  .rule.dormant .id { color: var(--amber); }
+  .rule.dormant .state { color: var(--amber); }
+
+  .stress { display: flex; gap: 34px; margin-top: 44px; align-items: stretch; }
+  .scard { flex: 1; border-radius: 18px; padding: 26px 32px; }
+  .scard.catch { background: linear-gradient(135deg, #0f3528, #14483a); border: 2px solid var(--emerald); }
+  .scard.catch .h { color: var(--emerald); font-size: 25px; font-weight: 800; }
+  .scard.miss { background: #2a1212; border: 1px solid var(--red); }
+  .scard.miss .h { color: var(--red); font-size: 25px; font-weight: 800; }
+  .scard .d { color: var(--gray); font-size: 23px; margin-top: 8px; line-height: 1.35; }
+  .footer { color: var(--gray); font-size: 22px; margin-top: 26px; font-style: italic; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Cross-document validation — <span class="accent">R1 to R4</span></h1>
+    <div class="sub">Four rules cross-check the three documents against each other. The harness reports which actually fire — on the full 40-case corpus.</div>
+
+    <div class="rules">
+      <div class="rule active">
+        <div class="id">R1</div>
+        <div class="chk">Bank net ≈ Σ payslip nets, within ±2%</div>
+        <div class="state">ACTIVE</div>
+        <div class="fires">fires 31 / 31</div>
+      </div>
+      <div class="rule dormant">
+        <div class="id">R2</div>
+        <div class="chk">Employer-cost ÷ net ratio inside the expected band</div>
+        <div class="state">DORMANT</div>
+        <div class="fires">fires 0 / 37</div>
+      </div>
+      <div class="rule active">
+        <div class="id">R3</div>
+        <div class="chk">Payment date ≤ end of the pay period</div>
+        <div class="state">ACTIVE</div>
+        <div class="fires">fires 31 / 31</div>
+      </div>
+      <div class="rule dormant">
+        <div class="id">R4</div>
+        <div class="chk">Register headcount == number of payslips</div>
+        <div class="state">DORMANT</div>
+        <div class="fires">fires 0 / 37</div>
+      </div>
+    </div>
+
+    <div class="stress">
+      <div class="scard catch">
+        <div class="h">✓ Stress test — register says N, only N−1 payslips on file</div>
+        <div class="d">R1 catches it: the bank net no longer matches the sum of payslip nets — a real-figure mismatch the active rule sees.</div>
+      </div>
+      <div class="scard miss">
+        <div class="h">✗ R4 cannot — it is dormant</div>
+        <div class="d">R4 reads register.employee_count, which no extractor populates, so it skips and silently passes a broken close. One active rule earns its place; one dormant rule does not.</div>
+      </div>
+    </div>
+    <div class="footer">R2 &amp; R4 read register fields the extraction prompt never requests — they are read in four places, written in none. The fix is one prompt change plus a field mapping.</div>
+  </div>
+</body>
+</html>

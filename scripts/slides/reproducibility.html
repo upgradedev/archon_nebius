@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { --bg:#0d2b22; --panel:#123a2f; --emerald:#34d399; --gray:#9ca3af; --line:#1f5141; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1920px; height: 1080px; background: var(--bg); color: #fff;
+    font-family: "Segoe UI", "DejaVu Sans", Arial, sans-serif; overflow: hidden;
+  }
+  .wrap { padding: 64px 90px 190px; height: 100%; display: flex; flex-direction: column; }
+  h1 { font-size: 60px; font-weight: 800; letter-spacing: -1px; }
+  h1 .accent { color: var(--emerald); }
+  .sub { color: var(--gray); font-size: 28px; margin-top: 12px; }
+
+  .grid { display: flex; gap: 30px; margin-top: 50px; }
+  .stat { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 34px 32px; text-align: center; }
+  .stat .big { color: var(--emerald); font-size: 64px; font-weight: 900; }
+  .stat .lbl { color: #fff; font-size: 26px; font-weight: 600; margin-top: 12px; }
+  .stat .d { color: var(--gray); font-size: 21px; margin-top: 8px; line-height: 1.3; }
+
+  .cmd { background: #07150f; border: 1px solid var(--line); border-radius: 18px; padding: 28px 36px; margin-top: 44px; }
+  .cmd .p { color: var(--gray); font-family: "Consolas","DejaVu Sans Mono",monospace; font-size: 25px; line-height: 1.7; }
+  .cmd .p b { color: var(--emerald); }
+  .cmd .p span { color: #6b7280; }
+
+  .gate { display: flex; align-items: center; gap: 24px; margin-top: 36px;
+          background: linear-gradient(135deg, #0f3528, #14483a); border: 2px solid var(--emerald);
+          border-radius: 18px; padding: 26px 36px; }
+  .gate .pct { color: var(--emerald); font-size: 50px; font-weight: 900; }
+  .gate .txt { font-size: 26px; } .gate .txt b { color: #fff; }
+  .gate .txt span { color: var(--gray); font-size: 23px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Reproducible <span class="accent">by design</span></h1>
+    <div class="sub">A reviewer reproduces every number from the README alone — no key, no cloud, no wait</div>
+
+    <div class="grid">
+      <div class="stat">
+        <div class="big">€0</div>
+        <div class="lbl">cost to run</div>
+        <div class="d">the extractors are deterministic — no inference is called</div>
+      </div>
+      <div class="stat">
+        <div class="big">~6 s</div>
+        <div class="lbl">on a laptop CPU</div>
+        <div class="d">the full 40-case corpus, end to end</div>
+      </div>
+      <div class="stat">
+        <div class="big">offline</div>
+        <div class="lbl">only pydantic</div>
+        <div class="d">no API key, no network — seed 7, byte-for-byte repeatable</div>
+      </div>
+    </div>
+
+    <div class="cmd">
+      <div class="p"><span>$</span> python eval/generate_corpus.py <b>--n 40 --seed 7</b></div>
+      <div class="p"><span>$</span> python eval/evaluate.py        <span># scores the real agents → table + RESULTS.json</span></div>
+      <div class="p"><span>$</span> python -m pytest eval/tests     <span># asserts the baselines stay true, in CI</span></div>
+    </div>
+
+    <div class="gate">
+      <div class="pct">89.8%</div>
+      <div class="txt"><b>test coverage</b>, gated in CI at a hard <b>85% fail-under</b> &nbsp;<span>— the harness and the agents it scores are themselves under test.</span></div>
+    </div>
+  </div>
+</body>
+</html>

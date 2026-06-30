@@ -65,9 +65,19 @@ jobs:
         id: dur
         run: |
           set -euo pipefail
+          # The scripted tour's CTA opens at CTA_START and must hold for CTA_HOLD.
+          # These MUST match scripts/demo-tour.mjs BEATS (CTA opens at REPRO_END=300)
+          # and the default TARGET (300+14=314). The final length is driven by the
+          # VOICEOVER, but is FLOORED at CTA_START+CTA_HOLD so a voiceover that lands
+          # slightly short can never trim away the reproducibility + CTA beats. There
+          # is NO upper cap here: the Nebius video target is 3–10 min, and this
+          # analytical cut runs ~5–6 min — comfortably inside that window.
+          CTA_START=300
+          CTA_HOLD=14
           AUDIO=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 archon-voiceover.mp3)
           echo "audio duration: ${AUDIO}s"
-          TARGET=$(python3 -c "print(round(float('${AUDIO}')+4,1))")
+          TARGET=$(python3 -c "print(round(max(float('${AUDIO}')+4, ${CTA_START}+${CTA_HOLD}),1))")
+          echo "target (floored at $((CTA_START+CTA_HOLD))s): ${TARGET}"
           echo "target=${TARGET}" >> "$GITHUB_OUTPUT"
 
       - name: Install Playwright (chromium)
@@ -124,11 +134,12 @@ jobs:
           done < scripts/captions.txt
           echo "built $i caption clauses"
 
-          # ---- Burn captions onto the tour, capped at the audio-derived target ----
+          # ---- Burn captions onto the tour, trimmed to the (floored) target ----
           # Playwright's webm can carry trailing dead-time past the scripted tour
           # wall-time; -t trims tour_cap to TOUR_LEN so the final video lands at
-          # title + TOUR_LEN + outro (comfortably under the 3:00 cap). VO (shorter
-          # than TOUR_LEN) is never clipped.
+          # title + TOUR_LEN + outro. TOUR_LEN is floored at CTA_START+CTA_HOLD
+          # (see "Compute target duration"), so the trim can never cut the
+          # reproducibility/CTA beats; the VO (<= TOUR_LEN) is never clipped.
           ffmpeg -y -i "$VID" -t "$TOUR_LEN" -vf "$FILTER" -c:v libx264 -preset veryfast -pix_fmt yuv420p -r 30 -an tour_cap.mp4
 
           # ---- Concat title -> captioned tour -> outro (concat FILTER = codec-agnostic) ----
