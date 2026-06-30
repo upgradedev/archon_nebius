@@ -211,8 +211,49 @@ CORS_ORIGINS=https://archon-pnl.web.app
 
 Two GitHub Actions pipelines guard every change:
 
-- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **122 backend unit/integration tests** (pytest) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
+- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **122 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
 - **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), including the **28% payroll-gap invariant** (`employer_cost_total ≥ bank net`). Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
+
+---
+
+## Evaluation harness (measured accuracy)
+
+> *Evaluation harnesses* is a listed Nebius challenge domain. Archon ships one
+> that scores the **real** pipeline agents — not a re-implementation — against a
+> labelled synthetic corpus of Greek SMB payroll documents, and reports concrete
+> field/fusion/validation accuracy. Full detail and findings:
+> [`eval/BASELINE.md`](eval/BASELINE.md).
+
+```bash
+python eval/generate_corpus.py        # rewrite the committed JSON sample corpus
+python eval/evaluate.py               # score the real agents -> table + RESULTS.json
+python -m pytest eval/tests -q        # assert the baselines stay true (runs in CI)
+```
+
+Offline, **no API key, only `pydantic`**; ~3 s for the 6-case sample, ~6 s for
+the deterministic 40-case full corpus (`--n 40 --seed 7`). **Cost: €0** — the
+perfect/degraded extractors are deterministic. An optional live slot scores the
+real Qwen2.5-VL extractor on Nebius ([`eval/LIVE_EXTRACTION.md`](eval/LIVE_EXTRACTION.md)).
+
+**Measured baselines (full 40-case corpus):**
+
+| Metric | Perfect-extraction ceiling | Degraded (sensitivity) |
+|---|---|---|
+| Classification accuracy | **100.00%** | 74.29% |
+| Field accuracy | **100.00%** | 77.62% |
+| Fusion figure accuracy (employer cost via `PnLAgent`) | **100.00%** | 54.05% |
+| Validation-outcome accuracy (R1–R4) | **96.88%** | 91.25% |
+
+- **Positive result:** under perfect extraction the `PnLAgent` reports the
+  *employer cost* (gross + employer IKA), not the bank net, to the cent across 40
+  diverse cases — the core thesis is verified, and the **naive bank-only floor
+  understates payroll by EUR 133,381 (~71% over the bank figure)** on the corpus.
+- **Keystone finding (the harness earns its place):** validation rules **R2 and
+  R4 are DORMANT — they fire 0/37 times** because no extractor populates the
+  `employer_cost_total` / `net_pay_total` / `employee_count` fields they read
+  (the extraction prompt never requests them). R1 and R3 are active and correct.
+  See [`eval/BASELINE.md`](eval/BASELINE.md) §3 for the file:line evidence and the
+  one-prompt-change fix.
 
 ---
 

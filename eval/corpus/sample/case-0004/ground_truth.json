@@ -1,0 +1,202 @@
+{
+  "case_id": "case-0004",
+  "company": "Thraki Agro IKE",
+  "period": "2025-03",
+  "payment_date": "2025-03-31",
+  "edge_cases": [
+    "missing_payslip"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 5,
+    "employees_true": 6
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-03.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 13850.06,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2025-03.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 23905.55,
+      "notes": "Misthodotiki katastasi - IKA ergodoti - synoliko kostos ergodoti",
+      "raw_text_excerpt": "MISTHODOTIKH KATASTASH IKA EFKA EISFORES ERGODOTH"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-03.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 2527.57,
+      "employee_name": "Sofia Dimou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2025-03.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 1354.76,
+      "employee_name": "Petros Nikolaou",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2025-03.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 2404.36,
+      "employee_name": "Eleni Dimou",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2025-03.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 3017.53,
+      "employee_name": "Sofia Makris",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-005_2025-03.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 1643.02,
+      "employee_name": "Dimitris Papadopoulos",
+      "employee_code": "EMP-005",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 18972.66,
+    "employee_ika_total": 3035.61,
+    "tax_withheld_total": 2086.99,
+    "employer_ika_total": 4932.89,
+    "employer_cost_total": 23905.55,
+    "net_total": 13850.06,
+    "bank_net_total": 13850.06,
+    "employee_count": 6,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 3462.43,
+        "employee_ika": 553.99,
+        "tax": 380.87,
+        "net": 2527.57,
+        "employer_ika": 900.23,
+        "employer_cost": 4362.66,
+        "name": "Sofia Dimou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 1855.83,
+        "employee_ika": 296.93,
+        "tax": 204.14,
+        "net": 1354.76,
+        "employer_ika": 482.52,
+        "employer_cost": 2338.35,
+        "name": "Petros Nikolaou"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 3293.64,
+        "employee_ika": 526.98,
+        "tax": 362.3,
+        "net": 2404.36,
+        "employer_ika": 856.35,
+        "employer_cost": 4149.99,
+        "name": "Eleni Dimou"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 4133.59,
+        "employee_ika": 661.37,
+        "tax": 454.69,
+        "net": 3017.53,
+        "employer_ika": 1074.73,
+        "employer_cost": 5208.32,
+        "name": "Sofia Makris"
+      },
+      {
+        "employee_code": "EMP-005",
+        "gross": 2250.71,
+        "employee_ika": 360.11,
+        "tax": 247.58,
+        "net": 1643.02,
+        "employer_ika": 585.18,
+        "employer_cost": 2835.89,
+        "name": "Dimitris Papadopoulos"
+      },
+      {
+        "employee_code": "EMP-006",
+        "gross": 3976.46,
+        "employee_ika": 636.23,
+        "tax": 437.41,
+        "net": 2902.82,
+        "employer_ika": 1033.88,
+        "employer_cost": 5010.34,
+        "name": "Katerina Antoniou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": false,
+    "R2": true,
+    "R3": true,
+    "R4": false
+  },
+  "expected_figures": {
+    "employer_cost_total": 23905.55,
+    "bank_net_total": 13850.06,
+    "employee_count": 6
+  },
+  "naive": {
+    "bank_only_payroll_cost": 13850.06,
+    "true_employer_cost": 23905.55,
+    "understatement_amount": 10055.49,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_ika_wedge_pct_of_bank": 35.62
+  }
+}
