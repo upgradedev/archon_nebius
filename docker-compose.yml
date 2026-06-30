@@ -10,7 +10,7 @@ x-local-infra-env: &local-infra-env
   AWS_ACCESS_KEY_ID: test
   AWS_SECRET_ACCESS_KEY: test
   NEBIUS_REGION: us-east-1
-  NEBIUS_BUCKET_NAME: archon-docs   # matches scripts/init-localstack.sh
+  NEBIUS_BUCKET_NAME: archon-bucket # matches scripts/init-localstack.sh + .env.example
   POSTGRES_HOST: ""                 # empty disables the cloud DB locally
   DATABASE_URL: ""
 

@@ -103,14 +103,13 @@ jobs:
           wait_for "analysis"    "http://localhost:8001/health"
           wait_for "backend"     "http://localhost:8000/health"
 
-      - name: Create S3 bucket in LocalStack
+      - name: Verify S3 bucket created by init-localstack.sh
         run: |
           pip install awscli -q
-          aws --endpoint-url=http://localhost:4566 \
-              --region us-east-1 \
-              s3 mb s3://archon-bucket || true
-          echo "Bucket ready:"
+          echo "Buckets (created by scripts/init-localstack.sh ready.d hook):"
           aws --endpoint-url=http://localhost:4566 --region us-east-1 s3 ls
+          aws --endpoint-url=http://localhost:4566 --region us-east-1 \
+              s3 ls s3://archon-bucket
         env:
           AWS_ACCESS_KEY_ID: test
           AWS_SECRET_ACCESS_KEY: test
