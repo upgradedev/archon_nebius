@@ -12,3 +12,4 @@ PyJWT[cryptography]>=2.10.0
 # test
 pytest>=8.3.0
 pytest-mock>=3.14.0
+pytest-cov>=6.0.0
