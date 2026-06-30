@@ -1,0 +1,41 @@
+# Coverage configuration for the Archon Python backend, jobs, endpoints and
+# evaluation harness. Used by scripts/coverage.sh and the CI coverage gate.
+#
+# Each test suite runs in its OWN process (separate pytest invocation) because
+# the extraction pipeline (jobs/extraction) and the analysis pipeline
+# (endpoints/analysis) each ship identically-named top-level `models`/`agents`
+# packages that would collide in a single interpreter. Results are appended to
+# one data file. See scripts/coverage.sh.
+#
+# Excluded from the offline gate (NOTE: ini values cannot carry trailing inline
+# comments, so the rationale lives here):
+#   jobs/extraction/server.py    — ADR-002 local-dev FastAPI wrapper only
+#   jobs/extraction/main.py      — batch entrypoint: module-level env reads +
+#                                  extractor instantiation; exercised by the live
+#                                  Exhaustive E2E Pipeline, not offline unit tests
+#   eval/evaluate.py             — eval CLI (executed directly in the smoke-test)
+#   eval/generate_corpus.py      — synthetic-corpus generation tooling
+#   eval/live_extract.py         — live multimodal extraction tool (needs an LLM)
+# jobs/analysis/ is not listed in [run] source at all: it is a near-duplicate of
+# endpoints/analysis (only Dockerfile/main.py/requirements differ).
+
+[run]
+source =
+    backend
+    jobs/extraction
+    endpoints/analysis
+    eval
+
+omit =
+    */tests/*
+    */__pycache__/*
+    jobs/extraction/server.py
+    jobs/extraction/main.py
+    eval/evaluate.py
+    eval/generate_corpus.py
+    eval/live_extract.py
+
+[report]
+show_missing = True
+precision = 1
+skip_covered = False

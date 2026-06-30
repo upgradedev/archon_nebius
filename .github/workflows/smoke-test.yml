@@ -8,6 +8,40 @@ on:
   workflow_dispatch:
 
 jobs:
+  coverage:
+    # Offline coverage gate for the Python code (backend + extraction job +
+    # analysis endpoint + eval harness). Fast, no Docker, no network: only the
+    # three requirements files + pytest-cov. Fails the PR if total in-scope
+    # coverage drops below the threshold. Config: .coveragerc + scripts/coverage.sh.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install all Python deps (backend + extraction + analysis)
+        run: |
+          pip install -r backend/requirements.txt
+          pip install -r jobs/extraction/requirements.txt
+          pip install -r endpoints/analysis/requirements.txt
+
+      - name: Run coverage gate (fail-under)
+        env:
+          COVERAGE_FAIL_UNDER: "85"
+        run: bash scripts/coverage.sh
+
+      - name: Upload coverage XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: ignore
+
   smoke-test:
     runs-on: ubuntu-latest
     timeout-minutes: 45
