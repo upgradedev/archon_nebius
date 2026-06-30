@@ -1,3 +1,19 @@
+# Local-dev infra overrides (take precedence over values loaded from .env).
+# These point the stack at the local LocalStack S3 and disable the cloud
+# database, so the whole pipeline runs with NO Nebius infrastructure account.
+# The only real credential you must put in .env is NEBIUS_INFERENCE_API_KEY —
+# extraction and analysis call the Nebius Inference API for the vision and
+# language models (there is no offline mock). The cloud deploy path uses the
+# real Nebius values (see nebius/redeploy.sh and deploy-nebius.yml).
+x-local-infra-env: &local-infra-env
+  STORAGE_ENDPOINT_URL: http://localstack:4566
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  NEBIUS_REGION: us-east-1
+  NEBIUS_BUCKET_NAME: archon-bucket # matches scripts/init-localstack.sh + .env.example
+  POSTGRES_HOST: ""                 # empty disables the cloud DB locally
+  DATABASE_URL: ""
+
 services:
   backend:
     build:
@@ -7,6 +23,13 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      <<: *local-infra-env
+      # Run jobs as local HTTP containers instead of real Nebius AI Jobs,
+      # and bypass the Firebase auth gate so scripts/test-pipeline.sh can
+      # drive the API without a signed-in browser session.
+      JOB_RUNNER_BACKEND: local
+      SKIP_AUTH: "true"
     volumes:
       - ./backend:/app
     depends_on:
@@ -54,6 +77,8 @@ services:
       - "8002:8002"
     env_file:
       - .env
+    environment:
+      <<: *local-infra-env
     depends_on:
       - localstack
     networks:
@@ -69,7 +94,8 @@ services:
     env_file:
       - .env
     environment:
-      - PORT=8001
+      <<: *local-infra-env
+      PORT: "8001"
     networks:
       - archon
 

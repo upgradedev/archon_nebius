@@ -112,8 +112,8 @@ Built entirely on **Nebius Serverless AI** — a FastAPI orchestration backend r
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/archon.git
-cd archon
+git clone https://github.com/upgradedev/archon_nebius.git
+cd archon_nebius
 cp .env.example .env
 ```
 
@@ -146,20 +146,47 @@ bash nebius/redeploy.sh --build
 
 The two jobs are submitted on demand by the backend via the Nebius Python SDK — no separate deploy step. (CI/CD alternative: the **Deploy to Nebius** GitHub Actions workflow does the same with repository secrets.)
 
-### 4. Run locally with Docker Compose
+Then apply the PostgreSQL schema once (the backend persists financial records to
+Nebius Managed PostgreSQL; this creates the 6 tables). Not needed for the local
+Docker Compose path, which has no database:
 
 ```bash
+psql "$DATABASE_URL" -f backend/db/schema.sql
+```
+
+### 4. Run locally with Docker Compose (no Nebius infrastructure needed)
+
+```bash
+cp .env.example .env
+# Set ONE value in .env — your Nebius Inference (Studio) API key:
+#   NEBIUS_INFERENCE_API_KEY=...
 docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+This brings up the backend, the extraction/analysis containers, a LocalStack S3,
+and the frontend. `docker-compose.yml` supplies all the local infra values itself:
+it points the stack at LocalStack S3, disables the cloud database, runs jobs as
+local containers (`JOB_RUNNER_BACKEND=local`), and bypasses Firebase auth
+(`SKIP_AUTH=true`). So you need **no Nebius infrastructure account** — no Jobs,
+Endpoints, Object Storage, or PostgreSQL. The only real credential required is the
+**Inference API key**, because extraction and analysis call the Nebius Inference
+API for the vision and language models (there is no offline mock).
 
 ### 5. Try with sample data
 
+The reliable, frontend-independent way to exercise the whole pipeline
+(upload → extract → link → validate → analyze → report) is the headless smoke test
+— this is exactly what CI runs:
+
 ```bash
-python scripts/generate-sample-data.py   # generates synthetic Greek invoices
-# Then upload the files from sample-data/ via the UI
+python scripts/generate-sample-data.py    # synthetic Greek invoices + payroll docs
+bash scripts/test-pipeline.sh             # drives the running stack, prints the report JSON
 ```
+
+You can also use the browser UI at [http://localhost:3000](http://localhost:3000),
+but it gates on **Firebase Google sign-in**. To use the UI locally, point
+`frontend/src/firebase.ts` at your own Firebase project; otherwise prefer
+`test-pipeline.sh` above (or the hosted demo at https://archon-pnl.web.app).
 
 ### 6. Deploy the frontend to Firebase
 
