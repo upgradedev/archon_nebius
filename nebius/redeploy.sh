@@ -71,9 +71,13 @@ if [[ "$BUILD" == "true" ]]; then
       "$(dirname "$SCRIPT_DIR")/jobs/analysis"
     docker push "$REGISTRY/archon-analysis:latest"
 
-    # Backend endpoint image (CPU + HTTPS via Caddy)
+    # Backend endpoint image (plain uvicorn on 0.0.0.0:8000). The Nebius public
+    # tunnel terminates TLS and forwards PLAINTEXT to the container port, so the
+    # old Caddy tls-internal-on-443 image is incompatible (tunnel → Caddy = 400
+    # "HTTP request to an HTTPS server"). Use the plain image + --container-port 8000;
+    # the tunnel provides public TLS, so no Caddy / self-signed cert is needed.
     echo "  Building archon-backend..."
-    docker build -f "$(dirname "$SCRIPT_DIR")/backend/Dockerfile.https" \
+    docker build -f "$(dirname "$SCRIPT_DIR")/backend/Dockerfile" \
       -t "$REGISTRY/archon-backend:latest" \
       "$(dirname "$SCRIPT_DIR")/backend"
     docker push "$REGISTRY/archon-backend:latest"
@@ -90,8 +94,9 @@ echo "[4/4] Deploying backend endpoint (CPU)..."
 nebius ai endpoint create \
   --name "archon-backend" \
   --parent-id "$NEBIUS_PROJECT_ID" \
+  --subnet-id "$NEBIUS_SUBNET_ID" \
   --image "$REGISTRY/archon-backend:latest" \
-  --container-port 443 \
+  --container-port 8000 \
   --platform cpu-d3 \
   --preset 4vcpu-16gb \
   --public \
