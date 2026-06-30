@@ -1,0 +1,14 @@
+2|11|Every month a small business closes its books — the hardest line is payroll
+11|20|The bank statement hides the true cost of employing your team
+20|31|One payroll event leaves three documents, each telling part of the story
+31|42|Bank confirmation  ·  payroll register  ·  payslips
+42|50|Archon's Event Linker fuses all three into one accurate event
+50|58|~28% employer social-security wedge — invisible until correlated
+58|72|Runs entirely on Nebius Serverless AI
+72|84|2 on-demand CPU Jobs (extract + analyze)  ·  1 CPU AI Endpoint
+84|98|Inference API: Qwen2.5-VL-72B vision  ·  Llama-3.3-70B analysis
+98|110|Evaluation harness — scores the REAL agents on 40 labelled cases
+110|122|100% classification, field & fusion — employer cost to the cent
+122|130|Keystone: 2 of 4 validation rules never fire — caught by the harness
+130|138|EUR 133,382 understated payroll recovered vs the bank-only baseline
+138|154|Try it live — archon-pnl.web.app

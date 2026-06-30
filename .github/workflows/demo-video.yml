@@ -1,0 +1,156 @@
+name: Generate Demo Video (ElevenLabs + Playwright)
+
+# End-to-end demo video for the Nebius Serverless AI Builders Challenge — no local
+# recording needed:
+#   1. ElevenLabs synthesizes the voiceover from docs/narration.txt
+#   2. Playwright records a beat-aligned tour: the LIVE public landing page +
+#      rendered architecture / fusion / eval-results slides (scripts/slides/*.html)
+#   3. ffmpeg adds a title card, burns scripts/captions.txt, appends an outro, and
+#      muxes the voiceover -> archon-nebius-demo.mp4 (uploaded as an artifact)
+# Run: Actions -> "Generate Demo Video" -> Run workflow (or gh workflow run demo-video.yml).
+# Requires repo secret ELEVEN_LABS_KEY (already configured on this repo).
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Live app URL to record (public landing page)."
+        required: false
+        default: "https://archon-pnl.web.app"
+      voice_id:
+        description: "ElevenLabs voice ID."
+        required: false
+        default: "pNInz6obpgDQGcFmaJgB"
+      model_id:
+        description: "ElevenLabs model ID."
+        required: false
+        default: "eleven_multilingual_v2"
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Ensure ffmpeg + fonts
+        run: |
+          command -v ffmpeg >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+          # DejaVu Bold is the burned-caption / title-card font (path used in compose step).
+          dpkg -s fonts-dejavu-core >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y fonts-dejavu-core)
+          test -f /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+
+      - name: Synthesize voiceover (ElevenLabs)
+        env:
+          XI_API_KEY: ${{ secrets.ELEVEN_LABS_KEY }}
+          VOICE_ID: ${{ github.event.inputs.voice_id }}
+          MODEL_ID: ${{ github.event.inputs.model_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "${XI_API_KEY:-}" ]; then echo "::error::ELEVEN_LABS_KEY not set"; exit 1; fi
+          jq -Rs --arg m "$MODEL_ID" \
+            '{text: ., model_id: $m, voice_settings: {stability: 0.45, similarity_boost: 0.8, use_speaker_boost: true}}' \
+            docs/narration.txt > body.json
+          HTTP=$(curl -sS -w "%{http_code}" -X POST \
+            "https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_128" \
+            -H "xi-api-key: ${XI_API_KEY}" -H "Content-Type: application/json" -H "Accept: audio/mpeg" \
+            --data @body.json -o archon-voiceover.mp3)
+          [ "$HTTP" = "200" ] || { echo "::error::ElevenLabs HTTP $HTTP"; cat archon-voiceover.mp3; exit 1; }
+          [ "$(wc -c < archon-voiceover.mp3)" -gt 10000 ] || { echo "::error::audio too small"; exit 1; }
+
+      - name: Compute target duration
+        id: dur
+        run: |
+          set -euo pipefail
+          AUDIO=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 archon-voiceover.mp3)
+          echo "audio duration: ${AUDIO}s"
+          TARGET=$(python3 -c "print(round(float('${AUDIO}')+4,1))")
+          echo "target=${TARGET}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Playwright (chromium)
+        run: |
+          npm init -y >/dev/null 2>&1 || true
+          npm install -D playwright@1.49.1
+          npx playwright install --with-deps chromium
+
+      - name: Record guided tour
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url }}
+          TARGET_SECONDS: ${{ steps.dur.outputs.target }}
+        run: node scripts/demo-tour.mjs
+
+      - name: Compose demo video (title + captions + outro + VO)
+        env:
+          TOUR_LEN: ${{ steps.dur.outputs.target }}
+        run: |
+          set -euo pipefail
+          FONT=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+          VID=$(ls video/*.webm | head -1)
+          [ -n "$VID" ] || { echo "::error::no tour video produced"; exit 1; }
+          echo "tour video: $VID"
+          mkdir -p caps
+
+          # ---- Title card (3s, silent) — dark emerald bg ----
+          printf '%s' 'Archon' > caps/title1.txt
+          printf '%s' 'The monthly close, correlated.' > caps/title2.txt
+          printf '%s' 'Nebius Serverless AI' > caps/title3.txt
+          ffmpeg -y -f lavfi -i color=c=0x0d2b22:s=1920x1080:d=3:r=30 -vf \
+            "drawtext=fontfile=$FONT:textfile=caps/title1.txt:expansion=none:fontcolor=0x34d399:fontsize=150:x=(w-text_w)/2:y=(h/2)-140,drawtext=fontfile=$FONT:textfile=caps/title2.txt:expansion=none:fontcolor=white:fontsize=54:x=(w-text_w)/2:y=(h/2)+30,drawtext=fontfile=$FONT:textfile=caps/title3.txt:expansion=none:fontcolor=0x9ca3af:fontsize=40:x=(w-text_w)/2:y=(h/2)+120,format=yuv420p" \
+            -c:v libx264 -pix_fmt yuv420p -r 30 title.mp4
+
+          # ---- Outro card (3s, silent) ----
+          printf '%s' 'Try it live' > caps/outro1.txt
+          printf '%s' 'archon-pnl.web.app' > caps/outro2.txt
+          ffmpeg -y -f lavfi -i color=c=0x0d2b22:s=1920x1080:d=3:r=30 -vf \
+            "drawtext=fontfile=$FONT:textfile=caps/outro1.txt:expansion=none:fontcolor=white:fontsize=88:x=(w-text_w)/2:y=(h/2)-80,drawtext=fontfile=$FONT:textfile=caps/outro2.txt:expansion=none:fontcolor=0x34d399:fontsize=66:x=(w-text_w)/2:y=(h/2)+40,format=yuv420p" \
+            -c:v libx264 -pix_fmt yuv420p -r 30 outro.mp4
+
+          # ---- Build the burned-caption drawtext chain from scripts/captions.txt ----
+          # scale/pad FIRST (fontsize is output-pixel space), then one drawtext per line.
+          # Each text goes to its own textfile= (no comma/colon/apostrophe escaping needed);
+          # expansion=none keeps % and \ literal; enable= is single-quoted so its commas
+          # are protected inside the filtergraph. NO spaces between chained drawtext filters.
+          FILTER="scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p"
+          i=0
+          while IFS='|' read -r s e text || [ -n "$s" ]; do
+            [ -z "$s" ] && continue
+            text="${text%$'\r'}" # strip a trailing CR if the file was checked out CRLF
+            printf '%s' "$text" > "caps/cap_$i.txt"
+            FILTER="$FILTER,drawtext=fontfile=$FONT:textfile=caps/cap_$i.txt:expansion=none:fontsize=40:fontcolor=white:line_spacing=8:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=h-130:enable='between(t,$s,$e)'"
+            i=$((i+1))
+          done < scripts/captions.txt
+          echo "built $i caption clauses"
+
+          # ---- Burn captions onto the tour, capped at the audio-derived target ----
+          # Playwright's webm can carry trailing dead-time past the scripted tour
+          # wall-time; -t trims tour_cap to TOUR_LEN so the final video lands at
+          # title + TOUR_LEN + outro (comfortably under the 3:00 cap). VO (shorter
+          # than TOUR_LEN) is never clipped.
+          ffmpeg -y -i "$VID" -t "$TOUR_LEN" -vf "$FILTER" -c:v libx264 -preset veryfast -pix_fmt yuv420p -r 30 -an tour_cap.mp4
+
+          # ---- Concat title -> captioned tour -> outro (concat FILTER = codec-agnostic) ----
+          ffmpeg -y -i title.mp4 -i tour_cap.mp4 -i outro.mp4 -filter_complex \
+            "[0:v]scale=1920:1080,setsar=1,fps=30,format=yuv420p[v0];[1:v]scale=1920:1080,setsar=1,fps=30,format=yuv420p[v1];[2:v]scale=1920:1080,setsar=1,fps=30,format=yuv420p[v2];[v0][v1][v2]concat=n=3:v=1:a=0[outv]" \
+            -map "[outv]" -c:v libx264 -preset veryfast -pix_fmt yuv420p -r 30 full.mp4
+
+          # ---- Mux the VO, delayed by the 3s title so it starts on the tour ----
+          # apad makes the audio effectively infinite; -shortest then lands at the FULL
+          # video length (title + tour + outro), so the outro is never truncated.
+          ffmpeg -y -i full.mp4 -i archon-voiceover.mp3 \
+            -filter_complex "[1:a]adelay=3000:all=1,apad[a]" \
+            -map 0:v:0 -map "[a]" -c:v copy -c:a aac -b:a 192k -shortest archon-nebius-demo.mp4
+          ls -la archon-nebius-demo.mp4
+          echo "final duration:"
+          ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 archon-nebius-demo.mp4
+
+      - name: Upload demo video
+        uses: actions/upload-artifact@v4
+        with:
+          name: archon-nebius-demo-video
+          path: |
+            archon-nebius-demo.mp4
+            archon-voiceover.mp3
+          retention-days: 14
