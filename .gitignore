@@ -58,6 +58,12 @@ uploads/
 sample-data/generated/
 reports/
 
+# Eval harness — commit the small JSON-only sample corpus; ignore the large
+# regenerable full corpus, rendered PDFs, and the machine-readable results dump.
+eval/corpus/full/
+eval/corpus/**/docs/
+eval/RESULTS.json
+
 # Logs
 *.log
 logs/

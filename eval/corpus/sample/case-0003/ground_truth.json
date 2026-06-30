@@ -1,0 +1,204 @@
+{
+  "case_id": "case-0003",
+  "company": "Epirus Dairy EPE",
+  "period": "2026-09",
+  "payment_date": "2026-09-30",
+  "edge_cases": [
+    "missing_register"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": false,
+    "payslips_emitted": 6,
+    "employees_true": 6
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-09.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 10015.24,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 1062.46,
+      "employee_name": "Kostas Dimou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 2182.96,
+      "employee_name": "Dimitris Samaras",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2026-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 1960.01,
+      "employee_name": "Sofia Dimou",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2026-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 766.25,
+      "employee_name": "Giorgos Ioannidis",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-005_2026-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 2284.42,
+      "employee_name": "Katerina Nikolaou",
+      "employee_code": "EMP-005",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-006_2026-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 1759.14,
+      "employee_name": "Petros Nikolaou",
+      "employee_code": "EMP-006",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 13719.5,
+    "employee_ika_total": 2195.12,
+    "tax_withheld_total": 1509.14,
+    "employer_ika_total": 3567.06,
+    "employer_cost_total": 17286.56,
+    "net_total": 10015.24,
+    "bank_net_total": 10015.24,
+    "employee_count": 6,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 1455.43,
+        "employee_ika": 232.87,
+        "tax": 160.1,
+        "net": 1062.46,
+        "employer_ika": 378.41,
+        "employer_cost": 1833.84,
+        "name": "Kostas Dimou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 2990.36,
+        "employee_ika": 478.46,
+        "tax": 328.94,
+        "net": 2182.96,
+        "employer_ika": 777.49,
+        "employer_cost": 3767.85,
+        "name": "Dimitris Samaras"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 2684.94,
+        "employee_ika": 429.59,
+        "tax": 295.34,
+        "net": 1960.01,
+        "employer_ika": 698.08,
+        "employer_cost": 3383.02,
+        "name": "Sofia Dimou"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 1049.66,
+        "employee_ika": 167.95,
+        "tax": 115.46,
+        "net": 766.25,
+        "employer_ika": 272.91,
+        "employer_cost": 1322.57,
+        "name": "Giorgos Ioannidis"
+      },
+      {
+        "employee_code": "EMP-005",
+        "gross": 3129.34,
+        "employee_ika": 500.69,
+        "tax": 344.23,
+        "net": 2284.42,
+        "employer_ika": 813.63,
+        "employer_cost": 3942.97,
+        "name": "Katerina Nikolaou"
+      },
+      {
+        "employee_code": "EMP-006",
+        "gross": 2409.77,
+        "employee_ika": 385.56,
+        "tax": 265.07,
+        "net": 1759.14,
+        "employer_ika": 626.54,
+        "employer_cost": 3036.31,
+        "name": "Petros Nikolaou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 17286.56,
+    "bank_net_total": 10015.24,
+    "employee_count": 6
+  },
+  "naive": {
+    "bank_only_payroll_cost": 10015.24,
+    "true_employer_cost": 17286.56,
+    "understatement_amount": 7271.32,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_ika_wedge_pct_of_bank": 35.62
+  }
+}

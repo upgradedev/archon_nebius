@@ -1,0 +1,39 @@
+{
+  "seed": 7,
+  "cases": [
+    {
+      "case_id": "case-0001",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0002",
+      "edge_cases": [
+        "bank_mismatch"
+      ]
+    },
+    {
+      "case_id": "case-0003",
+      "edge_cases": [
+        "missing_register"
+      ]
+    },
+    {
+      "case_id": "case-0004",
+      "edge_cases": [
+        "missing_payslip"
+      ]
+    },
+    {
+      "case_id": "case-0005",
+      "edge_cases": [
+        "missing_bank"
+      ]
+    },
+    {
+      "case_id": "case-0006",
+      "edge_cases": [
+        "single_employee"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+{
+  "case_id": "case-0002",
+  "company": "Aigaio Foods AE",
+  "period": "2026-01",
+  "payment_date": "2026-01-31",
+  "edge_cases": [
+    "bank_mismatch"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 2,
+    "employees_true": 2
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-01.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-01-31",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 2522.72,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-01.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-01-31",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Aigaio Foods AE",
+      "currency": "EUR",
+      "total_amount": 4107.81,
+      "notes": "Misthodotiki katastasi - IKA ergodoti - synoliko kostos ergodoti",
+      "raw_text_excerpt": "MISTHODOTIKH KATASTASH IKA EFKA EISFORES ERGODOTH"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-01.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-01-31",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Aigaio Foods AE",
+      "currency": "EUR",
+      "total_amount": 734.41,
+      "employee_name": "Nikos Alexiou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-01.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-01-31",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Aigaio Foods AE",
+      "currency": "EUR",
+      "total_amount": 1645.51,
+      "employee_name": "Anna Samaras",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 3260.17,
+    "employee_ika_total": 521.63,
+    "tax_withheld_total": 358.62,
+    "employer_ika_total": 847.64,
+    "employer_cost_total": 4107.81,
+    "net_total": 2379.92,
+    "bank_net_total": 2522.72,
+    "employee_count": 2,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 1006.05,
+        "employee_ika": 160.97,
+        "tax": 110.67,
+        "net": 734.41,
+        "employer_ika": 261.57,
+        "employer_cost": 1267.62,
+        "name": "Nikos Alexiou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 2254.12,
+        "employee_ika": 360.66,
+        "tax": 247.95,
+        "net": 1645.51,
+        "employer_ika": 586.07,
+        "employer_cost": 2840.19,
+        "name": "Anna Samaras"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": false,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 4107.81,
+    "bank_net_total": 2522.72,
+    "employee_count": 2
+  },
+  "naive": {
+    "bank_only_payroll_cost": 2522.72,
+    "true_employer_cost": 4107.81,
+    "understatement_amount": 1585.09,
+    "understatement_pct_of_true": 38.59,
+    "understatement_pct_of_bank": 62.83,
+    "employer_ika_wedge_pct_of_bank": 33.6
+  }
+}

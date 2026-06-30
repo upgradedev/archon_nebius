@@ -1,0 +1,96 @@
+{
+  "case_id": "case-0006",
+  "company": "Dodekanisa Trade AE",
+  "period": "2026-11",
+  "payment_date": "2026-11-30",
+  "edge_cases": [
+    "single_employee"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 1,
+    "employees_true": 1
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-11.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-11-30",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 2033.87,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-11.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-11-30",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Dodekanisa Trade AE",
+      "currency": "EUR",
+      "total_amount": 3510.51,
+      "notes": "Misthodotiki katastasi - IKA ergodoti - synoliko kostos ergodoti",
+      "raw_text_excerpt": "MISTHODOTIKH KATASTASH IKA EFKA EISFORES ERGODOTH"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-11.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-11-30",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Dodekanisa Trade AE",
+      "currency": "EUR",
+      "total_amount": 2033.87,
+      "employee_name": "Ioanna Ioannidis",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 2786.12,
+    "employee_ika_total": 445.78,
+    "tax_withheld_total": 306.47,
+    "employer_ika_total": 724.39,
+    "employer_cost_total": 3510.51,
+    "net_total": 2033.87,
+    "bank_net_total": 2033.87,
+    "employee_count": 1,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2786.12,
+        "employee_ika": 445.78,
+        "tax": 306.47,
+        "net": 2033.87,
+        "employer_ika": 724.39,
+        "employer_cost": 3510.51,
+        "name": "Ioanna Ioannidis"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 3510.51,
+    "bank_net_total": 2033.87,
+    "employee_count": 1
+  },
+  "naive": {
+    "bank_only_payroll_cost": 2033.87,
+    "true_employer_cost": 3510.51,
+    "understatement_amount": 1476.64,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_ika_wedge_pct_of_bank": 35.62
+  }
+}

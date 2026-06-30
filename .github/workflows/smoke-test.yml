@@ -31,6 +31,13 @@ jobs:
           pip install -r backend/requirements.txt
           cd backend && python -m pytest tests/ -v --tb=short
 
+      - name: Evaluation harness — proof of execution + baselines
+        run: |
+          # offline: scores the real pipeline agents vs ground truth (no network,
+          # only pydantic). Asserts the BASELINE.md numbers + R2/R4 dormancy.
+          python -m pytest eval/tests -q
+          python eval/evaluate.py eval/corpus/sample
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
