@@ -211,10 +211,42 @@ CORS_ORIGINS=https://archon-pnl.web.app
 
 Two GitHub Actions pipelines guard every change:
 
-- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **122 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
+- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **153 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
 - **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), including the **28% payroll-gap invariant** (`employer_cost_total ≥ bank net`). Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
 
 ---
+
+## Resilient job provisioning (graceful compute failover)
+
+Nebius AI Jobs quota is granted per compute preset. When the requested preset has
+**zero quota**, a submitted Job tears itself down at provisioning — it never
+creates an instance and returns no clean error — so the whole pipeline used to
+stall **invisibly**. Archon now degrades gracefully and fails loudly instead:
+
+- **Config-driven ladder.** `JOB_PRESET_LADDER` (e.g.
+  `cpu-d3:4vcpu-16gb,cpu-d3:8vcpu-32gb`) is an ordered, bounded list of
+  `platform:preset` pairs. Unset, it defaults to the live per-job preset followed
+  by the next larger `cpu-d3` size. In eu-west1 `cpu-d3` is the only CPU platform,
+  so the real fallback is **larger preset sizes** within it — quota can be granted
+  per size.
+- **Fails over only on a never-provisioned signal.** Job submission is followed by
+  a short, bounded provisioning probe. Archon moves to the next preset **only**
+  when a job never got compute — a terminal failure (`FAILED`/`CANCELLED`/`ERROR`)
+  with **zero instances** and never `RUNNING`, a job that vanished mid-provisioning,
+  or a `FAILED_PRECONDITION`/quota error at submission. A job that reached compute
+  and *then* failed is an application bug that would recur on every preset, so it is
+  surfaced immediately — **no failover, no wasted spend.** The discriminator is
+  instance-count + terminal-state, never elapsed time.
+- **Bounded + cost-safe.** Each ladder entry is tried at most once, in order.
+  Never-provisioned scaffolding is deleted before the next attempt so no jobs leak.
+- **Loud on exhaustion.** When every preset fails to provision, the API returns
+  **HTTP 503** with an actionable message listing the presets tried — never a
+  silent hang or a generic 500. (Observability was half the fix: the original
+  incident was invisible precisely because no such signal existed.)
+
+Verified entirely in CI via unit + mocked-runner tests and a real-pysdk
+`JobStatus` shape contract test (`backend/tests/test_nebius_service.py`) — no live
+jobs are submitted (quota is 0 and live jobs cost money). See **ADR-009**.
 
 ## Evaluation harness (measured accuracy)
 

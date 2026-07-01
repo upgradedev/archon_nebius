@@ -112,19 +112,306 @@ def _make_sdk():
     # Local dev fallback: NEBIUS_IAM_TOKEN session token (expires every 12 h)
     return SDK()
 
-# JobStatus.State enum values from nebius.ai.v1.JobStatus
+# JobStatus.State enum values from nebius.ai.v1.JobStatus (verified against the
+# installed pysdk: PROVISIONING→STARTING→RUNNING→COMPLETED/FAILED/CANCELLED/ERROR).
+_STATE_UNSPECIFIED = 0
+_STATE_PROVISIONING = 1
+_STATE_STARTING = 2
+_STATE_RUNNING = 3
+_STATE_CANCELLING = 4
+_STATE_DELETING = 5
+_STATE_COMPLETED = 6
+_STATE_FAILED = 7
+_STATE_CANCELLED = 8
+_STATE_ERROR = 9
+_TERMINAL_FAILURE_STATES = frozenset({_STATE_FAILED, _STATE_CANCELLED, _STATE_ERROR})
+
 _JOB_STATE_MAP = {
-    0: "pending",    # STATE_UNSPECIFIED
-    1: "pending",    # PROVISIONING
-    2: "pending",    # STARTING
-    3: "running",    # RUNNING
-    4: "running",    # CANCELLING
-    5: "running",    # DELETING
-    6: "completed",  # COMPLETED
-    7: "failed",     # FAILED
-    8: "failed",     # CANCELLED
-    9: "failed",     # ERROR
+    _STATE_UNSPECIFIED: "pending",
+    _STATE_PROVISIONING: "pending",
+    _STATE_STARTING: "pending",
+    _STATE_RUNNING: "running",
+    _STATE_CANCELLING: "running",
+    _STATE_DELETING: "running",
+    _STATE_COMPLETED: "completed",
+    _STATE_FAILED: "failed",
+    _STATE_CANCELLED: "failed",
+    _STATE_ERROR: "failed",
 }
+
+
+# ── Compute preset failover ladder (ADR-009) ──────────────────────────────────
+# Real Nebius CPU compute, verified in eu-west1 via `nebius compute platform
+# list`: `cpu-d3` is the ONLY CPU platform (the sole other platform is the GPU
+# `gpu-h200-sxm`). The realistic fallback is therefore LARGER PRESET SIZES within
+# cpu-d3 — quota on Nebius AI Jobs can be granted per preset size, so a zero-quota
+# `4vcpu-16gb` does not imply zero quota on `8vcpu-32gb`. cpu-d3 offers, in order:
+# 4vcpu-16gb, 8vcpu-32gb, 16vcpu-64gb, 32vcpu-128gb, 48vcpu-192gb, 64vcpu-256gb,
+# 96vcpu-384gb, 128vcpu-512gb, 160vcpu-640gb, 192vcpu-768gb, 224vcpu-896gb,
+# 256vcpu-1024gb.
+_DEFAULT_FALLBACK_LADDER = [("cpu-d3", "8vcpu-32gb")]
+
+# Substrings (case-insensitive) that mark a job-creation error as a
+# provisioning/capacity precondition — fail over to the next preset. Anything
+# else (bad image, malformed spec, auth) is a genuine error and is re-raised.
+_PROVISIONING_ERROR_MARKERS = (
+    "failed_precondition",
+    "resource_exhausted",
+    "quota",
+    "capacity",
+    "unavailable",
+    "no available",
+    "insufficient",
+)
+
+# Provisioning-probe outcome classes.
+_PROVISIONED = "provisioned"
+_NEVER_PROVISIONED = "never_provisioned"
+_APP_FAILURE = "app_failure"
+
+
+class ComputeCapacityUnavailable(RuntimeError):
+    """Every preset in the failover ladder failed to provision.
+
+    The API layer maps this to HTTP 503 so the client receives an actionable
+    capacity error instead of a silent stall or a generic 500 — the original
+    zero-quota incident was invisible precisely because no such signal existed.
+    """
+
+    def __init__(self, name_prefix: str, ladder: list, attempts: list):
+        self.name_prefix = name_prefix
+        self.ladder = ladder
+        self.attempts = attempts
+        laddered = ", ".join(f"{p}:{s}" for p, s in ladder) or "(empty ladder)"
+        detail = "; ".join(attempts) if attempts else "no ladder entries were attempted"
+        super().__init__(
+            "processing capacity unavailable — all compute presets failed to "
+            f"provision (quota/capacity). Tried [{laddered}]. Details: {detail}"
+        )
+
+
+def _parse_ladder_env() -> list[tuple[str, str]]:
+    """Parse JOB_PRESET_LADDER ('platform:preset,platform:preset,...') defensively.
+
+    Malformed entries are logged and skipped; returns [] when unset/empty so the
+    caller falls back to the per-job default ladder.
+    """
+    raw = os.getenv("JOB_PRESET_LADDER", "").strip()
+    if not raw:
+        return []
+    entries: list[tuple[str, str]] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if ":" not in part:
+            logger.warning("Ignoring malformed JOB_PRESET_LADDER entry %r (expected 'platform:preset')", part)
+            continue
+        platform, preset = (s.strip() for s in part.split(":", 1))
+        if platform and preset:
+            entries.append((platform, preset))
+        else:
+            logger.warning("Ignoring malformed JOB_PRESET_LADDER entry %r (empty platform or preset)", part)
+    return entries
+
+
+def _preset_ladder(default_platform: str, default_preset: str) -> list[tuple[str, str]]:
+    """Ordered, bounded, de-duplicated (platform, preset) failover ladder.
+
+    Source of truth is JOB_PRESET_LADDER. When unset, the live per-job
+    platform/preset (from EXTRACTION_JOB_* / ANALYSIS_JOB_* env) is rung 1,
+    followed by the verified real fallback size(s) within cpu-d3.
+    """
+    ladder = _parse_ladder_env()
+    if not ladder:
+        ladder = [(default_platform, default_preset)]
+        ladder.extend(_DEFAULT_FALLBACK_LADDER)
+    seen: set = set()
+    deduped: list[tuple[str, str]] = []
+    for entry in ladder:
+        if entry not in seen:
+            seen.add(entry)
+            deduped.append(entry)
+    return deduped
+
+
+def _is_provisioning_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return any(marker in text for marker in _PROVISIONING_ERROR_MARKERS)
+
+
+def _provision_probe_secs() -> float:
+    """How long to probe a submitted job for a fast provisioning failure."""
+    return float(os.getenv("JOB_PROVISION_PROBE_SECS", "30"))
+
+
+def _provision_poll_secs() -> float:
+    return float(os.getenv("JOB_PROVISION_POLL_SECS", "5"))
+
+
+def _await_provisioning(service, job_id: str) -> str:
+    """Bounded probe classifying whether a submitted job actually got compute.
+
+    Returns one of:
+      * _PROVISIONED      — compute was allocated (RUNNING / COMPLETED / instances
+                            present / started_at set), OR the probe window elapsed
+                            while the job was still making normal progress. We
+                            return the job as pending in both cases; we NEVER kill
+                            a possibly-healthy slow job.
+      * _NEVER_PROVISIONED— terminal failure with zero instances and never RUNNING,
+                            or the job vanished mid-provisioning (silent teardown).
+                            Caller fails over to the next preset.
+      * _APP_FAILURE      — the job reached compute (RUNNING / instances / started_at)
+                            and then failed. This is an application/config bug that
+                            would recur identically on every preset, so the caller
+                            does NOT fail over (retrying would mask the bug + cost
+                            money).
+
+    The discriminator is instances-count + terminal-state, NOT elapsed time; time
+    is only the backstop that ends the probe.
+    """
+    from nebius.api.nebius.ai.v1 import GetJobRequest
+
+    deadline = time.monotonic() + _provision_probe_secs()
+    poll = _provision_poll_secs()
+    instances_seen = False
+
+    while True:
+        try:
+            job = service.get(GetJobRequest(id=job_id)).wait()
+        except Exception as exc:
+            logger.warning("GetJob %s failed during provisioning probe (job may have torn itself down): %s", job_id, exc)
+            return _NEVER_PROVISIONED
+
+        status = job.status
+        state = status.state
+        instances_seen = instances_seen or len(status.instances) > 0
+        has_compute = (
+            instances_seen
+            or state == _STATE_RUNNING
+            or status.check_presence("started_at")
+        )
+
+        if state == _STATE_COMPLETED or state == _STATE_RUNNING:
+            return _PROVISIONED
+        if state in _TERMINAL_FAILURE_STATES:
+            # No compute ever => capacity miss. Compute existed => app bug.
+            return _APP_FAILURE if has_compute else _NEVER_PROVISIONED
+        if has_compute:
+            # Instances up (STARTING) — capacity confirmed; return and let the
+            # caller poll to completion exactly as before.
+            return _PROVISIONED
+        if time.monotonic() >= deadline:
+            # Still PROVISIONING with zero instances at probe end. Do NOT kill a
+            # possibly-healthy slow job — return pending — but log LOUDLY, because
+            # this is the capacity-stall signature the incident was about.
+            logger.warning(
+                "Job %s still provisioning with 0 instances after %.0fs — possible "
+                "capacity stall; returning pending without failover",
+                job_id, _provision_probe_secs(),
+            )
+            return _PROVISIONED
+        time.sleep(poll)
+
+
+def _job_failure_message(service, job_id: str) -> str:
+    try:
+        from nebius.api.nebius.ai.v1 import GetJobRequest
+
+        job = service.get(GetJobRequest(id=job_id)).wait()
+        return job.status.state_details.message or f"state={job.status.state}"
+    except Exception:
+        return "unknown"
+
+
+def _safe_delete_job(service, job_id: str) -> None:
+    """Delete never-provisioned scaffolding before trying the next preset."""
+    try:
+        from nebius.api.nebius.ai.v1 import DeleteJobRequest
+
+        service.delete(DeleteJobRequest(id=job_id)).wait()
+        logger.info("Deleted never-provisioned job %s", job_id)
+    except Exception:
+        logger.warning("Could not delete never-provisioned job %s — continuing", job_id)
+
+
+def _submit_job_with_failover(name_prefix, period, default_platform, default_preset, build_spec) -> dict:
+    """Submit a Nebius AI Job, failing over across the preset ladder on
+    never-provisioned outcomes only.
+
+    build_spec(platform, preset) -> JobSpec. Each ladder entry is tried AT MOST
+    ONCE, in order. Fails over ONLY when a job never provisioned (terminal failure
+    with zero instances / vanished job / submission-time provisioning error).
+    Reaching compute then failing is surfaced immediately (no failover). When the
+    whole ladder is exhausted, raises ComputeCapacityUnavailable (→ HTTP 503).
+    """
+    from nebius.api.nebius.ai.v1 import JobServiceClient, CreateJobRequest
+    from nebius.api.nebius.common.v1 import ResourceMetadata
+
+    ladder = _preset_ladder(default_platform, default_preset)
+    _delete_nebius_error_jobs(period, name_prefix)
+
+    attempts: list[str] = []
+    for idx, (platform, preset) in enumerate(ladder, start=1):
+        job_name = f"{name_prefix}-{period}-{uuid.uuid4().hex[:6]}"
+        logger.info("Submitting %s on platform=%s preset=%s (ladder %d/%d)", job_name, platform, preset, idx, len(ladder))
+        sdk = _make_sdk()
+        try:
+            service = JobServiceClient(sdk)
+            try:
+                # service.create(...).wait() resolves the create operation and
+                # returns an Operation (NOT the Job proto). The created job's id is
+                # on Operation.resource_id — Operation has no .metadata.
+                operation = service.create(
+                    CreateJobRequest(
+                        metadata=ResourceMetadata(
+                            parent_id=os.environ["NEBIUS_PROJECT_ID"],
+                            name=job_name,
+                        ),
+                        spec=build_spec(platform, preset),
+                    ),
+                ).wait()
+            except Exception as exc:
+                if _is_provisioning_error(exc):
+                    logger.warning(
+                        "Preset %s:%s rejected at submission (provisioning/quota): %s — trying next preset",
+                        platform, preset, exc,
+                    )
+                    attempts.append(f"{platform}:{preset} submit-rejected ({exc})")
+                    continue
+                logger.exception("Failed to submit %s on %s:%s (non-provisioning error)", job_name, platform, preset)
+                raise
+
+            job_id = operation.resource_id
+            outcome = _await_provisioning(service, job_id)
+
+            if outcome == _PROVISIONED:
+                logger.info("Job %s provisioned on %s:%s (id=%s)", job_name, platform, preset, job_id)
+                return {
+                    "id": job_id,
+                    "status": "pending",
+                    "period": period,
+                    "documentsCount": 0,
+                    "createdAt": datetime.now(timezone.utc).isoformat(),
+                    "nebius_job_name": job_name,
+                }
+
+            if outcome == _APP_FAILURE:
+                msg = _job_failure_message(service, job_id)
+                logger.error(
+                    "Job %s failed AFTER provisioning on %s:%s — application error, NOT failing over: %s",
+                    job_name, platform, preset, msg,
+                )
+                raise RuntimeError(f"Job {job_name} failed after provisioning on {platform}:{preset}: {msg}")
+
+            # _NEVER_PROVISIONED — clean up scaffolding, then try the next preset.
+            logger.warning("Job %s never provisioned on %s:%s — cleaning up and trying next preset", job_name, platform, preset)
+            attempts.append(f"{platform}:{preset} never-provisioned")
+            _safe_delete_job(service, job_id)
+        finally:
+            sdk.sync_close()
+
+    raise ComputeCapacityUnavailable(name_prefix, ladder, attempts)
 
 
 def check_nebius_permissions() -> dict:
@@ -157,70 +444,48 @@ def submit_extraction_job(upload_id: str, period: str) -> dict:
 
 
 def _submit_nebius_job(upload_id: str, period: str) -> dict:
-    from nebius.api.nebius.ai.v1 import JobServiceClient, CreateJobRequest, JobSpec
-    from nebius.api.nebius.common.v1 import ResourceMetadata
+    from nebius.api.nebius.ai.v1 import JobSpec
     from google.protobuf.duration_pb2 import Duration
 
-    job_name = f"archon-extract-{period}-{uuid.uuid4().hex[:6]}"
+    # Fetch the registry token once and reuse across ladder attempts (it is a
+    # short-lived IAM token; the whole failover completes well within its TTL).
+    token = _get_registry_token()
 
-    _delete_nebius_error_jobs(period, "archon-extract")
-
-    sdk = _make_sdk()
-    try:
-        service = JobServiceClient(sdk)
-        # service.create(...).wait() resolves the create operation and returns an
-        # Operation object (NOT the Job proto). The created job's id is on
-        # Operation.resource_id — Operation has no .metadata.
-        operation = service.create(
-            CreateJobRequest(
-                metadata=ResourceMetadata(
-                    parent_id=os.environ["NEBIUS_PROJECT_ID"],
-                    name=job_name,
-                ),
-                spec=JobSpec(
-                    image=os.environ["EXTRACTION_JOB_IMAGE"],
-                    platform=os.getenv("EXTRACTION_JOB_PLATFORM", "cpu-d3"),
-                    preset=os.getenv("EXTRACTION_JOB_PRESET", "4vcpu-16gb"),
-                    subnet_id=os.environ["NEBIUS_SUBNET_ID"],
-                    disk=JobSpec.DiskSpec(
-                        type=1,  # NETWORK_SSD
-                        size_bytes=30 * 1024 * 1024 * 1024,  # 30 GB
-                    ),
-                    registry_credentials=JobSpec.RegistryCredentials(
-                        username="iam",
-                        password=_get_registry_token(),
-                    ),
-                    environment_variables=[
-                        JobSpec.EnvironmentVariable(name="UPLOAD_ID", value=upload_id),
-                        JobSpec.EnvironmentVariable(name="PERIOD", value=period),
-                        JobSpec.EnvironmentVariable(name="NEBIUS_BUCKET_NAME", value=os.environ["NEBIUS_BUCKET_NAME"]),
-                        JobSpec.EnvironmentVariable(name="STORAGE_ENDPOINT_URL", value=os.environ["STORAGE_ENDPOINT_URL"]),
-                        JobSpec.EnvironmentVariable(name="AWS_ACCESS_KEY_ID", value=os.environ["AWS_ACCESS_KEY_ID"]),
-                        JobSpec.EnvironmentVariable(name="AWS_SECRET_ACCESS_KEY", value=os.environ["AWS_SECRET_ACCESS_KEY"]),
-                        JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_BASE_URL", value=os.environ["NEBIUS_INFERENCE_BASE_URL"]),
-                        JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_API_KEY", value=os.environ["NEBIUS_INFERENCE_API_KEY"]),
-                        JobSpec.EnvironmentVariable(name="VISION_MODEL", value=os.getenv("VISION_MODEL", "Qwen/Qwen2.5-VL-72B-Instruct")),
-                    ],
-                    timeout=Duration(seconds=7200),  # 2 hours
-                ),
+    def build_spec(platform: str, preset: str):
+        return JobSpec(
+            image=os.environ["EXTRACTION_JOB_IMAGE"],
+            platform=platform,
+            preset=preset,
+            subnet_id=os.environ["NEBIUS_SUBNET_ID"],
+            disk=JobSpec.DiskSpec(
+                type=1,  # NETWORK_SSD
+                size_bytes=30 * 1024 * 1024 * 1024,  # 30 GB
             ),
-        ).wait()
-        job_id = operation.resource_id
-        logger.info("Extraction job created: %s (id=%s)", job_name, job_id)
-    except Exception:
-        logger.exception("Failed to submit extraction job %s", job_name)
-        raise
-    finally:
-        sdk.sync_close()
+            registry_credentials=JobSpec.RegistryCredentials(
+                username="iam",
+                password=token,
+            ),
+            environment_variables=[
+                JobSpec.EnvironmentVariable(name="UPLOAD_ID", value=upload_id),
+                JobSpec.EnvironmentVariable(name="PERIOD", value=period),
+                JobSpec.EnvironmentVariable(name="NEBIUS_BUCKET_NAME", value=os.environ["NEBIUS_BUCKET_NAME"]),
+                JobSpec.EnvironmentVariable(name="STORAGE_ENDPOINT_URL", value=os.environ["STORAGE_ENDPOINT_URL"]),
+                JobSpec.EnvironmentVariable(name="AWS_ACCESS_KEY_ID", value=os.environ["AWS_ACCESS_KEY_ID"]),
+                JobSpec.EnvironmentVariable(name="AWS_SECRET_ACCESS_KEY", value=os.environ["AWS_SECRET_ACCESS_KEY"]),
+                JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_BASE_URL", value=os.environ["NEBIUS_INFERENCE_BASE_URL"]),
+                JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_API_KEY", value=os.environ["NEBIUS_INFERENCE_API_KEY"]),
+                JobSpec.EnvironmentVariable(name="VISION_MODEL", value=os.getenv("VISION_MODEL", "Qwen/Qwen2.5-VL-72B-Instruct")),
+            ],
+            timeout=Duration(seconds=7200),  # 2 hours
+        )
 
-    return {
-        "id": job_id,
-        "status": "pending",
-        "period": period,
-        "documentsCount": 0,
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "nebius_job_name": job_name,
-    }
+    return _submit_job_with_failover(
+        name_prefix="archon-extract",
+        period=period,
+        default_platform=os.getenv("EXTRACTION_JOB_PLATFORM", "cpu-d3"),
+        default_preset=os.getenv("EXTRACTION_JOB_PRESET", "4vcpu-16gb"),
+        build_spec=build_spec,
+    )
 
 
 def _delete_nebius_error_jobs(period: str, prefix: str) -> None:
@@ -320,68 +585,47 @@ def submit_analysis_job(period: str) -> dict:
 
 
 def _submit_nebius_analysis_job(period: str) -> dict:
-    from nebius.api.nebius.ai.v1 import JobServiceClient, CreateJobRequest, JobSpec
-    from nebius.api.nebius.common.v1 import ResourceMetadata
+    from nebius.api.nebius.ai.v1 import JobSpec
     from google.protobuf.duration_pb2 import Duration
 
-    job_name = f"archon-analysis-{period}-{uuid.uuid4().hex[:6]}"
     job_id_env = uuid.uuid4().hex[:8]
+    token = _get_registry_token()
 
-    _delete_nebius_error_jobs(period, "archon-analysis")
-
-    sdk = _make_sdk()
-    try:
-        service = JobServiceClient(sdk)
-        operation = service.create(
-            CreateJobRequest(
-                metadata=ResourceMetadata(
-                    parent_id=os.environ["NEBIUS_PROJECT_ID"],
-                    name=job_name,
-                ),
-                spec=JobSpec(
-                    image=os.environ["ANALYSIS_JOB_IMAGE"],
-                    platform=os.getenv("ANALYSIS_JOB_PLATFORM", "cpu-d3"),
-                    preset=os.getenv("ANALYSIS_JOB_PRESET", "4vcpu-16gb"),
-                    subnet_id=os.environ["NEBIUS_SUBNET_ID"],
-                    disk=JobSpec.DiskSpec(
-                        type=1,  # NETWORK_SSD
-                        size_bytes=20 * 1024 * 1024 * 1024,  # 20 GB
-                    ),
-                    registry_credentials=JobSpec.RegistryCredentials(
-                        username="iam",
-                        password=_get_registry_token(),
-                    ),
-                    environment_variables=[
-                        JobSpec.EnvironmentVariable(name="PERIOD", value=period),
-                        JobSpec.EnvironmentVariable(name="JOB_ID", value=job_id_env),
-                        JobSpec.EnvironmentVariable(name="NEBIUS_BUCKET_NAME", value=os.environ["NEBIUS_BUCKET_NAME"]),
-                        JobSpec.EnvironmentVariable(name="STORAGE_ENDPOINT_URL", value=os.environ["STORAGE_ENDPOINT_URL"]),
-                        JobSpec.EnvironmentVariable(name="AWS_ACCESS_KEY_ID", value=os.environ["AWS_ACCESS_KEY_ID"]),
-                        JobSpec.EnvironmentVariable(name="AWS_SECRET_ACCESS_KEY", value=os.environ["AWS_SECRET_ACCESS_KEY"]),
-                        JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_BASE_URL", value=os.environ["NEBIUS_INFERENCE_BASE_URL"]),
-                        JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_API_KEY", value=os.environ["NEBIUS_INFERENCE_API_KEY"]),
-                        JobSpec.EnvironmentVariable(name="ANALYSIS_MODEL", value=os.getenv("ANALYSIS_MODEL", "meta-llama/Llama-3.3-70B-Instruct")),
-                    ],
-                    timeout=Duration(seconds=1800),  # 30 minutes
-                ),
+    def build_spec(platform: str, preset: str):
+        return JobSpec(
+            image=os.environ["ANALYSIS_JOB_IMAGE"],
+            platform=platform,
+            preset=preset,
+            subnet_id=os.environ["NEBIUS_SUBNET_ID"],
+            disk=JobSpec.DiskSpec(
+                type=1,  # NETWORK_SSD
+                size_bytes=20 * 1024 * 1024 * 1024,  # 20 GB
             ),
-        ).wait()
-        job_id = operation.resource_id
-        logger.info("Analysis job created: %s (id=%s)", job_name, job_id)
-    except Exception:
-        logger.exception("Failed to submit analysis job %s", job_name)
-        raise
-    finally:
-        sdk.sync_close()
+            registry_credentials=JobSpec.RegistryCredentials(
+                username="iam",
+                password=token,
+            ),
+            environment_variables=[
+                JobSpec.EnvironmentVariable(name="PERIOD", value=period),
+                JobSpec.EnvironmentVariable(name="JOB_ID", value=job_id_env),
+                JobSpec.EnvironmentVariable(name="NEBIUS_BUCKET_NAME", value=os.environ["NEBIUS_BUCKET_NAME"]),
+                JobSpec.EnvironmentVariable(name="STORAGE_ENDPOINT_URL", value=os.environ["STORAGE_ENDPOINT_URL"]),
+                JobSpec.EnvironmentVariable(name="AWS_ACCESS_KEY_ID", value=os.environ["AWS_ACCESS_KEY_ID"]),
+                JobSpec.EnvironmentVariable(name="AWS_SECRET_ACCESS_KEY", value=os.environ["AWS_SECRET_ACCESS_KEY"]),
+                JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_BASE_URL", value=os.environ["NEBIUS_INFERENCE_BASE_URL"]),
+                JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_API_KEY", value=os.environ["NEBIUS_INFERENCE_API_KEY"]),
+                JobSpec.EnvironmentVariable(name="ANALYSIS_MODEL", value=os.getenv("ANALYSIS_MODEL", "meta-llama/Llama-3.3-70B-Instruct")),
+            ],
+            timeout=Duration(seconds=1800),  # 30 minutes
+        )
 
-    return {
-        "id": job_id,
-        "status": "pending",
-        "period": period,
-        "documentsCount": 0,
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "nebius_job_name": job_name,
-    }
+    return _submit_job_with_failover(
+        name_prefix="archon-analysis",
+        period=period,
+        default_platform=os.getenv("ANALYSIS_JOB_PLATFORM", "cpu-d3"),
+        default_preset=os.getenv("ANALYSIS_JOB_PRESET", "4vcpu-16gb"),
+        build_spec=build_spec,
+    )
 
 
 def _submit_local_analysis_job(period: str) -> dict:

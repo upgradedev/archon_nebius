@@ -28,6 +28,10 @@ def submit_job(req: JobRequest):
     try:
         job = nebius.submit_extraction_job(req.uploadId, req.period)
         return JobResponse(**job)
+    except nebius.ComputeCapacityUnavailable as exc:
+        # Every compute preset failed to provision — surface an actionable 503
+        # instead of a generic 500 or a silent stall.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
