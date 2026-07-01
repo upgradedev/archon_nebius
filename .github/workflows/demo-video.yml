@@ -126,7 +126,7 @@ jobs:
 
           # ---- Title card (3s, silent) — dark emerald bg ----
           printf '%s' 'Archon' > caps/title1.txt
-          printf '%s' 'The monthly close, correlated.' > caps/title2.txt
+          printf '%s' 'The new era of financial intelligence.' > caps/title2.txt
           printf '%s' 'Nebius Serverless AI' > caps/title3.txt
           ffmpeg -y -f lavfi -i color=c=0x0d2b22:s=1920x1080:d=3:r=30 -vf \
             "drawtext=fontfile=$FONT:textfile=caps/title1.txt:expansion=none:fontcolor=0x34d399:fontsize=150:x=(w-text_w)/2:y=(h/2)-140,drawtext=fontfile=$FONT:textfile=caps/title2.txt:expansion=none:fontcolor=white:fontsize=54:x=(w-text_w)/2:y=(h/2)+30,drawtext=fontfile=$FONT:textfile=caps/title3.txt:expansion=none:fontcolor=0x9ca3af:fontsize=40:x=(w-text_w)/2:y=(h/2)+120,format=yuv420p" \
