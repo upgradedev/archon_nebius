@@ -16,6 +16,23 @@ Built entirely on **Nebius Serverless AI** — a FastAPI orchestration backend r
 
 ---
 
+## Nebius services used (6 primitives)
+
+Archon exercises the Nebius platform end-to-end, not a single service:
+
+| # | Nebius service | Role in Archon |
+|---|---|---|
+| 1 | **AI Endpoints** (CPU `cpu-d3`) | Always-on FastAPI orchestration backend (`/upload · /jobs · /analyze · /reports`) |
+| 2 | **AI Jobs** (CPU `cpu-d3`) | Two on-demand pipelines — **extraction** (4 agents) and **analysis** (6 agents) — self-terminating |
+| 3 | **Inference API** (`studio.nebius.ai`) | Qwen2.5-VL-72B (vision extraction) + Llama-3.3-70B (analysis narration), OpenAI-compatible |
+| 4 | **Object Storage** (S3-compatible) | `raw-docs/ · extracted/ · reports/` — documents, events, validation, reports |
+| 5 | **Managed PostgreSQL** | `documents · employees · payroll_events · employee_payroll · validation_results` |
+| 6 | **Container Registry** | Hosts the `archon-backend`, `archon-extraction`, `archon-analysis` images |
+
+Security & supply chain: every change passes **gitleaks** (secrets), **CodeQL** (SAST, Python + TypeScript), **pip-audit / npm audit** (dependency CVEs), and a unit → integration → E2E test suite — see [Testing & CI](#testing--ci).
+
+---
+
 ## Judge Verification
 
 - **Live frontend:** https://archon-pnl.web.app
@@ -102,12 +119,20 @@ Built entirely on **Nebius Serverless AI** — a FastAPI orchestration backend r
 
 ### Prerequisites
 
+**Local run (Docker Compose)** — only these, plus **one credential**:
+
+- Docker **24+** with **Docker Compose v2** (`docker compose version` → v2.x)
+- Node.js **20.x** (LTS) — for the frontend tests
+- Python **3.12.x** — for the sample-data generator and the smoke test
+- A Nebius Inference (Studio) API key set as `NEBIUS_INFERENCE_API_KEY` in `.env` — **the only credential the local stack needs** (no Nebius account/infra, no PostgreSQL). Get one at [studio.nebius.ai](https://studio.nebius.ai).
+
+**Expected end-to-end local runtime:** `docker compose up --build` is ~3–5 min on first build (image pulls + npm/pip install); after that the full pipeline smoke test (`scripts/test-pipeline.sh`, upload → extract → link → validate → analyze → report) completes in ~2–4 min, dominated by the live Inference API calls.
+
+**Additionally required only for the full Nebius cloud deploy (steps 1–3, 6):**
+
 - [Nebius account](https://nebius.com) with credits
 - [Nebius CLI](https://docs.nebius.com/cli/install) installed and configured
 - [Firebase CLI](https://firebase.google.com/docs/cli) (`npm install -g firebase-tools`)
-- Docker 24+
-- Node.js 20+
-- Python 3.12+
 
 ### 1. Clone and configure
 
