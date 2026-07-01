@@ -5,6 +5,13 @@ name: CodeQL
 # JavaScript/TypeScript (React frontend). Runs the "security-and-quality" query
 # suite. Kept in its own workflow so the elevated `security-events: write`
 # permission is isolated from the test/deploy jobs.
+#
+# Results are written to SARIF and archived as a build artifact (`upload: never`)
+# rather than pushed to the GitHub code-scanning API. That API requires the repo
+# to be public or to have GitHub Advanced Security enabled; archiving keeps the
+# SAST gate green and self-contained regardless. When the repo is public for
+# submission (or GHAS is on), flip the analyze step to `upload: always` to light
+# up the Security tab — no other change needed.
 
 on:
   push:
@@ -60,3 +67,14 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
+          # Archive SARIF instead of uploading to code-scanning (see header note).
+          upload: never
+          output: sarif-results
+
+      - name: Archive CodeQL SARIF results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: sarif-results
+          if-no-files-found: warn
