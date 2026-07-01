@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
-import { Button, message } from 'antd'
-import { GoogleOutlined } from '@ant-design/icons'
+import { Button, Input, Divider, message } from 'antd'
+import { GoogleOutlined, MailOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import './Login.css'
@@ -67,9 +67,12 @@ function ChartBackground() {
 }
 
 export default function Login() {
-  const { signInWithGoogle, user } = useAuth()
+  const { signInWithGoogle, signInWithEmail, user } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [cardOffset, setCardOffset] = useState({ x: 0, y: 0 })
 
   /* Redirect if already signed in */
@@ -94,6 +97,21 @@ export default function Login() {
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : 'Sign-in failed')
       setLoading(false)
+    }
+  }
+
+  const handleEmailSignIn = async () => {
+    if (!email || !password) {
+      message.warning('Enter your email and password')
+      return
+    }
+    setEmailLoading(true)
+    try {
+      await signInWithEmail(email.trim(), password)
+      navigate('/', { replace: true })
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : 'Sign-in failed')
+      setEmailLoading(false)
     }
   }
 
@@ -138,6 +156,45 @@ export default function Login() {
         >
           Continue with Google
         </Button>
+
+        <Divider plain style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>or</Divider>
+
+        <form
+          className="email-form"
+          onSubmit={(e) => { e.preventDefault(); void handleEmailSignIn() }}
+        >
+          <Input
+            size="large"
+            type="email"
+            autoComplete="email"
+            aria-label="Email"
+            prefix={<MailOutlined />}
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ marginBottom: 10 }}
+          />
+          <Input.Password
+            size="large"
+            autoComplete="current-password"
+            aria-label="Password"
+            prefix={<LockOutlined />}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ marginBottom: 12 }}
+          />
+          <Button
+            className="email-btn"
+            type="primary"
+            size="large"
+            block
+            htmlType="submit"
+            loading={emailLoading}
+          >
+            Sign in with email
+          </Button>
+        </form>
 
         <p className="login-footer">
           Your documents are processed on Nebius Serverless AI.<br />

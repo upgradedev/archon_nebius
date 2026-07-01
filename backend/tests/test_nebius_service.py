@@ -125,6 +125,9 @@ def _make_mock_job(job_id: str = "job-nebius-001"):
     meta.id = job_id
     job = MagicMock()
     job.metadata = meta
+    # service.create(...).wait() returns an Operation; the created job id is on
+    # Operation.resource_id (Operation has no .metadata).
+    job.resource_id = job_id
     return job
 
 
@@ -446,3 +449,36 @@ def test_check_nebius_permissions_returns_dict_on_sdk_error():
     assert isinstance(result, dict)
     assert result.get("ok") is False
     assert "error" in result
+
+
+def test_get_nebius_job_status_uses_pysdk_wrapper_shape(monkeypatch):
+    """Regression: the pysdk JobStatus is a wrapper, not a raw protobuf.
+    Status must be read via check_presence()/datetime, not HasField()/ToDatetime().
+    This path was previously untested (test_jobs uses the local runner) and shipped
+    an AttributeError to prod on every /api/jobs/<id> poll."""
+    import services.nebius as svc
+    from datetime import datetime, timezone
+
+    status = MagicMock()
+    status.state = 6  # COMPLETED
+    status.check_presence.return_value = True
+    status.finished_at = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+    status.state_details.message = ""
+    job = MagicMock()
+    job.status = status
+
+    get_result = MagicMock()
+    get_result.wait.return_value = job
+    service = MagicMock()
+    service.get.return_value = get_result
+    sdk = MagicMock()
+
+    with patch("services.nebius._make_sdk", return_value=sdk), \
+         patch("nebius.api.nebius.ai.v1.JobServiceClient", return_value=service), \
+         patch("nebius.api.nebius.ai.v1.GetJobRequest", side_effect=lambda **kw: MagicMock(**kw)):
+        result = svc._get_nebius_job_status("aijob-xyz")
+
+    status.check_presence.assert_called_with("finished_at")
+    assert result["status"] == "completed"
+    assert result["completedAt"] == "2026-01-02T03:04:05+00:00"
+    assert result["progress"] == 100

@@ -168,9 +168,10 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
     sdk = _make_sdk()
     try:
         service = JobServiceClient(sdk)
-        # .wait() resolves the async operation and returns the Job proto directly.
-        # Do NOT call .wait_sync() after — that doubles the wait on an already-resolved result.
-        job = service.create(
+        # service.create(...).wait() resolves the create operation and returns an
+        # Operation object (NOT the Job proto). The created job's id is on
+        # Operation.resource_id — Operation has no .metadata.
+        operation = service.create(
             CreateJobRequest(
                 metadata=ResourceMetadata(
                     parent_id=os.environ["NEBIUS_PROJECT_ID"],
@@ -204,7 +205,7 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
                 ),
             ),
         ).wait()
-        job_id = job.metadata.id
+        job_id = operation.resource_id
         logger.info("Extraction job created: %s (id=%s)", job_name, job_id)
     except Exception:
         logger.exception("Failed to submit extraction job %s", job_name)
@@ -281,8 +282,11 @@ def _get_nebius_job_status(job_id: str) -> dict:
     status = _JOB_STATE_MAP.get(state, "pending")
 
     finished_at = None
-    if job.status.HasField("finished_at"):
-        finished_at = job.status.finished_at.ToDatetime().isoformat()
+    # pysdk JobStatus is a wrapper (not a raw protobuf): use check_presence(),
+    # and finished_at is a python datetime (no .ToDatetime()).
+    if job.status.check_presence("finished_at"):
+        fa = job.status.finished_at
+        finished_at = fa.isoformat() if hasattr(fa, "isoformat") else str(fa)
 
     error_message = None
     if status == "failed" and job.status.state_details.message:
@@ -328,7 +332,7 @@ def _submit_nebius_analysis_job(period: str) -> dict:
     sdk = _make_sdk()
     try:
         service = JobServiceClient(sdk)
-        job = service.create(
+        operation = service.create(
             CreateJobRequest(
                 metadata=ResourceMetadata(
                     parent_id=os.environ["NEBIUS_PROJECT_ID"],
@@ -362,7 +366,7 @@ def _submit_nebius_analysis_job(period: str) -> dict:
                 ),
             ),
         ).wait()
-        job_id = job.metadata.id
+        job_id = operation.resource_id
         logger.info("Analysis job created: %s (id=%s)", job_name, job_id)
     except Exception:
         logger.exception("Failed to submit analysis job %s", job_name)
