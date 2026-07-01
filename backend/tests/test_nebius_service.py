@@ -32,39 +32,89 @@ def test_get_registry_token_returns_empty_when_nothing_configured(monkeypatch):
     assert _get_registry_token() == ""
 
 
-def test_get_registry_token_uses_sa_credentials(monkeypatch):
+def _set_sa_env(monkeypatch):
+    """Populate the three SA env vars with syntactically-valid placeholders."""
     import base64
     fake_pem = b"-----BEGIN RSA PRIVATE KEY-----\nfake\n-----END RSA PRIVATE KEY-----"
     monkeypatch.setenv("NEBIUS_SA_KEY_B64", base64.b64encode(fake_pem).decode())
     monkeypatch.setenv("NEBIUS_SA_KEY_ID", "key-id-001")
     monkeypatch.setenv("NEBIUS_SA_ID", "sa-001")
+
+
+def test_get_registry_token_uses_sa_bearer_not_http(monkeypatch):
+    """With SA vars set, the token is minted via the pysdk SA bearer
+    (`_make_sdk().get_token_sync().token`) — the SAME path JobService uses — NOT
+    via an HTTP POST to any OAuth endpoint. The old code POSTed a JWT to the
+    wrong endpoint and silently fell back; this asserts the SA path is taken."""
+    _set_sa_env(monkeypatch)
     monkeypatch.delenv("NEBIUS_IAM_TOKEN", raising=False)
 
-    mock_resp = MagicMock()
-    mock_resp.raise_for_status = MagicMock()
-    mock_resp.json.return_value = {"access_token": "sa-generated-token"}
+    fake_token = MagicMock()
+    fake_token.token = "sa-generated-token"
+    fake_sdk = MagicMock()
+    fake_sdk.get_token_sync.return_value = fake_token
 
-    with patch("requests.post", return_value=mock_resp), \
-         patch("jwt.encode", return_value="signed.jwt.token"):
+    with patch("services.nebius._make_sdk", return_value=fake_sdk):
         from services.nebius import _get_registry_token
         token = _get_registry_token()
 
     assert token == "sa-generated-token"
+    fake_sdk.get_token_sync.assert_called_once()   # SA bearer path was used
+    fake_sdk.sync_close.assert_called_once()        # SDK is always closed
 
 
-def test_get_registry_token_sa_fallback_on_jwt_error(monkeypatch):
-    import base64
-    fake_pem = b"-----BEGIN RSA PRIVATE KEY-----\nfake\n-----END RSA PRIVATE KEY-----"
-    monkeypatch.setenv("NEBIUS_SA_KEY_B64", base64.b64encode(fake_pem).decode())
-    monkeypatch.setenv("NEBIUS_SA_KEY_ID", "key-id-001")
-    monkeypatch.setenv("NEBIUS_SA_ID", "sa-001")
-    monkeypatch.setenv("NEBIUS_IAM_TOKEN", "fallback-token")
+def test_get_registry_token_raises_when_sa_mint_fails(monkeypatch):
+    """The behavioural change: with SA vars present, a mint failure RAISES and
+    does NOT fall back to a (possibly stale) NEBIUS_IAM_TOKEN. The old code
+    swallowed the failure and returned the ephemeral session token, masking
+    broken registry auth behind a ~12h fuse."""
+    _set_sa_env(monkeypatch)
+    monkeypatch.setenv("NEBIUS_IAM_TOKEN", "stale-fallback-token")
 
-    with patch("jwt.encode", side_effect=Exception("JWT error")):
+    fake_sdk = MagicMock()
+    fake_sdk.get_token_sync.side_effect = RuntimeError("mint boom")
+
+    with patch("services.nebius._make_sdk", return_value=fake_sdk):
         from services.nebius import _get_registry_token
-        token = _get_registry_token()
+        with pytest.raises(RuntimeError, match="mint boom"):
+            _get_registry_token()
 
-    assert token == "fallback-token"
+    fake_sdk.sync_close.assert_called_once()        # SDK still closed on failure
+
+
+def test_get_registry_token_raises_on_empty_sa_token(monkeypatch):
+    """An empty minted token is refused loudly, never returned — submitting a job
+    with no registry auth would fail opaquely at provisioning instead."""
+    _set_sa_env(monkeypatch)
+    monkeypatch.setenv("NEBIUS_IAM_TOKEN", "stale-fallback-token")
+
+    fake_token = MagicMock()
+    fake_token.token = ""
+    fake_sdk = MagicMock()
+    fake_sdk.get_token_sync.return_value = fake_token
+
+    with patch("services.nebius._make_sdk", return_value=fake_sdk):
+        from services.nebius import _get_registry_token
+        with pytest.raises(RuntimeError, match="empty token"):
+            _get_registry_token()
+
+
+# ── REAL-SDK token-bearer contract ────────────────────────────────────────────
+# The mocks above assert we CALL get_token_sync, but a mock can never catch the
+# pinned SDK renaming/removing that method — exactly the proto/API-drift class of
+# bug that put the registry_credentials list form into prod. This exercises the
+# REAL pinned nebius==0.3.76 surface so a future SDK that drops the token-bearer
+# API fails HERE instead of at the first live job submission.
+
+def test_registry_token_bearer_api_exists_on_real_sdk():
+    pytest.importorskip("nebius")
+    from nebius.sdk import SDK
+
+    # get_token_sync(timeout, options=None) -> Token; Token.token is the string.
+    assert hasattr(SDK, "get_token_sync")
+    assert callable(SDK.get_token_sync)
+    from nebius.aio.token.token import Token
+    assert isinstance(Token.__dict__["token"], property)
 
 
 # ── _JOB_STATE_MAP ────────────────────────────────────────────────────────────
