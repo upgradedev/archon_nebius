@@ -109,9 +109,9 @@ nebius ai endpoint create \
   --env "NEBIUS_PROJECT_ID=$NEBIUS_PROJECT_ID" \
   --env "NEBIUS_SUBNET_ID=${NEBIUS_SUBNET_ID:-}" \
   --env "NEBIUS_BUCKET_NAME=$NEBIUS_BUCKET_NAME" \
-  --env "STORAGE_ENDPOINT_URL=$STORAGE_ENDPOINT_URL" \
-  --env "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" \
-  --env "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" \
+  --env "STORAGE_ENDPOINT_URL=${NEBIUS_STORAGE_ENDPOINT_URL:-$STORAGE_ENDPOINT_URL}" \
+  --env "AWS_ACCESS_KEY_ID=${NEBIUS_STORAGE_ACCESS_KEY_ID:-$AWS_ACCESS_KEY_ID}" \
+  --env "AWS_SECRET_ACCESS_KEY=${NEBIUS_STORAGE_SECRET_KEY:-$AWS_SECRET_ACCESS_KEY}" \
   --env "POSTGRES_HOST=$POSTGRES_HOST" \
   --env "POSTGRES_PORT=$POSTGRES_PORT" \
   --env "POSTGRES_DB=$POSTGRES_DB" \
@@ -130,6 +130,31 @@ nebius ai endpoint create \
   --env "DUCKDNS_TOKEN=${DUCKDNS_TOKEN:-}" \
   --env "DUCKDNS_SUBDOMAIN=archon-api" \
   --env "CADDY_DOMAIN=archon-api.duckdns.org"
+
+# ── Step 4: Repoint DuckDNS at the endpoint's real ingress IP ──────────────────
+# The in-container start.sh updates DuckDNS via api.ipify.org, which returns the
+# EGRESS/NAT IP — that can differ from the INGRESS public IP clients connect to,
+# which is the recurring root cause of the 502 (stale A-record). Here we read the
+# authoritative ingress IP from the Nebius API and update DuckDNS directly.
+if [[ -n "${DUCKDNS_TOKEN:-}" ]]; then
+  echo "[4/4] Repointing DuckDNS at the endpoint's ingress IP..."
+  PUBLIC_IP=""
+  for _ in $(seq 1 40); do
+    PUBLIC_IP=$(nebius ai endpoint get-by-name --name archon-backend \
+      --parent-id "$NEBIUS_PROJECT_ID" --format json 2>/dev/null \
+      | python3 -c "import sys,json;d=json.load(sys.stdin);i=d.get('status',{}).get('instances',[]);print(i[0]['public_ip'] if i and i[0].get('public_ip') else '')" 2>/dev/null || echo "")
+    [[ -n "$PUBLIC_IP" ]] && break
+    sleep 3
+  done
+  if [[ -n "$PUBLIC_IP" ]]; then
+    RESP=$(curl -sS "https://www.duckdns.org/update?domains=archon-api&token=${DUCKDNS_TOKEN}&ip=${PUBLIC_IP}" || echo "ERR")
+    echo "    DuckDNS: archon-api.duckdns.org -> ${PUBLIC_IP} (response: ${RESP})"
+  else
+    echo "    WARNING: could not read endpoint public IP; run the 'Update DuckDNS A-record' GitHub workflow manually." >&2
+  fi
+else
+  echo "[4/4] DUCKDNS_TOKEN not set — skipping DuckDNS update. Run the 'Update DuckDNS A-record' GitHub workflow with the endpoint IP." >&2
+fi
 
 echo ""
 echo "=== Redeploy complete ==="
