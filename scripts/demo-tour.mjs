@@ -1,8 +1,12 @@
 // Records a beat-aligned screen-capture tour for the Archon-Nebius demo video.
 //
 // The public app (https://archon-pnl.web.app) gates the dashboard behind Google
-// sign-in, which a CI runner does not have. So this tour COMBINES:
-//   * the LIVE public landing page (proves the app is really deployed), and
+// sign-in, which a CI runner does not have — so a naive capture only ever shows
+// the login page. Instead this tour opens the app in DEMO MODE (APP_URL with
+// ?demo=1: the real dashboard rendered from seeded fixtures, no backend, no
+// auth) and records the ACTUAL dashboard for the opening app segment — the P&L,
+// the payroll-gap insight (bank net vs true employer cost), and the R1–R4
+// validation ledger. It then combines that with:
 //   * rendered VISUAL SLIDES (scripts/slides/*.html) that carry the substance —
 //     the 3-document fusion / 28% gap, the anatomy of the full ~71% understatement,
 //     the Nebius architecture, the evaluation methodology, the measured results,
@@ -22,7 +26,11 @@ import { chromium } from "playwright";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 
-const BASE = process.env.BASE_URL || "https://archon-pnl.web.app";
+// The app to record for the opening segment. In CI this is a locally-built,
+// locally-served frontend in demo mode (http://127.0.0.1:4173/?demo=1) so the
+// REAL dashboard renders without auth or a backend. Falls back to the live app
+// in demo mode for a local dry-run.
+const APP_URL = process.env.APP_URL || "https://archon-pnl.web.app/?demo=1";
 // Absolute end of the closing beat. The fixed beats below never move; only the
 // final CTA stretches to TARGET so the recording is always at least as long as
 // the (regenerated) voiceover. The default mirrors the workflow's duration FLOOR
@@ -104,17 +112,38 @@ async function showSlide(label, file, until) {
 }
 
 // ============================================================================
-// 0–24s — PROBLEM: the LIVE public landing page (proves real deployment).
-// goto + gentle scroll only — DOM-agnostic, no clicks against guessed elements.
+// 0–24s — PROBLEM: the REAL dashboard in demo mode (P&L → payroll-gap → R1–R4).
+// This is the app segment. Unlike the slides, the dashboard MUST actually render
+// — a blank capture here is the whole failure we are fixing — so this beat is
+// HARD-CHECKED (throws, not safe()) and saves a proof screenshot for the CI run.
 // ============================================================================
-await safe("goto landing", async () => {
-  await page.goto(BASE, { waitUntil: "networkidle", timeout: 45000 });
+await page.goto(APP_URL, { waitUntil: "networkidle", timeout: 45000 });
+// Hard-gate: the dashboard's own elements must be present, or fail the tour.
+await page.getByText("True employer cost").first().waitFor({ timeout: 25000 });
+await page.getByText("Cross-document validation", { exact: false }).first()
+  .waitFor({ timeout: 25000 });
+// A Recharts series must have actually drawn an SVG path (not an empty box).
+await page.waitForFunction(
+  () => document.querySelectorAll("svg.recharts-surface path").length > 0,
+  { timeout: 25000 },
+);
+await sleep(1500); // let chart animations settle before the proof frame
+await page.screenshot({ path: "video/dashboard-proof.png" }); // uploaded by CI
+console.log("dashboard beat verified: P&L + payroll-gap + R1–R4 all rendered");
+
+// Walk the dashboard within the opening beat: top (P&L + payroll gap) → charts
+// → the R1–R4 validation ledger at the bottom. Timings fit inside [0, 24].
+await sleep(3500); // hold the top — metrics + payroll-gap headline
+await safe("scroll to charts", async () => {
+  await smoothScrollTo(page, 640, 3500); // P&L bars + expense breakdown
 });
-await sleep(3500); // let the SPA mount
-await safe("scroll landing", async () => {
-  await smoothScrollTo(page, 700, 4000);
-  await sleep(900);
-  await smoothScrollTo(page, 0, 3000);
+await sleep(2600);
+await safe("scroll to ledger", async () => {
+  await smoothScrollTo(page, 1500, 3500); // cash flow + exec summary + R1–R4
+});
+await sleep(2400);
+await safe("scroll back to top", async () => {
+  await smoothScrollTo(page, 0, 2500);
 });
 await waitUntil(BEATS.LANDING_END);
 
