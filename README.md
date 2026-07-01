@@ -10,7 +10,7 @@
 
 ## What is Archon?
 
-Archon is an end-to-end agentic pipeline that turns raw business documents — scanned invoices, payroll PDFs, vendor bills, expense photos — into structured financial intelligence. It supports **multilingual documents** (including Greek), handles every common file format, and produces a modern dashboard with P&L trends, cash flow analysis, and an LLM-written executive summary.
+Archon is a **unified financial intelligence platform** for SMBs. It consolidates a business's financial documents — sales and purchase invoices, orders and receipts, bank statements, payments, payroll, and expenses — into one environment and produces a consolidated, period-over-period view: P&L, EBITDA, per-period metrics, the true cost of the workforce, and cash. It then cross-checks the whole picture to surface what is missing or does not reconcile — for example, a bank payment with no matching invoice, or a bank transfer that understates the true cost of employing a team. It supports **multilingual documents**, handles every common file format, and writes an LLM-authored executive summary.
 
 Built entirely on **Nebius Serverless AI** — a FastAPI orchestration backend running as a **CPU AI Endpoint**, plus two on-demand **CPU AI Jobs** for document extraction and financial analysis. Frontier vision and language models are called over the **Nebius Inference API**, so the containers stay cheap CPU instances and the GPU lives in the inference layer. The React frontend is hosted on Firebase.
 
@@ -23,7 +23,7 @@ Built entirely on **Nebius Serverless AI** — a FastAPI orchestration backend r
 - **Public repo:** https://github.com/upgradedev/archon_nebius
 - **Nebius services used:** AI Endpoint, AI Jobs, Inference API, Object Storage, Managed PostgreSQL, Container Registry
 - **Local run:** `docker compose up --build`
-- **Core invariant:** linked payroll events use employer payroll cost, not bank-net transfer, surfacing the roughly 28% hidden payroll gap.
+- **Core invariant (worked example):** linked payroll events use the full employer cost, not the bank-net transfer — one instance of Archon reconciling a source against its supporting documents, here surfacing the roughly 28% hidden workforce-cost gap.
 
 ---
 
@@ -179,7 +179,7 @@ The reliable, frontend-independent way to exercise the whole pipeline
 — this is exactly what CI runs:
 
 ```bash
-python scripts/generate-sample-data.py    # synthetic Greek invoices + payroll docs
+python scripts/generate-sample-data.py    # synthetic invoices + payroll docs
 bash scripts/test-pipeline.sh             # drives the running stack, prints the report JSON
 ```
 
@@ -252,7 +252,7 @@ jobs are submitted (quota is 0 and live jobs cost money). See **ADR-009**.
 
 > *Evaluation harnesses* is a listed Nebius challenge domain. Archon ships one
 > that scores the **real** pipeline agents — not a re-implementation — against a
-> labelled synthetic corpus of Greek SMB payroll documents, and reports concrete
+> labelled synthetic corpus of SMB financial documents, and reports concrete
 > field/fusion/validation accuracy. Full detail and findings:
 > [`eval/BASELINE.md`](eval/BASELINE.md).
 
@@ -277,9 +277,10 @@ real Qwen2.5-VL extractor on Nebius ([`eval/LIVE_EXTRACTION.md`](eval/LIVE_EXTRA
 | Validation-outcome accuracy (R1–R4) | **96.88%** | 91.25% |
 
 - **Positive result:** under perfect extraction the `PnLAgent` reports the
-  *employer cost* (gross + employer IKA), not the bank net, to the cent across 40
-  diverse cases — the core thesis is verified, and the **naive bank-only floor
-  understates payroll by EUR 133,381 (~71% over the bank figure)** on the corpus.
+  *employer cost* (gross + employer social-security contributions), not the bank
+  net, to the cent across 40 diverse cases — the core thesis is verified, and the
+  **naive bank-only floor understates workforce cost by EUR 133,381 (~71% over the
+  bank figure)** on the corpus.
 - **Keystone finding (the harness earns its place):** validation rules **R2 and
   R4 are DORMANT — they fire 0/37 times** because no extractor populates the
   `employer_cost_total` / `net_pay_total` / `employee_count` fields they read
@@ -343,9 +344,9 @@ A `POST /analyze` call returns a structured `FinancialReport` JSON. Abbreviated 
     "net": 11800.00
   },
   "employees": [
-    { "name": "Παπαδόπουλος Γ.", "gross_salary": 2400.00, "employer_cost": 2976.00 }
+    { "name": "J. Andersen", "gross_salary": 2400.00, "employer_cost": 2976.00 }
   ],
-  "executive_summary": "January 2026 shows a healthy 28.4% operating margin. Payroll represents the largest cost centre at €18,400 — 28% above what the bank transfer alone would suggest, reflecting IKA employer contributions. Cash position improved by €11,800...",
+  "executive_summary": "January 2026 shows a healthy 28.4% operating margin. Payroll represents the largest cost centre at €18,400 — 28% above what the bank transfer alone would suggest, reflecting employer social-security contributions. Cash position improved by €11,800...",
   "validation": { "rules_passed": 4, "rules_failed": 0 }
 }
 ```

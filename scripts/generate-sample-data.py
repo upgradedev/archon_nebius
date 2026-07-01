@@ -34,7 +34,7 @@ def ln(c, x1, y1, x2, y2):
     c.line(x1 * cm, H - y1 * cm, x2 * cm, H - y2 * cm)
 
 
-# ── 1. Greek toll invoice (Attiki Odos) ───────────────────────────────────────
+# ── 1. Toll invoice (Attiki Odos) ─────────────────────────────────────────────
 def gen_attiki():
     c = _c("attiki_odos_invoice_202601.pdf")
     t(c, 2, 2, "ΑΤΤΙΚΗ ΟΔΟΣ Α.Ε.", 14, bold=True)
@@ -75,7 +75,7 @@ def gen_anthropic():
     t(c, 12, 4.5, "Due: February 14, 2026")
     t(c, 2, 5.5, "Bill To:", bold=True)
     t(c, 2, 6.3, "Upgrade Fousekis E & Co  |  VAT: EL801234567")
-    t(c, 2, 7.1, "Athens, Greece")
+    t(c, 2, 7.1, "Athens")
     ln(c, 2, 8, 19, 8)
     t(c, 2, 8.7, "DESCRIPTION", bold=True)
     t(c, 15, 8.7, "AMOUNT", bold=True)

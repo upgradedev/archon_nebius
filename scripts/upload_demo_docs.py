@@ -162,7 +162,7 @@ documents = [
         "total_amount": 1312.44,
         "payment_due_date": "2026-01-31",
         "invoice_number": None,
-        "notes": "Payslip January 2026. IKA employee 16%, employer 26%.",
+        "notes": "Payslip January 2026. Employee social security 16%, employer 26%.",
         "confidence": 0.98,
         "employee_count": None, "gross_pay_total": None,
         "employer_cost_total": 2268.00,
