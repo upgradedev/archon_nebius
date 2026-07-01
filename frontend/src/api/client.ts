@@ -1,6 +1,8 @@
 import axios from 'axios'
 import { auth } from '../firebase'
 import type { UploadResponse, Job, AnalysisResponse, PeriodInfo, CompanyProfile } from '../types/financial'
+import { isDemoMode } from '../demo/demoMode'
+import { DEMO_PERIODS, DEMO_REPORT, DEMO_PROFILE } from '../demo/demoData'
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
@@ -49,13 +51,17 @@ export const api = {
     return data
   },
 
-  // Read completed report from Object Storage
+  // Read completed report from Object Storage. In demo mode (see demoMode.ts)
+  // this returns the seeded fixture with NO network call — the tour/CI runner
+  // renders the real dashboard components without a backend or auth.
   getReport: async (period: string): Promise<AnalysisResponse> => {
+    if (isDemoMode()) return DEMO_REPORT
     const { data } = await http.get<AnalysisResponse>(`/api/reports/${period}`)
     return data
   },
 
   getPeriods: async (): Promise<PeriodInfo[]> => {
+    if (isDemoMode()) return DEMO_PERIODS
     const { data } = await http.get<PeriodInfo[]>('/api/periods')
     return data
   },
@@ -74,6 +80,7 @@ export const api = {
   },
 
   getCompanyProfile: async (): Promise<CompanyProfile> => {
+    if (isDemoMode()) return DEMO_PROFILE
     const { data } = await http.get<CompanyProfile>('/api/company-profile')
     return data
   },
