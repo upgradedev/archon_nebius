@@ -1,0 +1,93 @@
+name: Dependency Audit
+
+# Software-composition analysis (SCA) for third-party dependencies.
+#   * Python  — pip-audit against each in-scope requirements file
+#               (backend + extraction Job + analysis Endpoint) vs the PyPI/OSV
+#               advisory database. Any known vulnerability fails the build,
+#               EXCEPT a short, documented deferral list (see PIP_AUDIT_IGNORE).
+#   * Node    — npm audit for the React frontend. Production dependencies gate
+#               the build at --audit-level=high; the full tree (incl. dev-only
+#               build tooling) is reported non-blocking for visibility.
+#
+# Secret scanning (gitleaks) remains the first gate in smoke-test.yml; this
+# workflow complements it with dependency-vulnerability coverage.
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC — surface newly disclosed CVEs
+  workflow_dispatch:
+
+concurrency:
+  group: dep-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python-audit:
+    name: pip-audit (backend + extraction + analysis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Deferred, documented risk-acceptances. Each is a TRANSITIVE starlette
+      # advisory reachable only via fastapi==0.115.6 (pinned starlette<0.42).
+      # Clearing them requires a major fastapi upgrade on the live-deployed
+      # backend + analysis endpoint, which is tracked separately and out of
+      # scope for this security-CI change. Everything else is blocking.
+      PIP_AUDIT_IGNORE: >-
+        --ignore-vuln PYSEC-2026-161
+        --ignore-vuln PYSEC-2026-248
+        --ignore-vuln PYSEC-2026-249
+        --ignore-vuln CVE-2025-54121
+        --ignore-vuln CVE-2025-62727
+        --ignore-vuln CVE-2026-48817
+        --ignore-vuln CVE-2026-48818
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: pip install pip-audit==2.7.3
+
+      - name: Audit backend/requirements.txt
+        run: pip-audit -r backend/requirements.txt $PIP_AUDIT_IGNORE
+
+      - name: Audit jobs/extraction/requirements.txt
+        run: pip-audit -r jobs/extraction/requirements.txt $PIP_AUDIT_IGNORE
+
+      - name: Audit endpoints/analysis/requirements.txt
+        run: pip-audit -r endpoints/analysis/requirements.txt $PIP_AUDIT_IGNORE
+
+  node-audit:
+    name: npm audit (frontend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies (no scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Audit production dependencies (blocking, high+critical)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit full tree incl. dev tooling (non-blocking report)
+        if: always()
+        run: npm audit || true

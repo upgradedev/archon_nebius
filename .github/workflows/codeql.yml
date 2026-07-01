@@ -1,0 +1,62 @@
+name: CodeQL
+
+# Static application security testing (SAST) for both language families in the
+# repo: Python (backend orchestration + extraction Job + analysis Endpoint) and
+# JavaScript/TypeScript (React frontend). Runs the "security-and-quality" query
+# suite. Kept in its own workflow so the elevated `security-events: write`
+# permission is isolated from the test/deploy jobs.
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  schedule:
+    - cron: "0 5 * * 1" # Mondays 05:00 UTC — catch newly published queries
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      # Minimal, scoped to what CodeQL needs — nothing else in the repo grants this.
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: python
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-and-quality
+
+      # build-mode: none is the correct idiom for interpreted languages; there is
+      # nothing to compile. Kept as an explicit step for parity with compiled
+      # languages and to document intent.
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

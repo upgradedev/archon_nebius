@@ -209,10 +209,14 @@ CORS_ORIGINS=https://archon-pnl.web.app
 
 ## Testing & CI
 
-Two GitHub Actions pipelines guard every change:
+Four GitHub Actions pipelines guard every change:
 
 - **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **122 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
 - **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), including the **28% payroll-gap invariant** (`employer_cost_total ≥ bank net`). Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
+- **CodeQL** (`codeql.yml`, every PR + weekly) — SAST over both language families (Python: backend + extraction Job + analysis Endpoint; JavaScript/TypeScript: frontend) with the `security-and-quality` query suite.
+- **Dependency Audit** (`security-audit.yml`, every PR + weekly) — `pip-audit` against all three Python requirement sets and `npm audit` for the frontend; high/critical dependency CVEs fail the build.
+
+Together the four form a layered security posture: **secrets** (gitleaks) · **source** (CodeQL) · **dependencies** (pip-audit / npm audit) · **behaviour** (unit → integration → E2E).
 
 ---
 
