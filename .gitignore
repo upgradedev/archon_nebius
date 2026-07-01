@@ -69,3 +69,6 @@ eval/RESULTS.json
 # Logs
 *.log
 logs/
+
+# Local-only session artifacts (creds, notes) — never commit
+*.local.md

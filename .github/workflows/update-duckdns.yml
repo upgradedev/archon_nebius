@@ -1,0 +1,40 @@
+name: Update DuckDNS A-record
+
+# Repoints archon-api.duckdns.org at a Nebius Serverless AI Endpoint's current
+# public IP. Needed because the endpoint's public IP flaps across (re)deploys and
+# start.sh's in-container ipify update reports the egress IP, which can differ from
+# the ingress public IP clients connect to. Run this after a redeploy with the IP
+# from `nebius ai endpoint get` -> status.public_endpoints.
+#
+# Uses the DUCKDNS_TOKEN repo secret (not available locally), so this is the clean
+# lever to fix a stale record without exposing the token.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ip:
+        description: "Public IP to point archon-api.duckdns.org at (e.g. 66.201.5.204)"
+        required: true
+        type: string
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update DuckDNS
+        env:
+          DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
+        run: |
+          set -euo pipefail
+          IP="${{ inputs.ip }}"
+          if ! echo "$IP" | grep -qE '^[0-9]{1,3}(\.[0-9]{1,3}){3}$'; then
+            echo "Invalid IP: $IP" >&2
+            exit 1
+          fi
+          RESP=$(curl -sS "https://www.duckdns.org/update?domains=archon-api&token=${DUCKDNS_TOKEN}&ip=${IP}")
+          echo "DuckDNS response: $RESP"
+          if [ "$RESP" != "OK" ]; then
+            echo "DuckDNS update did not return OK" >&2
+            exit 1
+          fi
+          echo "archon-api.duckdns.org -> $IP"
