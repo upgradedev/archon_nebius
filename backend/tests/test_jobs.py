@@ -41,6 +41,22 @@ def test_submit_job_extraction_service_error(client):
     assert resp.status_code == 500
 
 
+def test_submit_job_capacity_unavailable_returns_503(client):
+    """ComputeCapacityUnavailable (all presets failed to provision) → HTTP 503."""
+    from services.nebius import ComputeCapacityUnavailable
+
+    exc = ComputeCapacityUnavailable(
+        "archon-extract",
+        [("cpu-d3", "4vcpu-16gb"), ("cpu-d3", "8vcpu-32gb")],
+        ["cpu-d3:4vcpu-16gb never-provisioned", "cpu-d3:8vcpu-32gb never-provisioned"],
+    )
+    with patch("services.nebius.submit_extraction_job", side_effect=exc):
+        resp = client.post("/api/jobs", json={"uploadId": "abc123", "period": "2025-01"})
+
+    assert resp.status_code == 503
+    assert "capacity" in resp.json()["detail"].lower()
+
+
 def test_submit_job_missing_period(client):
     resp = client.post("/api/jobs", json={"uploadId": "abc123"})
     assert resp.status_code == 422

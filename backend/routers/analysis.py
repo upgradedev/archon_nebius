@@ -18,6 +18,9 @@ def trigger_analysis(req: AnalyzeRequest):
     """Submit an on-demand analysis job and return its ID for polling."""
     try:
         return nebius.submit_analysis_job(req.period)
+    except nebius.ComputeCapacityUnavailable as exc:
+        # Every compute preset failed to provision — actionable 503, not a 500.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to submit analysis job: {exc}") from exc
 

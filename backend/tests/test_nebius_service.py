@@ -120,28 +120,52 @@ def _make_jobspec_class():
     return FakeJobSpec
 
 
-def _make_mock_job(job_id: str = "job-nebius-001"):
+def _make_status(state: int = 3, instances: int = 1, started: bool = True, message: str = ""):
+    """Build a fake JobStatus with the real wrapper's field surface.
+
+    Mirrors the installed pysdk shape: `.state` (int), `.instances` (list),
+    `.check_presence('started_at')` (bool), `.state_details.message` (str).
+    Default = RUNNING with one instance (provisioned).
+    """
+    status = MagicMock()
+    status.state = state
+    status.instances = [MagicMock() for _ in range(instances)]
+    status.check_presence.side_effect = lambda name: started if name == "started_at" else False
+    status.state_details = MagicMock()
+    status.state_details.message = message
+    return status
+
+
+def _make_mock_job(job_id: str = "job-nebius-001", status=None):
     meta = MagicMock()
     meta.id = job_id
     job = MagicMock()
     job.metadata = meta
-    # service.create(...).wait() returns an Operation; the created job id is on
+    # create(...).wait() returns an Operation; the created job id is on
     # Operation.resource_id (Operation has no .metadata).
     job.resource_id = job_id
+    # get(...).wait() returns a Job whose .status the provisioning probe reads.
+    job.status = status if status is not None else _make_status()
     return job
 
 
-def _make_create_result(job_id: str = "job-nebius-001"):
-    mock_job = _make_mock_job(job_id)
+def _wrap(job):
+    """Wrap a job in a MagicMock whose .wait() returns it (SDK operation shape)."""
     result = MagicMock()
-    result.wait.return_value = mock_job
+    result.wait.return_value = job
     return result
 
 
+def _make_create_result(job_id: str = "job-nebius-001"):
+    return _wrap(_make_mock_job(job_id))
+
+
 def _make_sdk_and_service(job_id: str = "job-nebius-001"):
-    create_result = _make_create_result(job_id)
+    """SDK + service where create() succeeds and the job provisions (RUNNING)."""
     service = MagicMock()
-    service.create.return_value = create_result
+    service.create.return_value = _make_create_result(job_id)
+    # _await_provisioning calls service.get(...).wait() -> RUNNING job by default.
+    service.get.return_value = _wrap(_make_mock_job(job_id))
     sdk = MagicMock()
     sdk.sync_close = MagicMock()
     return sdk, service
@@ -362,6 +386,245 @@ def test_registry_credentials_singular_against_real_sdk():
     # on a non-repeated wrapper -> AttributeError -> the prod 500 on /api/jobs.
     with pytest.raises(AttributeError):
         JobSpec(registry_credentials=[rc])
+
+
+# ── Preset ladder parsing ─────────────────────────────────────────────────────
+
+def test_parse_ladder_env_empty_returns_empty(monkeypatch):
+    monkeypatch.delenv("JOB_PRESET_LADDER", raising=False)
+    from services.nebius import _parse_ladder_env
+    assert _parse_ladder_env() == []
+
+
+def test_parse_ladder_env_valid(monkeypatch):
+    monkeypatch.setenv("JOB_PRESET_LADDER", "cpu-d3:4vcpu-16gb, cpu-d3:8vcpu-32gb")
+    from services.nebius import _parse_ladder_env
+    assert _parse_ladder_env() == [("cpu-d3", "4vcpu-16gb"), ("cpu-d3", "8vcpu-32gb")]
+
+
+def test_parse_ladder_env_skips_malformed(monkeypatch):
+    # 'garbage' has no colon; ':x' and 'y:' are empty-sided → all skipped.
+    monkeypatch.setenv("JOB_PRESET_LADDER", "garbage,cpu-d3:16vcpu-64gb,:x,y:,")
+    from services.nebius import _parse_ladder_env
+    assert _parse_ladder_env() == [("cpu-d3", "16vcpu-64gb")]
+
+
+def test_preset_ladder_default_puts_live_first_then_fallback(monkeypatch):
+    monkeypatch.delenv("JOB_PRESET_LADDER", raising=False)
+    from services.nebius import _preset_ladder, _DEFAULT_FALLBACK_LADDER
+    ladder = _preset_ladder("cpu-d3", "4vcpu-16gb")
+    assert ladder[0] == ("cpu-d3", "4vcpu-16gb")
+    for entry in _DEFAULT_FALLBACK_LADDER:
+        assert entry in ladder
+
+
+def test_preset_ladder_env_overrides_default(monkeypatch):
+    monkeypatch.setenv("JOB_PRESET_LADDER", "cpu-d3:8vcpu-32gb,cpu-d3:16vcpu-64gb")
+    from services.nebius import _preset_ladder
+    assert _preset_ladder("cpu-d3", "4vcpu-16gb") == [
+        ("cpu-d3", "8vcpu-32gb"),
+        ("cpu-d3", "16vcpu-64gb"),
+    ]
+
+
+def test_preset_ladder_dedups_preserving_order(monkeypatch):
+    # Live rung equals the single fallback → must not appear twice.
+    monkeypatch.delenv("JOB_PRESET_LADDER", raising=False)
+    from services.nebius import _preset_ladder
+    ladder = _preset_ladder("cpu-d3", "8vcpu-32gb")
+    assert ladder.count(("cpu-d3", "8vcpu-32gb")) == 1
+
+
+def test_is_provisioning_error_matches_quota_and_precondition():
+    from services.nebius import _is_provisioning_error
+    assert _is_provisioning_error(RuntimeError("FAILED_PRECONDITION: no capacity"))
+    assert _is_provisioning_error(RuntimeError("RESOURCE_EXHAUSTED: quota exceeded"))
+    assert not _is_provisioning_error(RuntimeError("invalid image reference"))
+
+
+# ── Failover behaviour (the critical signal) ──────────────────────────────────
+
+def _failover_env(monkeypatch, image_key="EXTRACTION_JOB_IMAGE"):
+    monkeypatch.setenv("NEBIUS_PROJECT_ID", "project-test")
+    monkeypatch.setenv("NEBIUS_SUBNET_ID", "subnet-test")
+    monkeypatch.setenv(image_key, "cr.test/img:latest")
+    monkeypatch.setenv("NEBIUS_INFERENCE_BASE_URL", "https://api.test")
+    monkeypatch.setenv("NEBIUS_INFERENCE_API_KEY", "key")
+    monkeypatch.setenv("JOB_PROVISION_PROBE_SECS", "0")
+    monkeypatch.setenv("JOB_PROVISION_POLL_SECS", "0")
+    # Two-rung ladder so a single fallover is observable.
+    monkeypatch.setenv("JOB_PRESET_LADDER", "cpu-d3:4vcpu-16gb,cpu-d3:8vcpu-32gb")
+
+
+def test_failover_when_first_preset_never_provisions(monkeypatch):
+    """Rung 1 terminal-fails with 0 instances → rung 2 is tried and succeeds."""
+    _failover_env(monkeypatch)
+
+    sdk, service = _make_sdk_and_service()
+    # create() returns job-1 then job-2 on successive attempts.
+    service.create.side_effect = [_make_create_result("job-1"), _make_create_result("job-2")]
+    # get(): job-1 FAILED with 0 instances (never provisioned); job-2 RUNNING.
+    never = _make_mock_job("job-1", _make_status(state=7, instances=0, started=False))
+    running = _make_mock_job("job-2", _make_status(state=3, instances=1, started=True))
+    service.get.side_effect = [_wrap(never), _wrap(running)]
+    service.delete.return_value = _wrap(MagicMock())
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_nebius_imports(sdk, service, FakeJobSpec):
+        from services.nebius import _submit_nebius_job
+        result = _submit_nebius_job("upload-abc", "2025-01")
+
+    assert result["id"] == "job-2"          # succeeded on rung 2
+    assert service.create.call_count == 2   # both rungs tried
+    service.delete.assert_called_once()     # rung-1 scaffolding cleaned up
+
+
+def test_no_failover_when_job_ran_then_failed(monkeypatch):
+    """Reached compute then failed = application bug → fail fast, NO failover."""
+    _failover_env(monkeypatch)
+
+    sdk, service = _make_sdk_and_service()
+    service.create.side_effect = [_make_create_result("job-1"), _make_create_result("job-2")]
+    # job-1 FAILED but started_at set + 1 instance → compute existed → app failure.
+    app_fail = _make_mock_job("job-1", _make_status(state=7, instances=1, started=True, message="boom"))
+    service.get.side_effect = [_wrap(app_fail)]
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_nebius_imports(sdk, service, FakeJobSpec):
+        from services.nebius import _submit_nebius_job
+        with pytest.raises(RuntimeError) as exc_info:
+            _submit_nebius_job("upload-abc", "2025-01")
+
+    assert "after provisioning" in str(exc_info.value)
+    assert service.create.call_count == 1   # did NOT try rung 2
+    service.delete.assert_not_called()
+
+
+def test_all_presets_never_provision_raises_capacity_error(monkeypatch):
+    """Every rung never provisions → ComputeCapacityUnavailable (→ 503), bounded."""
+    _failover_env(monkeypatch)
+
+    sdk, service = _make_sdk_and_service()
+    service.create.side_effect = [_make_create_result("job-1"), _make_create_result("job-2")]
+    never1 = _make_mock_job("job-1", _make_status(state=9, instances=0, started=False))  # ERROR
+    never2 = _make_mock_job("job-2", _make_status(state=7, instances=0, started=False))  # FAILED
+    service.get.side_effect = [_wrap(never1), _wrap(never2)]
+    service.delete.return_value = _wrap(MagicMock())
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_nebius_imports(sdk, service, FakeJobSpec):
+        from services.nebius import _submit_nebius_job, ComputeCapacityUnavailable
+        with pytest.raises(ComputeCapacityUnavailable) as exc_info:
+            _submit_nebius_job("upload-abc", "2025-01")
+
+    msg = str(exc_info.value)
+    assert "capacity" in msg.lower()
+    assert service.create.call_count == 2   # bounded: exactly one attempt per rung
+    assert service.delete.call_count == 2   # both scaffolds cleaned up
+
+
+def test_submission_provisioning_error_fails_over(monkeypatch):
+    """A FAILED_PRECONDITION at create() time fails over to the next preset."""
+    _failover_env(monkeypatch)
+
+    sdk, service = _make_sdk_and_service()
+    running = _make_mock_job("job-2", _make_status(state=3, instances=1, started=True))
+    service.create.side_effect = [
+        RuntimeError("FAILED_PRECONDITION: preset has no quota"),
+        _make_create_result("job-2"),
+    ]
+    service.get.side_effect = [_wrap(running)]
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_nebius_imports(sdk, service, FakeJobSpec):
+        from services.nebius import _submit_nebius_job
+        result = _submit_nebius_job("upload-abc", "2025-01")
+
+    assert result["id"] == "job-2"
+    assert service.create.call_count == 2
+
+
+def test_non_provisioning_submission_error_is_reraised(monkeypatch):
+    """A genuine (non-capacity) create() error is raised, NOT failed over."""
+    _failover_env(monkeypatch)
+
+    sdk, service = _make_sdk_and_service()
+    service.create.side_effect = RuntimeError("invalid image reference")
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_nebius_imports(sdk, service, FakeJobSpec):
+        from services.nebius import _submit_nebius_job
+        with pytest.raises(RuntimeError, match="invalid image"):
+            _submit_nebius_job("upload-abc", "2025-01")
+
+    assert service.create.call_count == 1   # no failover on a real error
+
+
+def test_analysis_job_fails_over_too(monkeypatch):
+    """The shared helper applies to analysis jobs as well (DRY)."""
+    _failover_env(monkeypatch, image_key="ANALYSIS_JOB_IMAGE")
+
+    sdk, service = _make_sdk_and_service()
+    service.create.side_effect = [_make_create_result("an-1"), _make_create_result("an-2")]
+    never = _make_mock_job("an-1", _make_status(state=8, instances=0, started=False))  # CANCELLED
+    running = _make_mock_job("an-2", _make_status(state=3, instances=1, started=True))
+    service.get.side_effect = [_wrap(never), _wrap(running)]
+    service.delete.return_value = _wrap(MagicMock())
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_analysis_imports(sdk, service, FakeJobSpec):
+        from services.nebius import _submit_nebius_analysis_job
+        result = _submit_nebius_analysis_job("2025-06")
+
+    assert result["id"] == "an-2"
+    assert service.create.call_count == 2
+
+
+def test_job_vanished_during_probe_triggers_failover(monkeypatch):
+    """GetJob raising (job torn itself down) counts as never-provisioned."""
+    _failover_env(monkeypatch)
+
+    sdk, service = _make_sdk_and_service()
+    service.create.side_effect = [_make_create_result("job-1"), _make_create_result("job-2")]
+    running = _make_mock_job("job-2", _make_status(state=3, instances=1, started=True))
+    service.get.side_effect = [RuntimeError("NOT_FOUND: job deleted"), _wrap(running)]
+    service.delete.return_value = _wrap(MagicMock())
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_nebius_imports(sdk, service, FakeJobSpec):
+        from services.nebius import _submit_nebius_job
+        result = _submit_nebius_job("upload-abc", "2025-01")
+
+    assert result["id"] == "job-2"
+    assert service.create.call_count == 2
+
+
+# ── REAL-SDK JobStatus shape contract ─────────────────────────────────────────
+# The failover logic reads specific JobStatus fields. A FakeJobSpec/mock can never
+# catch an SDK proto-contract change to these — exactly how the registry_credentials
+# arity bug reached prod. This exercises the REAL pysdk so drift on the fields the
+# failover relies on fails HERE instead of as a prod 500 / silent stall.
+
+def test_jobstatus_shape_against_real_sdk():
+    v1 = pytest.importorskip("nebius.api.nebius.ai.v1")
+    JobStatus = v1.JobStatus
+
+    status = JobStatus()
+    # Fields the probe reads:
+    assert isinstance(status.state, int)          # .state
+    assert len(status.instances) == 0             # .instances (repeated)
+    # Field-presence API is check_presence(), NOT HasField() (which the wrapper
+    # does not expose — depending on HasField here would be a prod bug).
+    assert status.check_presence("started_at") is False
+    assert not hasattr(status, "HasField")
+    assert status.state_details.message == ""     # .state_details.message
+
+    # The state machine values the classifier keys on must exist and be distinct.
+    S = JobStatus.State
+    for name in ("PROVISIONING", "STARTING", "RUNNING", "COMPLETED", "FAILED", "CANCELLED", "ERROR"):
+        assert hasattr(S, name)
+    assert int(S.RUNNING) == 3
+    assert {int(S.FAILED), int(S.CANCELLED), int(S.ERROR)} == {7, 8, 9}
 
 
 # ── submit_extraction_job routing ─────────────────────────────────────────────
