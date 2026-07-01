@@ -2,7 +2,7 @@
 // but internally consistent and aligned with the demo narration / slides:
 //   bank transfer (net) ~EUR 14,350 · true employer cost ~EUR 18,400 · +28% wedge
 //   R1 & R3 pass · R2 & R4 dormant (skip) — the keystone validation finding
-// No real customer data — synthetic Greek-SMB figures for a single month.
+// No real customer data — synthetic SMB figures for a single month.
 import type {
   AnalysisResponse,
   CompanyProfile,
