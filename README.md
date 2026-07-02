@@ -239,6 +239,13 @@ stall **invisibly**. Archon now degrades gracefully and fails loudly instead:
   instance-count + terminal-state, never elapsed time.
 - **Bounded + cost-safe.** Each ladder entry is tried at most once, in order.
   Never-provisioned scaffolding is deleted before the next attempt so no jobs leak.
+- **GPU rung is opt-in only.** The ladder accepts any `platform:preset` pair, so a
+  `gpu-h200-sxm` rung (e.g. `gpu-h200-sxm:1gpu-16vcpu-200gb`) *can* be appended as
+  a last-resort escape when every `cpu-d3` size is quota-blocked. It is **off by
+  default and intentionally not in the default ladder**: Archon jobs are CPU
+  workloads (LLM inference is remote HTTP), so a GPU rung costs ~100x (~$4.50/hr
+  vs ~$0.04/hr) for zero compute benefit. See `.env.example` for the annotated
+  opt-in example and cost warning.
 - **Loud on exhaustion.** When every preset fails to provision, the API returns
   **HTTP 503** with an actionable message listing the presets tried — never a
   silent hang or a generic 500. (Observability was half the fix: the original

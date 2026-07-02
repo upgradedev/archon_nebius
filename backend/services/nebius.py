@@ -19,11 +19,13 @@ import uuid
 from datetime import datetime, timezone
 
 import httpx
-import requests
 
 logger = logging.getLogger(__name__)
 
 JOB_RUNNER_BACKEND = os.getenv("JOB_RUNNER_BACKEND", "nebius")
+
+
+_REGISTRY_TOKEN_TIMEOUT_SECS = 30
 
 
 def _get_registry_token() -> str:
@@ -31,53 +33,48 @@ def _get_registry_token() -> str:
 
     Preference order:
     1. Service account credentials (NEBIUS_SA_KEY_B64 + NEBIUS_SA_KEY_ID + NEBIUS_SA_ID)
-       — generates a fresh short-lived IAM token via JWT bearer flow.
-    2. NEBIUS_IAM_TOKEN env var (12-hour session token, fine for local dev).
+       — minted through the SAME pysdk service-account bearer that `_make_sdk()`
+       already uses successfully for every JobService call. The SDK exchanges the
+       SA key for a fresh short-lived IAM token internally (`get_token_sync`).
+    2. NEBIUS_IAM_TOKEN env var (12-hour session token, fine for local dev / CLI).
     3. Empty string if nothing is configured (will cause FAILED_PRECONDITION on
        private images — operator must provide credentials).
+
+    When SA vars are present, the SA path is authoritative: a mint failure is
+    logged loudly and RAISED. It must NOT silently fall back to a stale/empty
+    NEBIUS_IAM_TOKEN — that previous behavior masked broken registry auth behind
+    an ephemeral ~12h token (the old code POSTed a JWT to the wrong endpoint,
+    https://auth.nebius.com/oauth/token, which returns an HTML login page, so it
+    hit JSONDecodeError on every call and fell back invisibly).
     """
     sa_key_b64 = os.getenv("NEBIUS_SA_KEY_B64")
     sa_key_id = os.getenv("NEBIUS_SA_KEY_ID")
     sa_id = os.getenv("NEBIUS_SA_ID")
 
     if sa_key_b64 and sa_key_id and sa_id:
+        sdk = _make_sdk()
         try:
-            import jwt  # PyJWT
-
-            pem = base64.b64decode(sa_key_b64).decode()
-            now = int(time.time())
-            aud = "https://auth.nebius.com/oauth/token"
-            payload = {
-                "iss": sa_id,
-                "sub": sa_id,
-                "aud": aud,
-                "iat": now,
-                "exp": now + 600,
-            }
-            signed_jwt = jwt.encode(
-                payload,
-                pem,
-                algorithm="RS256",
-                headers={"kid": sa_key_id},
-            )
-            resp = requests.post(
-                aud,
-                json={
-                    "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-                    "assertion": signed_jwt,
-                },
-                timeout=10,
-            )
-            resp.raise_for_status()
-            token = resp.json()["access_token"]
-            logger.debug("Fetched fresh IAM token for registry auth (SA=%s)", sa_id)
-            return token
+            token = sdk.get_token_sync(_REGISTRY_TOKEN_TIMEOUT_SECS).token
         except Exception:
-            logger.exception("Failed to generate IAM token from SA credentials — falling back to NEBIUS_IAM_TOKEN")
+            logger.exception(
+                "Failed to mint registry token via SA pysdk bearer (SA=%s) — "
+                "raising rather than falling back to a stale token",
+                sa_id,
+            )
+            raise
+        finally:
+            sdk.sync_close()
+        if not token:
+            raise RuntimeError(
+                "SA registry token mint returned an empty token — refusing to "
+                "submit a job with no registry auth"
+            )
+        logger.debug("Minted registry token via SA pysdk bearer (SA=%s)", sa_id)
+        return token
 
     iam_token = os.getenv("NEBIUS_IAM_TOKEN", "")
     if iam_token:
-        logger.debug("Using NEBIUS_IAM_TOKEN for registry auth")
+        logger.debug("Using NEBIUS_IAM_TOKEN for registry auth (no SA vars set)")
     return iam_token
 EXTRACTION_SERVICE_URL = os.getenv("EXTRACTION_SERVICE_URL", "http://extraction:8002")
 ANALYSIS_SERVICE_URL = os.getenv("ANALYSIS_SERVICE_URL", "http://analysis:8001")
