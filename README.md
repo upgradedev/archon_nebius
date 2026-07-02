@@ -284,6 +284,11 @@ Verified entirely in CI via unit + mocked-runner tests and a real-pysdk
 `JobStatus` shape contract test (`backend/tests/test_nebius_service.py`) — no live
 jobs are submitted (quota is 0 and live jobs cost money). See **ADR-009**.
 
+**Deep dive + one-command demo.** The named pattern (failure taxonomy, the
+GPU-only capacity-API finding, and the flow diagram) is documented in
+[`docs/capacity-probe-pattern.md`](docs/capacity-probe-pattern.md). Watch the
+ladder fail over live, offline, with `bash scripts/demo-failover.sh`.
+
 ## Evaluation harness (measured accuracy)
 
 > *Evaluation harnesses* is a listed Nebius challenge domain. Archon ships one
