@@ -21,10 +21,23 @@ BUILD=false
 
 SCRIPT_DIR="$(dirname "$0")"
 REGISTRY="$NEBIUS_REGISTRY/$NEBIUS_REGISTRY_PATH"
+# RUNTIME_IAM_TOKEN is used ONLY for `docker login` (image push) and CLI calls
+# during this deploy. It is a short-lived (~12h) USER token and is deliberately
+# NOT baked into the endpoint env — the endpoint authenticates at runtime with the
+# service account (NEBIUS_SA_*), which never expires. See _make_sdk()/_get_registry_token().
 RUNTIME_IAM_TOKEN=$(nebius iam get-access-token 2>/dev/null || echo "${NEBIUS_IAM_TOKEN:-}")
 
 if [[ -z "${RUNTIME_IAM_TOKEN:-}" ]]; then
     echo "ERROR: could not obtain a Nebius IAM token. Run 'nebius iam get-access-token' or set NEBIUS_IAM_TOKEN." >&2
+    exit 1
+fi
+
+# The endpoint's runtime identity is the service account. Refuse to deploy without
+# it, otherwise the endpoint would have no durable credential for job submission /
+# registry pull (we no longer fall back to baking the ~12h user token as a runtime env).
+if [[ -z "${NEBIUS_SA_ID:-}" || -z "${NEBIUS_SA_KEY_ID:-}" || -z "${NEBIUS_SA_KEY_B64:-}" ]]; then
+    echo "ERROR: NEBIUS_SA_ID / NEBIUS_SA_KEY_ID / NEBIUS_SA_KEY_B64 must be set in .env." >&2
+    echo "       The backend endpoint authenticates via the service account (durable), not the user IAM token." >&2
     exit 1
 fi
 
@@ -102,7 +115,8 @@ nebius ai endpoint create \
   --platform cpu-d3 \
   --preset 4vcpu-16gb \
   --public \
-  --env "NEBIUS_IAM_TOKEN=$RUNTIME_IAM_TOKEN" \
+  --registry-username iam \
+  --registry-password "$RUNTIME_IAM_TOKEN" \
   --env "NEBIUS_SA_KEY_B64=${NEBIUS_SA_KEY_B64:-}" \
   --env "NEBIUS_SA_KEY_ID=${NEBIUS_SA_KEY_ID:-}" \
   --env "NEBIUS_SA_ID=${NEBIUS_SA_ID:-}" \
