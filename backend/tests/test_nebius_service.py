@@ -630,6 +630,36 @@ def test_analysis_job_fails_over_too(monkeypatch):
     assert service.create.call_count == 2
 
 
+def test_accept_then_stall_provisioning_triggers_failover(monkeypatch):
+    """The #81 gap: a job accepted but stuck in PROVISIONING with 0 instances past
+    the probe deadline (the zero-capacity accept-then-stall signature) must be
+    classified _NEVER_PROVISIONED → deleted → failed over to the next rung.
+
+    Before the fix this returned _PROVISIONED (pending) and the job stalled forever.
+    The stall state is PROVISIONING (1) with 0 instances and no started_at — it is
+    NOT a terminal-failure state, so it reaches the deadline branch, unlike the
+    terminal-failure failover tests above.
+    """
+    _failover_env(monkeypatch)  # JOB_PROVISION_PROBE_SECS=0 → deadline hits at once
+
+    sdk, service = _make_sdk_and_service()
+    service.create.side_effect = [_make_create_result("job-1"), _make_create_result("job-2")]
+    # job-1: PROVISIONING (1), 0 instances, never started → accept-then-stall.
+    stalled = _make_mock_job("job-1", _make_status(state=1, instances=0, started=False))
+    running = _make_mock_job("job-2", _make_status(state=3, instances=1, started=True))
+    service.get.side_effect = [_wrap(stalled), _wrap(running)]
+    service.delete.return_value = _wrap(MagicMock())
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_nebius_imports(sdk, service, FakeJobSpec):
+        from services.nebius import _submit_nebius_job
+        result = _submit_nebius_job("upload-abc", "2025-01")
+
+    assert result["id"] == "job-2"          # failed over to rung 2
+    assert service.create.call_count == 2   # both rungs tried
+    service.delete.assert_called_once()     # stalled rung-1 scaffolding deleted
+
+
 def test_job_vanished_during_probe_triggers_failover(monkeypatch):
     """GetJob raising (job torn itself down) counts as never-provisioned."""
     _failover_env(monkeypatch)

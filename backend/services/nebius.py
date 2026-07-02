@@ -251,21 +251,28 @@ def _await_provisioning(service, job_id: str) -> str:
 
     Returns one of:
       * _PROVISIONED      — compute was allocated (RUNNING / COMPLETED / instances
-                            present / started_at set), OR the probe window elapsed
-                            while the job was still making normal progress. We
-                            return the job as pending in both cases; we NEVER kill
-                            a possibly-healthy slow job.
+                            present / started_at set). The job reached real compute,
+                            so we return it as pending and let the caller poll it to
+                            completion.
       * _NEVER_PROVISIONED— terminal failure with zero instances and never RUNNING,
-                            or the job vanished mid-provisioning (silent teardown).
-                            Caller fails over to the next preset.
+                            the job vanished mid-provisioning (silent teardown), OR
+                            the probe window elapsed while the job was STILL in
+                            PROVISIONING with zero instances (the accept-then-stall
+                            capacity signature: on a zero-capacity preset the job is
+                            accepted but no instance is ever allocated). Caller
+                            deletes the scaffolding and fails over to the next preset.
       * _APP_FAILURE      — the job reached compute (RUNNING / instances / started_at)
                             and then failed. This is an application/config bug that
                             would recur identically on every preset, so the caller
                             does NOT fail over (retrying would mask the bug + cost
                             money).
 
-    The discriminator is instances-count + terminal-state, NOT elapsed time; time
-    is only the backstop that ends the probe.
+    The primary discriminator is instances-count + terminal-state. Elapsed time is
+    the backstop: a job still in PROVISIONING with zero instances at the deadline is
+    an accept-then-stall capacity miss (_NEVER_PROVISIONED), not a healthy slow job —
+    a preset WITH capacity allocates an instance quickly (the probe returns
+    _PROVISIONED the instant one appears), so reaching the deadline with none means
+    the preset has no capacity for this job.
     """
     from nebius.api.nebius.ai.v1 import GetJobRequest
 
@@ -299,15 +306,18 @@ def _await_provisioning(service, job_id: str) -> str:
             # caller poll to completion exactly as before.
             return _PROVISIONED
         if time.monotonic() >= deadline:
-            # Still PROVISIONING with zero instances at probe end. Do NOT kill a
-            # possibly-healthy slow job — return pending — but log LOUDLY, because
-            # this is the capacity-stall signature the incident was about.
+            # Still PROVISIONING with zero instances at probe end. This is the
+            # accept-then-stall capacity signature (#81 gap): the job was accepted
+            # but the preset never allocated an instance. A preset WITH capacity
+            # allocates quickly and would have returned _PROVISIONED above, so treat
+            # this as a capacity miss — delete the scaffolding and fail over to the
+            # next rung rather than leaving the job stalled forever in PROVISIONING.
             logger.warning(
-                "Job %s still provisioning with 0 instances after %.0fs — possible "
-                "capacity stall; returning pending without failover",
+                "Job %s still provisioning with 0 instances after %.0fs — "
+                "accept-then-stall capacity miss; failing over to next preset",
                 job_id, _provision_probe_secs(),
             )
-            return _PROVISIONED
+            return _NEVER_PROVISIONED
         time.sleep(poll)
 
 

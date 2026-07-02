@@ -302,10 +302,12 @@ jobs:
             --env "ANALYSIS_MODEL=meta-llama/Llama-3.3-70B-Instruct" \
             --env "EXTRACTION_JOB_IMAGE=$REGISTRY/$REGISTRY_PROJECT/archon-extraction:latest" \
             --env "EXTRACTION_JOB_PLATFORM=cpu-d3" \
-            --env "EXTRACTION_JOB_PRESET=4vcpu-16gb" \
+            --env "EXTRACTION_JOB_PRESET=8vcpu-32gb" \
             --env "ANALYSIS_JOB_IMAGE=$REGISTRY/$REGISTRY_PROJECT/archon-analysis:latest" \
             --env "ANALYSIS_JOB_PLATFORM=cpu-d3" \
-            --env "ANALYSIS_JOB_PRESET=4vcpu-16gb" \
+            --env "ANALYSIS_JOB_PRESET=8vcpu-32gb" \
+            --env "JOB_PRESET_LADDER=cpu-d3:8vcpu-32gb,cpu-d3:16vcpu-64gb" \
+            --env "JOB_PROVISION_PROBE_SECS=45" \
             --env "CORS_ORIGINS=https://archon-pnl.web.app,http://localhost:3000" \
             --env "JOB_RUNNER_BACKEND=nebius" \
             --env "DUCKDNS_TOKEN=$DUCKDNS_TOKEN" \
