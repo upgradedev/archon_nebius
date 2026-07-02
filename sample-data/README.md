@@ -1,6 +1,6 @@
 # Sample Data
 
-This directory contains **synthetic** Greek business documents for testing and demonstration.
+This directory contains **synthetic** multilingual business documents for testing and demonstration.
 
 All data is fictional. No real company names, tax IDs, or financial figures are used.
 
@@ -8,7 +8,7 @@ All data is fictional. No real company names, tax IDs, or financial figures are 
 
 ```
 sample-data/
-├── invoices/        Greek vendor invoices (PDF + scanned JPG)
+├── invoices/        vendor invoices, multilingual (PDF + scanned JPG)
 ├── payroll/         Monthly payroll reports (PDF)
 └── expenses/        Expense receipts (JPG photos)
 ```
@@ -19,7 +19,7 @@ sample-data/
 python scripts/generate-sample-data.py
 ```
 
-This creates 15 realistic synthetic Greek documents in the directories above.
+This creates 15 realistic synthetic multilingual documents in the directories above.
 
 ## Using with Archon
 

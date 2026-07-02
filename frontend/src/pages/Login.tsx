@@ -143,7 +143,7 @@ export default function Login() {
 
         <p className="tagline">
           Agentic P&amp;L intelligence for SMBs.<br />
-          Upload Greek or English financial documents,<br />
+          Upload financial documents in any language,<br />
           get a boardroom-ready dashboard.
         </p>
 

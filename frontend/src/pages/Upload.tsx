@@ -137,7 +137,7 @@ export default function UploadPage() {
                       Drop files here or click to browse
                     </p>
                     <p className="ant-upload-hint">
-                      PDF · DOCX · JPG · PNG · TIFF — scanned or digital, Greek or English
+                      PDF · DOCX · JPG · PNG · TIFF — scanned or digital, any language
                     </p>
                   </Dragger>
                 </div>

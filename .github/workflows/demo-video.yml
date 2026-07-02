@@ -3,8 +3,10 @@ name: Generate Demo Video (ElevenLabs + Playwright)
 # End-to-end demo video for the Nebius Serverless AI Builders Challenge — no local
 # recording needed:
 #   1. ElevenLabs synthesizes the voiceover from docs/narration.txt
-#   2. Playwright records a beat-aligned tour: the LIVE public landing page +
-#      rendered architecture / fusion / eval-results slides (scripts/slides/*.html)
+#   2. The frontend is built and served locally in DEMO MODE (?demo=1), and
+#      Playwright records a beat-aligned tour: the REAL dashboard (P&L +
+#      payroll-gap + R1–R4 validation ledger, rendered from seeded fixtures with
+#      no auth/backend) + rendered slides (scripts/slides/*.html)
 #   3. ffmpeg adds a title card, burns scripts/captions.txt, appends an outro, and
 #      muxes the voiceover -> archon-nebius-demo.mp4 (uploaded as an artifact)
 # Run: Actions -> "Generate Demo Video" -> Run workflow (or gh workflow run demo-video.yml).
@@ -14,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: "Live app URL to record (public landing page)."
+        description: "Unused — the app segment now records the locally-served demo dashboard (?demo=1)."
         required: false
         default: "https://archon-pnl.web.app"
       voice_id:
@@ -86,11 +88,30 @@ jobs:
           npm install -D playwright@1.49.1
           npx playwright install --with-deps chromium
 
-      - name: Record guided tour
+      # Build the frontend and serve it locally in DEMO MODE so the tour records
+      # the REAL dashboard (P&L + payroll-gap + R1–R4) instead of the auth-gated
+      # login page. Demo mode short-circuits every read to seeded fixtures, so no
+      # backend, database, or credentials are needed — just a static preview.
+      - name: Build, serve (demo mode) & record guided tour
         env:
-          BASE_URL: ${{ github.event.inputs.base_url }}
+          APP_URL: "http://127.0.0.1:4173/?demo=1"
           TARGET_SECONDS: ${{ steps.dur.outputs.target }}
-        run: node scripts/demo-tour.mjs
+        run: |
+          set -euo pipefail
+          ( cd frontend && npm ci && npm run build )
+          ( cd frontend && nohup npx vite preview --port 4173 --host 127.0.0.1 --strictPort >../preview.log 2>&1 & )
+          echo "waiting for preview server…"
+          for _ in $(seq 1 40); do
+            curl -sf http://127.0.0.1:4173/ >/dev/null 2>&1 && { echo "preview up"; break; }
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:4173/ >/dev/null 2>&1 \
+            || { echo "::error::preview server did not start"; cat preview.log || true; exit 1; }
+          # The tour HARD-CHECKS the dashboard beat and writes video/dashboard-proof.png;
+          # if the dashboard did not render, node exits non-zero and fails the job.
+          node scripts/demo-tour.mjs
+          test -f video/dashboard-proof.png \
+            || { echo "::error::dashboard proof screenshot missing — app beat not captured"; exit 1; }
 
       - name: Compose demo video (title + captions + outro + VO)
         env:
@@ -105,7 +126,7 @@ jobs:
 
           # ---- Title card (3s, silent) — dark emerald bg ----
           printf '%s' 'Archon' > caps/title1.txt
-          printf '%s' 'The monthly close, correlated.' > caps/title2.txt
+          printf '%s' 'The new era of financial intelligence.' > caps/title2.txt
           printf '%s' 'Nebius Serverless AI' > caps/title3.txt
           ffmpeg -y -f lavfi -i color=c=0x0d2b22:s=1920x1080:d=3:r=30 -vf \
             "drawtext=fontfile=$FONT:textfile=caps/title1.txt:expansion=none:fontcolor=0x34d399:fontsize=150:x=(w-text_w)/2:y=(h/2)-140,drawtext=fontfile=$FONT:textfile=caps/title2.txt:expansion=none:fontcolor=white:fontsize=54:x=(w-text_w)/2:y=(h/2)+30,drawtext=fontfile=$FONT:textfile=caps/title3.txt:expansion=none:fontcolor=0x9ca3af:fontsize=40:x=(w-text_w)/2:y=(h/2)+120,format=yuv420p" \
@@ -164,4 +185,5 @@ jobs:
           path: |
             archon-nebius-demo.mp4
             archon-voiceover.mp3
+            video/dashboard-proof.png
           retention-days: 14

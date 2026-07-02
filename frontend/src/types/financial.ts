@@ -66,6 +66,25 @@ export interface KeyMetrics {
   collectionRatePct: number
 }
 
+// Payroll-gap insight — the core "hidden cost" story. The bank transfer (net)
+// understates the true employer cost; the wedge is the employer social-security
+// contribution. Optional: present only when the report fused a payroll event.
+export interface PayrollGap {
+  bankTransferNet: number      // what actually left the account
+  trueEmployerCost: number     // gross pay + employer social security
+  gapPct: number               // (true / bank − 1) × 100
+  employeeCount: number
+}
+
+// One cross-document validation rule (R1–R4) as evaluated for this period.
+export type ValidationState = 'pass' | 'fail' | 'skip'
+
+export interface ValidationRule {
+  id: string                   // R1 … R4
+  check: string                // human-readable description
+  state: ValidationState       // pass / fail / skip (dormant — field never extracted)
+}
+
 export interface FinancialReport {
   period: string
   pnl: MonthlyPnL
@@ -75,6 +94,8 @@ export interface FinancialReport {
   keyMetrics: KeyMetrics
   executiveSummary: string
   generatedAt: string
+  payrollGap?: PayrollGap        // optional — rendered when a payroll event was fused
+  validations?: ValidationRule[] // optional — R1–R4 cross-document ledger
 }
 
 export interface AnalysisResponse {

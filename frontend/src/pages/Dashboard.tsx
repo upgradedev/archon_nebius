@@ -19,6 +19,9 @@ import ExpenseBreakdown from '../components/ExpenseBreakdown'
 import MetricsCards from '../components/MetricsCards'
 import ExecutiveSummary from '../components/ExecutiveSummary'
 import JobStatus from '../components/JobStatus'
+import PayrollGapCard from '../components/PayrollGapCard'
+import ValidationLedger from '../components/ValidationLedger'
+import { isDemoMode, DEMO_PERIOD } from '../demo/demoMode'
 import type { PeriodInfo, CompanyProfile } from '../types/financial'
 
 const { Header, Content } = Layout
@@ -39,7 +42,11 @@ export default function Dashboard() {
   const { user, signOut } = useAuth()
   const queryClient = useQueryClient()
 
-  const [activePeriod, setActivePeriod] = useState<string | null>(null)
+  // Demo mode auto-selects the seeded period so the dashboard renders straight
+  // away (no auth, no clicks) for the beat-aligned demo-video tour.
+  const [activePeriod, setActivePeriod] = useState<string | null>(
+    isDemoMode() ? DEMO_PERIOD : null,
+  )
   const [uploadOpen, setUploadOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -293,6 +300,15 @@ export default function Dashboard() {
 
             <MetricsCards metrics={report.keyMetrics} pnl={report.pnl} />
 
+            {report.payrollGap && (
+              <Card
+                title="Payroll — bank net vs true employer cost"
+                extra={<Tag color="green">3-document fusion</Tag>}
+              >
+                <PayrollGapCard gap={report.payrollGap} />
+              </Card>
+            )}
+
             <Row gutter={[24, 24]}>
               <Col xs={24} lg={16}>
                 <Card title="Revenue vs Expenses vs Net Profit">
@@ -318,6 +334,15 @@ export default function Dashboard() {
                 </Card>
               </Col>
             </Row>
+
+            {report.validations && report.validations.length > 0 && (
+              <Card
+                title="Cross-document validation — R1 to R4"
+                extra={<Tag color="blue">agent ledger</Tag>}
+              >
+                <ValidationLedger rules={report.validations} />
+              </Card>
+            )}
           </Space>
         ) : needsAnalysis ? (
           <div style={{ maxWidth: 480, margin: '80px auto' }}>
