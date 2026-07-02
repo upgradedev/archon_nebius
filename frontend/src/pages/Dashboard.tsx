@@ -300,7 +300,7 @@ export default function Dashboard() {
               </Col>
             </Row>
 
-            <MetricsCards metrics={report.keyMetrics} pnl={report.pnl} />
+            <MetricsCards report={report} />
 
             {report.payrollGap && (
               <Card
