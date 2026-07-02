@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import {
-  Layout, Typography, Upload as AntUpload, Button, DatePicker,
+  Layout, Typography, Upload as AntUpload, Button,
   Steps, Card, Space, Alert, Tag, theme, Row, Col, Avatar, Tooltip,
 } from 'antd'
 import { InboxOutlined, RocketOutlined, CheckCircleOutlined, LogoutOutlined } from '@ant-design/icons'
 import type { UploadFile } from 'antd'
 import { useNavigate } from 'react-router-dom'
-import dayjs from 'dayjs'
 import { api } from '../api/client'
 import JobStatus from '../components/JobStatus'
 import { useAuth } from '../contexts/AuthContext'
@@ -102,20 +101,6 @@ export default function UploadPage() {
           {step === 0 && (
             <Card>
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                <div>
-                  <Text strong>Reporting period</Text>
-                  <Text type="secondary" style={{ marginLeft: 8 }}>
-                    optional — auto-detected from your files
-                  </Text>
-                  <br />
-                  <DatePicker
-                    picker="month"
-                    style={{ marginTop: 8, width: '100%' }}
-                    onChange={(_, s) => setPeriod(s as string)}
-                    disabledDate={d => d.isAfter(dayjs())}
-                    placeholder="Auto-detect (or override)"
-                  />
-                </div>
 
                 <div>
                   <Text strong>Documents</Text>
