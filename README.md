@@ -69,48 +69,6 @@ Security & supply chain: every change passes **gitleaks** (secrets), **CodeQL** 
 
 ![Archon Architecture on Nebius Serverless AI](./README-architecture.png)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                  Firebase Hosting (Google CDN)                   │
-│        React Frontend — Ant Design · Recharts · TypeScript       │
-│   Upload ──► Job Status ──► P&L Dashboard ──► Executive Report    │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │ REST / JSON
-┌───────────────────────────▼─────────────────────────────────────┐
-│         Nebius Serverless AI Endpoint  (CPU · always-on)         │
-│                 FastAPI Orchestration Backend                    │
-│       /upload  ·  /jobs  ·  /analyze  ·  /reports                │
-│            JobRunner abstraction (cloud-portable)                │
-└──────┬───────────────────────────────────────┬──────────────────┘
-       │ submit extraction job                  │ call analysis endpoint
-┌──────▼───────────────────────────────────────▼──────────────────┐
-│ Nebius Serverless AI Job (CPU) — Document Extraction (4 agents)   │
-│   1. Extractor      — vision/text LLM per file → ExtractedDoc     │
-│   2. Classifier     — deterministic doc_type refinement          │
-│   3. EventLinker    — group the 3 payroll subtypes per period    │
-│   4. Validator      — cross-document consistency (R1–R4)          │
-├──────────────────────────────────────────────────────────────────┤
-│ Nebius Serverless AI Job (CPU) — Financial Analysis (7 agents)    │
-│   1. Classifier          — re-classify for analysis context      │
-│   2. PnLAgent            — P&L; employer cost, not bank net       │
-│   3. CashFlowAgent       — real cash from bank transfers          │
-│   4. EmployeeAgent       — per-employee salary analytics          │
-│   5. ValidatorAgent      — cross-document re-validation           │
-│   6. ReconciliationAgent — vendor statement vs invoices on file   │
-│   7. NarratorAgent       — Llama-3.3-70B executive summary        │
-└──────────────────────────────┬───────────────────────────────────┘
-                               │ read / write
-┌──────────────────────────────▼───────────────────────────────────┐
-│                 Nebius Object Storage (S3-compatible)             │
-│          raw-docs/  ·  extracted/  ·  reports/                    │
-└──────────────────────────────┬───────────────────────────────────┘
-                               │ OpenAI-compatible API
-┌──────────────────────────────▼───────────────────────────────────┐
-│               Nebius Inference API (studio.nebius.ai)            │
-│  Qwen2.5-VL-72B (vision)  ·  Llama-3.3-70B-Instruct (analysis)    │
-└──────────────────────────────────────────────────────────────────┘
-```
-
 ### Data Flow
 
 1. **Upload** — user drops documents (any format) into the React UI
