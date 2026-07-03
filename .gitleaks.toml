@@ -2,4 +2,7 @@
 description = "Firebase client config is intentionally public — security is enforced by Firebase Security Rules and authorized domains, not by keeping the key secret."
 paths = [
   "frontend/src/firebase.ts",
+  # Browser-E2E fixture reuses the SAME intentionally-public Firebase client key
+  # to seed the auth-persistence record it restores a signed-in session from.
+  "frontend/e2e/fixtures.ts",
 ]
