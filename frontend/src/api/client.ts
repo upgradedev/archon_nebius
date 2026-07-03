@@ -1,8 +1,80 @@
 import axios from 'axios'
 import { auth } from '../firebase'
-import type { UploadResponse, Job, AnalysisResponse, PeriodInfo, CompanyProfile } from '../types/financial'
+import type {
+  UploadResponse, Job, AnalysisResponse, PeriodInfo, CompanyProfile,
+  FinancialReport, ValidationRule, ValidationState,
+} from '../types/financial'
 import { isDemoMode } from '../demo/demoMode'
 import { DEMO_PERIODS, DEMO_REPORT, DEMO_PROFILE } from '../demo/demoData'
+
+// ── Report normalisation ──────────────────────────────────────────────────────
+// The analysis endpoint (endpoints/analysis) emits `payrollEvents` and
+// `validationResults`, but the dashboard renders the derived `payrollGap` and
+// `validations` shapes (see PayrollGapCard / ValidationLedger). Without this
+// adapter those cards read `undefined` on a real payload and never render — they
+// only appeared in demo mode, whose fixture is already hand-shaped to the derived
+// form. We map the raw event/result records into the derived shapes here so the
+// production dashboard matches the demo. The demo path early-returns before this.
+
+interface RawPayrollEvent {
+  net_total?: number | null            // bank transfer when a bank confirmation was fused
+  employer_cost_total?: number | null  // gross pay + employer contributions (from the register)
+  employee_count?: number | null
+}
+
+interface RawValidationResult {
+  rule: string       // e.g. "R1: bank.total ≈ sum(payslips) ±2%"
+  passed: boolean
+  message: string    // "Skipped — …" marks a dormant (skipped) rule
+}
+
+type RawReport = FinancialReport & {
+  payrollEvents?: RawPayrollEvent[]
+  validationResults?: RawValidationResult[]
+}
+
+function normalizeReport(resp: AnalysisResponse): AnalysisResponse {
+  const report = resp.report as RawReport
+
+  // payrollEvents[0] → payrollGap. Only when the true employer cost and a
+  // positive net figure are both present, else the gap % would be NaN/∞.
+  if (!report.payrollGap && report.payrollEvents?.length) {
+    const ev = report.payrollEvents[0]
+    if (
+      ev.employer_cost_total != null &&
+      ev.net_total != null &&
+      ev.net_total > 0
+    ) {
+      report.payrollGap = {
+        bankTransferNet: ev.net_total,
+        trueEmployerCost: ev.employer_cost_total,
+        gapPct: (ev.employer_cost_total / ev.net_total - 1) * 100,
+        employeeCount: ev.employee_count ?? 0,
+      }
+    }
+  }
+
+  // validationResults → validations. A rule is `skip` (dormant) when its message
+  // is prefixed "Skipped"; otherwise pass/fail follows the boolean. The rule id
+  // (R1…R4) is the token before the colon; the remainder is the description.
+  if (!report.validations && report.validationResults?.length) {
+    report.validations = report.validationResults.map((r): ValidationRule => {
+      const [id, ...rest] = r.rule.split(':')
+      const state: ValidationState = r.message?.startsWith('Skipped')
+        ? 'skip'
+        : r.passed
+          ? 'pass'
+          : 'fail'
+      return {
+        id: id.trim(),
+        check: rest.join(':').trim() || r.rule,
+        state,
+      }
+    })
+  }
+
+  return resp
+}
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
@@ -57,7 +129,7 @@ export const api = {
   getReport: async (period: string): Promise<AnalysisResponse> => {
     if (isDemoMode()) return DEMO_REPORT
     const { data } = await http.get<AnalysisResponse>(`/api/reports/${period}`)
-    return data
+    return normalizeReport(data)
   },
 
   getPeriods: async (): Promise<PeriodInfo[]> => {
