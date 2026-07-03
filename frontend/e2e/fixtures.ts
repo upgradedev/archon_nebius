@@ -111,7 +111,9 @@ export const REPORT = {
       'operating margin. The defining correction is payroll: the bank moved EUR 14,350 in net ' +
       'transfers, but the Event Linker recovered the true employer cost of EUR 18,400 — a 28% ' +
       'understatement a bank-only close would have missed.\n\n' +
-      'Sources: payroll-register-jan.pdf, sales-invoice-001.pdf, bank-confirmation-jan.pdf',
+      // The grounded narrator ends with a "Sources:" line whose citations are
+      // separated by " · " (parseSummary splits on the middle dot into tags).
+      'Sources: payroll-register-jan.pdf · sales-invoice-001.pdf · bank-confirmation-jan.pdf',
     generatedAt: `${TEST_PERIOD}-31T09:12:00Z`,
     // Raw shapes the client adapter converts into payrollGap + validations.
     payrollEvents: [
