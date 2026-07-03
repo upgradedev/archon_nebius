@@ -67,6 +67,8 @@ Security & supply chain: every change passes **gitleaks** (secrets), **CodeQL** 
 
 ## Architecture
 
+![Archon Architecture on Nebius Serverless AI](./README-architecture.png)
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                  Firebase Hosting (Google CDN)                   │
