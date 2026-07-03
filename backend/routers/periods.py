@@ -92,6 +92,53 @@ def get_documents(period: str = Path(..., pattern=_PERIOD_PATTERN)):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+class DocumentReviewRequest(BaseModel):
+    # Kept intentionally permissive (raw dicts) so the reviewed payload round-trips
+    # every extracted field — including sender/recipient and tax-id — without this
+    # router needing to track the full extraction schema.
+    documents: list[dict]
+
+
+@router.put("/documents/{period}")
+def update_documents(
+    req: DocumentReviewRequest,
+    period: str = Path(..., pattern=_PERIOD_PATTERN),
+):
+    """Persist the user-reviewed document set for a period.
+
+    Writes the approved list to ``extracted/{period}/reviewed/documents.json``
+    (dict-shaped ``{period, upload_id, documents}`` so the analysis loader's
+    ``payload["documents"]`` finds it) and removes the prior per-upload
+    ``documents.json`` blobs so the analysis job consumes only the reviewed set —
+    the loader globs every ``*/documents.json`` under the period with no dedup, so
+    leaving the originals in place would double-count.
+
+    Order is write-first, delete-second (excluding the reviewed key itself). This
+    keeps a re-review idempotent and avoids a window where the period has no
+    documents.
+    """
+    reviewed_key = f"extracted/{period}/reviewed/documents.json"
+    try:
+        originals = [
+            k
+            for k in storage.list_keys(f"extracted/{period}/")
+            if k.endswith("documents.json") and k != reviewed_key
+        ]
+        storage.put_json(
+            reviewed_key,
+            {"period": period, "upload_id": "reviewed", "documents": req.documents},
+        )
+        deleted = 0
+        for key in originals:
+            storage.delete_key(key)
+            deleted += 1
+        return {"period": period, "documents": len(req.documents), "deleted": deleted}
+    except ClientError as exc:
+        raise HTTPException(status_code=502, detail=f"Storage error: {exc}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @router.get("/company-profile")
 def get_company_profile():
     """Return company profile from Object Storage (empty object if not set yet)."""

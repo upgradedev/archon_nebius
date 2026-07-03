@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { auth } from '../firebase'
-import type { UploadResponse, Job, AnalysisResponse, PeriodInfo, CompanyProfile } from '../types/financial'
+import type { UploadResponse, Job, AnalysisResponse, PeriodInfo, CompanyProfile, ExtractedDoc } from '../types/financial'
 import { isDemoMode } from '../demo/demoMode'
 import { DEMO_PERIODS, DEMO_REPORT, DEMO_PROFILE } from '../demo/demoData'
 
@@ -87,6 +87,18 @@ export const api = {
 
   updateCompanyProfile: async (profile: CompanyProfile): Promise<CompanyProfile> => {
     const { data } = await http.put<CompanyProfile>('/api/company-profile', profile)
+    return data
+  },
+
+  // Persist the user-reviewed document set for a period before analysis is
+  // submitted. The backend writes these to extracted/{period}/reviewed/documents.json
+  // and removes the prior per-upload documents so the analysis job uses only the
+  // approved set.
+  updateDocuments: async (
+    period: string,
+    documents: ExtractedDoc[],
+  ): Promise<{ period: string; documents: number; deleted: number }> => {
+    const { data } = await http.put(`/api/documents/${period}`, { documents })
     return data
   },
 }
