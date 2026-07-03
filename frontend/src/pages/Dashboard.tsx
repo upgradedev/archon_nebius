@@ -7,6 +7,7 @@ import {
 import {
   UploadOutlined, SettingOutlined, LogoutOutlined, DeleteOutlined,
   InboxOutlined, RocketOutlined, CheckCircleOutlined, BarChartOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons'
 import type { UploadFile } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -233,6 +234,22 @@ export default function Dashboard() {
           </Button>
 
           {activePeriod && (
+            <Tooltip title="Refresh this period">
+              <Button
+                icon={<ReloadOutlined />}
+                size="small"
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ['periods'] })
+                  queryClient.invalidateQueries({ queryKey: ['report', activePeriod] })
+                  queryClient.invalidateQueries({ queryKey: ['documents', activePeriod] })
+                  antMessage.success('Refreshed')
+                }}
+                aria-label="Refresh period"
+              />
+            </Tooltip>
+          )}
+
+          {activePeriod && (
             <Popconfirm
               title={`Delete period ${fmtPeriod(activePeriod)}?`}
               description="This removes all uploaded files, extracted data, and the report."
@@ -300,7 +317,7 @@ export default function Dashboard() {
               </Col>
             </Row>
 
-            <MetricsCards report={report} />
+            <MetricsCards report={report} period={activePeriod} />
 
             {report.payrollGap && (
               <Card

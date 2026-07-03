@@ -153,4 +153,14 @@ export interface ExtractedDoc {
   employer_cost_total?: number
   bank_transfer_amount?: number
   employee_count?: number
+  // ── Drill-down columns (appended, all optional) ──────────────────────────────
+  // `source_file` and `recipient_name` are already declared above (added by the
+  // Upload/extraction slice). The remaining fields back the KPI drill-down
+  // document table (see MetricsCards). Kept additive/optional so extractor payloads
+  // that omit them still type-check.
+  invoice_number?: string
+  issue_date?: string
+  subtotal?: number
+  vat_amount?: number
+  confidence?: number
 }

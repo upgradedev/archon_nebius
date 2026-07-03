@@ -1,24 +1,25 @@
 /**
- * Tests for the dashboard KPI tiles and their drill-down.
+ * Tests for the dashboard KPI tiles and their supporting-document drill-down.
  *
- * The chart children are mocked so the test targets the tile interactivity
- * (click / keyboard / role gating + which detail view opens) rather than
- * Recharts internals, which need a real layout engine jsdom does not provide.
+ * The drill-down modal lists the documents that back a metric, fetched via
+ * api.getDocuments (mocked here) and filtered by the tile's doc types. The test
+ * targets tile interactivity (click / keyboard / role gating) and that the modal
+ * renders the fetched documents — not Ant Design table internals.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ConfigProvider, theme } from 'antd'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 
-vi.mock('../components/PnLChart', () => ({
-  default: () => <div data-testid="pnl-chart" />,
-}))
-vi.mock('../components/CashFlowChart', () => ({
-  default: () => <div data-testid="cashflow-chart" />,
-}))
-vi.mock('../components/ExpenseBreakdown', () => ({
-  default: () => <div data-testid="expense-chart" />,
-}))
+// A sales invoice (backs Revenue) and a bank statement (does not).
+const SAMPLE_DOCS = [
+  { source_file: 'invoices/acme-sales-001.pdf', doc_type: 'sales', invoice_number: 'S-001', vendor_name: 'Acme Ltd', issue_date: '2026-01-12', total_amount: 12000, confidence: 0.94 },
+  { source_file: 'bank/transfer-jan.pdf', doc_type: 'bank_confirmation', total_amount: 14350, confidence: 0.9 },
+]
+
+const getDocuments = vi.fn().mockResolvedValue(SAMPLE_DOCS)
+vi.mock('../api/client', () => ({ api: { getDocuments: (...a: unknown[]) => getDocuments(...a) } }))
 
 import MetricsCards from '../components/MetricsCards'
 import { DEMO_REPORT } from '../demo/demoData'
@@ -26,8 +27,11 @@ import { DEMO_REPORT } from '../demo/demoData'
 const report = DEMO_REPORT.report
 
 function wrap(node: React.ReactNode) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>{node}</ConfigProvider>,
+    <QueryClientProvider client={qc}>
+      <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>{node}</ConfigProvider>
+    </QueryClientProvider>,
   )
 }
 
@@ -35,46 +39,41 @@ describe('MetricsCards', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('renders all six KPI tiles', () => {
-    wrap(<MetricsCards report={report} />)
+    wrap(<MetricsCards report={report} period="2026-01" />)
     ;['Revenue', 'Net Profit', 'Gross Margin', 'Revenue Growth', 'Invoices', 'Collection Rate']
       .forEach(label => expect(screen.getByText(label)).toBeTruthy())
   })
 
-  it('exposes exactly the four drillable tiles as buttons', () => {
-    wrap(<MetricsCards report={report} />)
-    // Revenue, Net Profit, Gross Margin, Collection Rate are drillable;
-    // Revenue Growth and Invoices are deliberately inert.
-    expect(screen.getAllByRole('button')).toHaveLength(4)
+  it('exposes exactly the five drillable tiles as buttons', () => {
+    wrap(<MetricsCards report={report} period="2026-01" />)
+    // Revenue, Net Profit, Gross Margin, Collection Rate, Invoices are drillable;
+    // Revenue Growth is deliberately inert (informational only).
+    expect(screen.getAllByRole('button')).toHaveLength(5)
   })
 
-  it('drills Revenue into the P&L view', async () => {
-    wrap(<MetricsCards report={report} />)
-    fireEvent.click(screen.getByText('Revenue'))
+  it('does not make the Revenue Growth tile clickable', () => {
+    wrap(<MetricsCards report={report} period="2026-01" />)
+    expect(screen.queryByLabelText('Revenue Growth — open detail')).toBeNull()
+  })
+
+  it('carries a definition tooltip on each tile', () => {
+    wrap(<MetricsCards report={report} period="2026-01" />)
+    expect(screen.getByLabelText('Revenue — definition')).toBeTruthy()
+  })
+
+  it('drills Revenue into its supporting sales documents', async () => {
+    wrap(<MetricsCards report={report} period="2026-01" />)
+    fireEvent.click(screen.getByLabelText('Revenue — open detail'))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeTruthy())
-    expect(screen.getByTestId('pnl-chart')).toBeTruthy()
-  })
-
-  it('drills Gross Margin into the expense breakdown', async () => {
-    wrap(<MetricsCards report={report} />)
-    fireEvent.click(screen.getByText('Gross Margin'))
-    await waitFor(() => expect(screen.getByTestId('expense-chart')).toBeTruthy())
-  })
-
-  it('drills Collection Rate into the cash-flow view', async () => {
-    wrap(<MetricsCards report={report} />)
-    fireEvent.click(screen.getByText('Collection Rate'))
-    await waitFor(() => expect(screen.getByTestId('cashflow-chart')).toBeTruthy())
+    // The sales invoice is listed; the bank statement (wrong doc type) is not.
+    await waitFor(() => expect(screen.getByText('acme-sales-001.pdf')).toBeTruthy())
+    expect(getDocuments).toHaveBeenCalledWith('2026-01')
   })
 
   it('opens the drill-down via keyboard (Enter)', async () => {
-    wrap(<MetricsCards report={report} />)
+    wrap(<MetricsCards report={report} period="2026-01" />)
     const revenueTile = screen.getByLabelText('Revenue — open detail')
     fireEvent.keyDown(revenueTile, { key: 'Enter' })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeTruthy())
-  })
-
-  it('does not make the Invoices tile clickable', () => {
-    wrap(<MetricsCards report={report} />)
-    expect(screen.queryByLabelText('Invoices — open detail')).toBeNull()
   })
 })
