@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import {
   Layout, Typography, Row, Col, Card, Button, Spin, Alert, Space, theme,
-  Avatar, Tooltip, Modal, Drawer, Form, Input, Popconfirm, Tag, Upload as AntUpload,
-  Steps, Empty, Badge, message as antMessage, Tabs,
+  Avatar, Tooltip, Modal, Drawer, Form, Input, Popconfirm, Tag,
+  Empty, Badge, message as antMessage, Tabs,
 } from 'antd'
 import {
   UploadOutlined, SettingOutlined, LogoutOutlined, DeleteOutlined,
-  InboxOutlined, RocketOutlined, CheckCircleOutlined, BarChartOutlined,
+  RocketOutlined, CheckCircleOutlined, BarChartOutlined,
   ReloadOutlined,
 } from '@ant-design/icons'
-import type { UploadFile } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import UploadPage from './Upload'
 import PnLChart from '../components/PnLChart'
 import CashFlowChart from '../components/CashFlowChart'
 import ExpenseBreakdown from '../components/ExpenseBreakdown'
@@ -26,10 +26,7 @@ import type { PeriodInfo, CompanyProfile } from '../types/financial'
 
 const { Header, Content } = Layout
 const { Title, Text } = Typography
-const { Dragger } = AntUpload
 const { useToken } = theme
-
-const ACCEPTED_TYPES = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.tiff,.tif,.webp'
 
 function fmtPeriod(p: string): string {
   const [year, month] = p.split('-')
@@ -50,16 +47,7 @@ export default function Dashboard() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  // Upload flow state
-  const [fileList, setFileList] = useState<UploadFile[]>([])
-  const [uploadPeriod, setUploadPeriod] = useState('')
-  const [uploadStep, setUploadStep] = useState(0)
-  const [extractJobId, setExtractJobId] = useState<string | null>(null)
-  const [analysisJobId, setAnalysisJobId] = useState<string | null>(null)
-  const [uploadError, setUploadError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-
-  // Inline analysis trigger
+  // Inline analysis trigger (dashboard "Run Analysis" for an extracted-only period)
   const [triggerJobId, setTriggerJobId] = useState<string | null>(null)
 
   const { data: periods = [], refetch: refetchPeriods } = useQuery({
@@ -102,54 +90,18 @@ export default function Dashboard() {
 
   const [profileForm] = Form.useForm<CompanyProfile>()
 
-  const handleUploadSubmit = async () => {
-    if (fileList.length === 0) return
-    setUploadError(null)
-    setSubmitting(true)
-    try {
-      const files = fileList.map(f => f.originFileObj as File)
-      // period is optional — the backend auto-detects it from the filenames and
-      // returns it; use the detected value for the rest of the pipeline.
-      const { uploadId, period: detectedPeriod } = await api.upload(files, uploadPeriod || undefined)
-      setUploadPeriod(detectedPeriod)
-      const job = await api.submitJob(uploadId, detectedPeriod)
-      setExtractJobId(job.id)
-      setUploadStep(1)
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Upload failed')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  // The upload flow lives entirely in the shared <UploadPage> component (also the
+  // standalone page). The modal just hosts it; on completion the component hands
+  // back the resolved period so the dashboard can refresh and select it.
+  const closeUploadModal = () => setUploadOpen(false)
 
-  const handleExtractionComplete = async () => {
-    try {
-      const job = await api.analyze(uploadPeriod)
-      setAnalysisJobId(job.id)
-      setUploadStep(2)
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Failed to submit analysis')
-      setUploadStep(0)
-    }
-  }
-
-  const handleAnalysisComplete = () => {
-    setUploadStep(3)
-    setTimeout(() => {
-      closeUploadModal()
-      refetchPeriods()
-      setActivePeriod(uploadPeriod)
-      queryClient.invalidateQueries({ queryKey: ['report', uploadPeriod] })
-    }, 1200)
-  }
-
-  const closeUploadModal = () => {
+  const handleUploadComplete = (period: string) => {
     setUploadOpen(false)
-    setUploadStep(0)
-    setFileList([])
-    setExtractJobId(null)
-    setAnalysisJobId(null)
-    setUploadError(null)
+    refetchPeriods()
+    queryClient.invalidateQueries({ queryKey: ['periods'] })
+    queryClient.invalidateQueries({ queryKey: ['report', period] })
+    queryClient.invalidateQueries({ queryKey: ['documents', period] })
+    setActivePeriod(period)
   }
 
   const openSettings = () => {
@@ -405,96 +357,21 @@ export default function Dashboard() {
         ) : null}
       </Content>
 
-      {/* ── Upload Modal ── */}
+      {/* ── Upload Modal ──
+          Hosts the SINGLE shared upload flow (<UploadPage>, also the standalone
+          page). The embedded variant drops its own Layout/header and calls
+          onComplete(period) when analysis finishes — see pages/Upload.tsx. Wide,
+          scrollable body so the Review-step table fits. */}
       <Modal
         open={uploadOpen}
         onCancel={closeUploadModal}
         footer={null}
         title="Upload Documents"
-        width={580}
-        maskClosable={uploadStep === 0}
+        width={Math.min(window.innerWidth - 40, 860)}
+        styles={{ body: { maxHeight: '80vh', overflowY: 'auto' } }}
         destroyOnHidden
       >
-        <Space direction="vertical" size={24} style={{ width: '100%' }}>
-          <Steps
-            current={uploadStep}
-            size="small"
-            items={[
-              { title: 'Select files' },
-              { title: 'Extract' },
-              { title: 'Analyse' },
-              { title: 'Ready', icon: uploadStep === 3 ? <CheckCircleOutlined /> : undefined },
-            ]}
-          />
-
-          {uploadStep === 0 && (
-            <Space direction="vertical" size={16} style={{ width: '100%' }}>
-              <div>
-                <Text strong>Documents</Text>
-                <Text type="secondary" style={{ marginLeft: 8 }}>
-                  Invoices · Payroll · Expenses · Sales
-                </Text>
-                <Dragger
-                  multiple
-                  accept={ACCEPTED_TYPES}
-                  fileList={fileList}
-                  beforeUpload={() => false}
-                  onChange={({ fileList: fl }) => setFileList(fl)}
-                  style={{ marginTop: 6 }}
-                >
-                  <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-                  <p className="ant-upload-text">Drop files or click to browse</p>
-                  <p className="ant-upload-hint">PDF · DOCX · JPG · PNG · TIFF — any language</p>
-                </Dragger>
-              </div>
-
-              {fileList.length > 0 && (
-                <Space wrap>
-                  {fileList.map(f => <Tag key={f.uid} color="blue">{f.name}</Tag>)}
-                </Space>
-              )}
-
-              {uploadError && <Alert type="error" message={uploadError} showIcon />}
-
-              <Button
-                type="primary"
-                size="large"
-                icon={<RocketOutlined />}
-                block
-                loading={submitting}
-                disabled={fileList.length === 0}
-                onClick={handleUploadSubmit}
-              >
-                Extract &amp; Analyse
-              </Button>
-            </Space>
-          )}
-
-          {uploadStep === 1 && extractJobId && (
-            <JobStatus
-              jobId={extractJobId}
-              label="Extraction job"
-              runningMessage="Processing documents with vision LLM (Qwen2.5-VL-72B)…"
-              onComplete={handleExtractionComplete}
-              onDismiss={closeUploadModal}
-            />
-          )}
-
-          {uploadStep === 2 && analysisJobId && (
-            <JobStatus
-              jobId={analysisJobId}
-              label="Analysis job"
-              runningMessage="Running 7-agent financial analysis pipeline…"
-              pollFn={api.getAnalysisJob}
-              onComplete={handleAnalysisComplete}
-              onDismiss={closeUploadModal}
-            />
-          )}
-
-          {uploadStep === 3 && (
-            <Alert type="success" message="Analysis complete — loading dashboard…" showIcon />
-          )}
-        </Space>
+        <UploadPage onComplete={handleUploadComplete} />
       </Modal>
 
       {/* ── Company Profile Drawer ── */}

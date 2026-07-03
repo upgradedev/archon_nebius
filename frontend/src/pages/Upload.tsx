@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Layout, Typography, Upload as AntUpload, Button,
   Steps, Card, Space, Alert, Tag, theme, Row, Col, Avatar, Tooltip,
-  Table, Select, Checkbox,
+  Table, Select, Checkbox, Progress,
 } from 'antd'
 import {
   InboxOutlined, RocketOutlined, CheckCircleOutlined, LogoutOutlined,
   WarningOutlined, CheckOutlined, ThunderboltOutlined,
+  EditOutlined, CalendarOutlined,
 } from '@ant-design/icons'
 import type { UploadFile } from 'antd'
 import { useNavigate } from 'react-router-dom'
@@ -22,6 +23,10 @@ const { Dragger } = AntUpload
 const { useToken } = theme
 
 const ACCEPTED_TYPES = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.tiff,.tif,.webp'
+const MONTH_NAMES = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
+]
 
 // ── Entity-ownership guard ────────────────────────────────────────────────────
 // Classifies each extracted document against the configured company profile so
@@ -50,17 +55,58 @@ function matchStatus(doc: ExtractedDoc, profile: CompanyProfile | null): MatchSt
   return 'unrelated'
 }
 
-export default function UploadPage() {
+// Client-side fallback-period detection from filenames. This is purely a UI
+// convenience over the EXISTING optional-period upload API — each document's own
+// date still takes priority server-side; this value is used only where no date
+// is found.
+function detectPeriodFromFiles(files: UploadFile[]): string {
+  for (const file of files) {
+    const name = (file.name || '').toLowerCase()
+    const m = name.match(/(\d{4})[-_](0[1-9]|1[0-2])/)
+    if (m) return `${m[1]}-${m[2]}`
+    for (let i = 0; i < MONTH_NAMES.length; i++) {
+      if (name.includes(MONTH_NAMES[i])) {
+        const ym = name.match(/(\d{4})/)
+        if (ym) {
+          const year = Number(ym[1])
+          if (year >= 2020 && year <= new Date().getFullYear() + 1) {
+            return `${ym[1]}-${String(i + 1).padStart(2, '0')}`
+          }
+        }
+      }
+    }
+  }
+  const d = new Date()
+  d.setMonth(d.getMonth() - 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function fmtPeriod(p: string) {
+  const [y, m] = p.split('-')
+  return new Date(Number(y), Number(m) - 1).toLocaleString('en-GB', { month: 'long', year: 'numeric' })
+}
+
+interface UploadPageProps {
+  // When provided, UploadPage renders as an embeddable component (no page header,
+  // no outer Layout) and calls onComplete(period) after analysis finishes — used
+  // by the Dashboard upload modal. When absent, it renders as a full standalone
+  // page and navigates to the dashboard on completion.
+  onComplete?: (period: string) => void
+}
+
+export default function UploadPage({ onComplete }: UploadPageProps = {}) {
   const { token } = useToken()
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const [fileList, setFileList] = useState<UploadFile[]>([])
   const [period, setPeriod] = useState<string>('')
+  const [editingPeriod, setEditingPeriod] = useState(false)
   const [step, setStep] = useState(0)
   const [jobId, setJobId] = useState<string | null>(null)
   const [analysisJobId, setAnalysisJobId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [uploadPct, setUploadPct] = useState(0)
 
   // Review step state
   const [reviewRows, setReviewRows] = useState<ReviewRow[]>([])
@@ -69,15 +115,34 @@ export default function UploadPage() {
   const [confirming, setConfirming] = useState(false)
   const [reviewError, setReviewError] = useState<string | null>(null)
 
+  // Auto-detect a fallback period from the selected filenames.
+  useEffect(() => {
+    if (fileList.length > 0) setPeriod(detectPeriodFromFiles(fileList))
+  }, [fileList])
+
+  // Last 24 months for the period Select, capped at the current month.
+  const PERIOD_OPTIONS = useMemo(() => {
+    const now = new Date()
+    return Array.from({ length: 24 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      return { value: val, label: fmtPeriod(val) }
+    })
+  }, [])
+
   const handleSubmit = async () => {
     if (fileList.length === 0) return
     setError(null)
     setSubmitting(true)
+    setUploadPct(0)
     try {
       const files = fileList.map(f => f.originFileObj as File)
-      // period is optional — the backend auto-detects it from the filenames and
-      // returns it; use the detected value for the rest of the pipeline.
-      const { uploadId, period: detectedPeriod } = await api.upload(files, period || undefined)
+      const fileNames = fileList.map(f => f.name)
+      // period is the client-side fallback — the backend still auto-detects per
+      // document and returns the resolved period; use that for the pipeline.
+      const { uploadId, period: detectedPeriod } = await api.upload(
+        files, period || undefined, setUploadPct, fileNames,
+      )
       setPeriod(detectedPeriod)
       const job = await api.submitJob(uploadId, detectedPeriod)
       setJobId(job.id)
@@ -144,10 +209,13 @@ export default function UploadPage() {
     }
   }
 
-  // Analysis complete → navigate to dashboard
+  // Analysis complete → hand back to the host (modal) or navigate (standalone).
   const handleAnalysisComplete = () => {
     setStep(4)
-    setTimeout(() => navigate(`/dashboard/${period}`), 1500)
+    setTimeout(() => {
+      if (onComplete) onComplete(period)
+      else navigate(`/dashboard/${period}`)
+    }, 1500)
   }
 
   const unrelated = reviewRows.filter(r => r._status === 'unrelated')
@@ -223,174 +291,247 @@ export default function UploadPage() {
     },
   ]
 
+  const inner = (
+    <Space direction="vertical" size={32} style={{ width: '100%' }}>
+      {/* Standalone page header — hidden when embedded in the Dashboard modal. */}
+      {!onComplete && (
+        <Row align="middle" justify="space-between">
+          <Col>
+            <Title level={2} style={{ margin: 0 }}>Archon</Title>
+            <Text type="secondary">Agentic Financial Intelligence — upload documents, get P&amp;L insights</Text>
+          </Col>
+          <Col>
+            <Space>
+              {user?.photoURL && <Avatar src={user.photoURL} size={32} />}
+              <Tooltip title={user?.email}>
+                <Button icon={<LogoutOutlined />} onClick={signOut} type="text">
+                  Sign out
+                </Button>
+              </Tooltip>
+            </Space>
+          </Col>
+        </Row>
+      )}
+
+      <Steps
+        current={step}
+        items={[
+          { title: 'Upload documents' },
+          { title: 'Extract data' },
+          { title: 'Review' },
+          { title: 'Analyse' },
+          { title: 'Ready', icon: step === 4 ? <CheckCircleOutlined /> : undefined },
+        ]}
+      />
+
+      {step === 0 && (
+        <Card>
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+
+            <div>
+              <Text strong>Documents</Text>
+              <Text type="secondary" style={{ marginLeft: 8 }}>
+                Invoices · Payroll · Expenses · Sales — any language
+              </Text>
+              <Dragger
+                multiple
+                accept={ACCEPTED_TYPES}
+                fileList={fileList}
+                beforeUpload={() => false}
+                onChange={({ fileList: fl }) => setFileList(fl)}
+                style={{ marginTop: 8 }}
+              >
+                <p className="ant-upload-drag-icon">
+                  <InboxOutlined />
+                </p>
+                <p className="ant-upload-text">
+                  Drop files here or click to browse
+                </p>
+                <p className="ant-upload-hint">
+                  PDF · DOCX · JPG · PNG · TIFF — scanned or digital, any language
+                </p>
+              </Dragger>
+            </div>
+
+            {fileList.length > 0 && (
+              <Space wrap>
+                {fileList.map(f => (
+                  <Tag key={f.uid} color="blue">{f.name}</Tag>
+                ))}
+              </Space>
+            )}
+
+            {/* Editable fallback-period control — client-side UI over the existing
+                optional-period upload API. */}
+            {fileList.length > 0 && period && (
+              <div style={{
+                background: token.colorFillAlter,
+                border: `1px solid ${token.colorBorderSecondary}`,
+                borderRadius: token.borderRadius,
+                padding: '10px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                flexWrap: 'wrap',
+              }}>
+                <CalendarOutlined style={{ color: token.colorPrimary }} />
+                {editingPeriod ? (
+                  <Select
+                    size="small"
+                    defaultValue={period}
+                    options={PERIOD_OPTIONS}
+                    onChange={(v: string) => { setPeriod(v); setEditingPeriod(false) }}
+                    onBlur={() => setEditingPeriod(false)}
+                    style={{ minWidth: 160 }}
+                    autoFocus
+                    open
+                  />
+                ) : (
+                  <>
+                    <Tooltip title="Each document's own date takes priority. This period is used only for documents where no date is detected.">
+                      <Text>
+                        Fallback period: <strong>{fmtPeriod(period)}</strong>
+                      </Text>
+                    </Tooltip>
+                    <Tooltip title="Change fallback period">
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => setEditingPeriod(true)}
+                      />
+                    </Tooltip>
+                  </>
+                )}
+              </div>
+            )}
+
+            {submitting && (
+              <div>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Uploading {fileList.length} file{fileList.length !== 1 ? 's' : ''}…
+                </Text>
+                <Progress
+                  percent={uploadPct}
+                  size="small"
+                  status="active"
+                  style={{ marginTop: 4 }}
+                  format={pct => `${Math.round(((pct ?? 0) / 100) * fileList.length)} / ${fileList.length}`}
+                />
+              </div>
+            )}
+
+            {error && <Alert type="error" message={error} showIcon />}
+
+            <Button
+              type="primary"
+              size="large"
+              icon={<RocketOutlined />}
+              block
+              loading={submitting}
+              disabled={fileList.length === 0 || editingPeriod}
+              onClick={handleSubmit}
+            >
+              {submitting ? 'Uploading…' : 'Extract & Analyse'}
+            </Button>
+          </Space>
+        </Card>
+      )}
+
+      {step === 1 && jobId && (
+        <JobStatus
+          jobId={jobId}
+          label="Extraction job"
+          runningMessage="Processing documents with vision LLM (Qwen2.5-VL-72B)…"
+          onComplete={handleExtractionComplete}
+        />
+      )}
+
+      {/* ── Step 2: document review + entity-ownership guard ─────────── */}
+      {step === 2 && (
+        <Card title="Review extracted documents" loading={reviewLoading}>
+          {!reviewLoading && (
+            <Space direction="vertical" size={16} style={{ width: '100%' }}>
+              {companyProfile && !companyProfile.company_name && !companyProfile.company_tax_id && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="Company profile not configured"
+                  description="Set your company name and tax ID in the company profile to enable automatic document matching."
+                />
+              )}
+
+              {unrelated.length > 0 && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  icon={<WarningOutlined />}
+                  message={`${unrelated.length} document${unrelated.length !== 1 ? 's' : ''} may not belong to ${companyProfile?.company_name || 'your company'}`}
+                  description="Review the highlighted rows. Uncheck any document you want to exclude from analysis."
+                />
+              )}
+
+              {reviewError && <Alert type="error" message={reviewError} showIcon />}
+
+              <Table<ReviewRow>
+                size="small"
+                pagination={false}
+                columns={REVIEW_COLUMNS}
+                dataSource={reviewRows}
+                rowKey={r => r._key}
+                rowClassName={r => (r._status === 'unrelated' && r._include ? 'row-warn' : '')}
+                scroll={{ x: 560 }}
+              />
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {included.length} of {reviewRows.length} document{reviewRows.length !== 1 ? 's' : ''} will be analysed
+                </Text>
+                <Button
+                  type="primary"
+                  loading={confirming}
+                  disabled={included.length === 0}
+                  onClick={handleConfirm}
+                  icon={<ThunderboltOutlined />}
+                >
+                  Confirm & Run Analysis
+                </Button>
+              </div>
+            </Space>
+          )}
+        </Card>
+      )}
+
+      {step === 3 && analysisJobId && (
+        <JobStatus
+          jobId={analysisJobId}
+          label="Analysis job"
+          runningMessage="Running 7-agent financial analysis pipeline…"
+          pollFn={api.getAnalysisJob}
+          onComplete={handleAnalysisComplete}
+        />
+      )}
+
+      {step === 4 && (
+        <Alert
+          type="success"
+          message="Analysis complete — loading dashboard…"
+          showIcon
+        />
+      )}
+    </Space>
+  )
+
+  // Embedded (modal) mode: padded inner content, no outer Layout.
+  if (onComplete) {
+    return <div style={{ padding: 24 }}>{inner}</div>
+  }
+
+  // Standalone page mode.
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Content style={{ maxWidth: 800, margin: '0 auto', padding: '48px 24px' }}>
-        <Space direction="vertical" size={32} style={{ width: '100%' }}>
-          <Row align="middle" justify="space-between">
-            <Col>
-              <Title level={2} style={{ margin: 0 }}>Archon</Title>
-              <Text type="secondary">Agentic Financial Intelligence — upload documents, get P&amp;L insights</Text>
-            </Col>
-            <Col>
-              <Space>
-                {user?.photoURL && <Avatar src={user.photoURL} size={32} />}
-                <Tooltip title={user?.email}>
-                  <Button icon={<LogoutOutlined />} onClick={signOut} type="text">
-                    Sign out
-                  </Button>
-                </Tooltip>
-              </Space>
-            </Col>
-          </Row>
-
-          <Steps
-            current={step}
-            items={[
-              { title: 'Upload documents' },
-              { title: 'Extract data' },
-              { title: 'Review' },
-              { title: 'Analyse' },
-              { title: 'Ready', icon: step === 4 ? <CheckCircleOutlined /> : undefined },
-            ]}
-          />
-
-          {step === 0 && (
-            <Card>
-              <Space direction="vertical" size={16} style={{ width: '100%' }}>
-
-                <div>
-                  <Text strong>Documents</Text>
-                  <Text type="secondary" style={{ marginLeft: 8 }}>
-                    Invoices · Payroll · Expenses · Sales — any language
-                  </Text>
-                  <Dragger
-                    multiple
-                    accept={ACCEPTED_TYPES}
-                    fileList={fileList}
-                    beforeUpload={() => false}
-                    onChange={({ fileList: fl }) => setFileList(fl)}
-                    style={{ marginTop: 8 }}
-                  >
-                    <p className="ant-upload-drag-icon">
-                      <InboxOutlined />
-                    </p>
-                    <p className="ant-upload-text">
-                      Drop files here or click to browse
-                    </p>
-                    <p className="ant-upload-hint">
-                      PDF · DOCX · JPG · PNG · TIFF — scanned or digital, any language
-                    </p>
-                  </Dragger>
-                </div>
-
-                {fileList.length > 0 && (
-                  <Space wrap>
-                    {fileList.map(f => (
-                      <Tag key={f.uid} color="blue">{f.name}</Tag>
-                    ))}
-                  </Space>
-                )}
-
-                {error && <Alert type="error" message={error} showIcon />}
-
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<RocketOutlined />}
-                  block
-                  loading={submitting}
-                  disabled={fileList.length === 0}
-                  onClick={handleSubmit}
-                >
-                  Extract & Analyse
-                </Button>
-              </Space>
-            </Card>
-          )}
-
-          {step === 1 && jobId && (
-            <JobStatus
-              jobId={jobId}
-              label="Extraction job"
-              runningMessage="Processing documents with vision LLM (Qwen2.5-VL-72B)…"
-              onComplete={handleExtractionComplete}
-            />
-          )}
-
-          {/* ── Step 2: document review + entity-ownership guard ─────────── */}
-          {step === 2 && (
-            <Card title="Review extracted documents" loading={reviewLoading}>
-              {!reviewLoading && (
-                <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                  {companyProfile && !companyProfile.company_name && !companyProfile.company_tax_id && (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      message="Company profile not configured"
-                      description="Set your company name and tax ID in the company profile to enable automatic document matching."
-                    />
-                  )}
-
-                  {unrelated.length > 0 && (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      icon={<WarningOutlined />}
-                      message={`${unrelated.length} document${unrelated.length !== 1 ? 's' : ''} may not belong to ${companyProfile?.company_name || 'your company'}`}
-                      description="Review the highlighted rows. Uncheck any document you want to exclude from analysis."
-                    />
-                  )}
-
-                  {reviewError && <Alert type="error" message={reviewError} showIcon />}
-
-                  <Table<ReviewRow>
-                    size="small"
-                    pagination={false}
-                    columns={REVIEW_COLUMNS}
-                    dataSource={reviewRows}
-                    rowKey={r => r._key}
-                    rowClassName={r => (r._status === 'unrelated' && r._include ? 'row-warn' : '')}
-                    scroll={{ x: 560 }}
-                  />
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {included.length} of {reviewRows.length} document{reviewRows.length !== 1 ? 's' : ''} will be analysed
-                    </Text>
-                    <Button
-                      type="primary"
-                      loading={confirming}
-                      disabled={included.length === 0}
-                      onClick={handleConfirm}
-                      icon={<ThunderboltOutlined />}
-                    >
-                      Confirm & Run Analysis
-                    </Button>
-                  </div>
-                </Space>
-              )}
-            </Card>
-          )}
-
-          {step === 3 && analysisJobId && (
-            <JobStatus
-              jobId={analysisJobId}
-              label="Analysis job"
-              runningMessage="Running 7-agent financial analysis pipeline…"
-              pollFn={api.getAnalysisJob}
-              onComplete={handleAnalysisComplete}
-            />
-          )}
-
-          {step === 4 && (
-            <Alert
-              type="success"
-              message="Analysis complete — loading dashboard…"
-              showIcon
-            />
-          )}
-        </Space>
+        {inner}
       </Content>
     </Layout>
   )
