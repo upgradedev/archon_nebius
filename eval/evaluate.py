@@ -6,12 +6,21 @@ prints the four accuracy metrics plus the naive-bookkeeping floor. Writes
 machine-readable results to eval/RESULTS.json.
 
 Usage:
-    python eval/evaluate.py                       # corpus/sample
-    python eval/evaluate.py eval/corpus/full
+    python eval/evaluate.py                             # corpus/sample (default)
+    python eval/evaluate.py eval/corpus/full            # positional corpus dir
+    python eval/evaluate.py --corpus eval/corpus/full   # same, named flag
+    python eval/evaluate.py --corpus eval/corpus/full --out eval/RESULTS_full.json
+
+The committed 40-case `eval/corpus/full/` + `eval/RESULTS_full.json` regenerate
+the headline accuracy table offline (no API key, only `pydantic`):
+
+    python eval/generate_corpus.py --out corpus/full --n 40 --seed 7
+    python eval/evaluate.py --corpus eval/corpus/full --out eval/RESULTS_full.json
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -28,7 +37,15 @@ def _pct(x: float) -> str:
 
 
 def main() -> None:
-    corpus_dir = sys.argv[1] if len(sys.argv) > 1 else "eval/corpus/sample"
+    ap = argparse.ArgumentParser(description="Score the real Archon agents against a labelled corpus.")
+    ap.add_argument("corpus_pos", nargs="?", default=None,
+                    help="corpus dir (positional; back-compat with `evaluate.py eval/corpus/full`)")
+    ap.add_argument("--corpus", default=None, help="corpus dir (default: eval/corpus/sample)")
+    ap.add_argument("--out", default=None,
+                    help="results JSON path (default: eval/RESULTS.json)")
+    args = ap.parse_args()
+
+    corpus_dir = args.corpus or args.corpus_pos or "eval/corpus/sample"
     cases = load_corpus(corpus_dir)
 
     ceiling = metrics.run_extractor(cases, perfect_extractor)
@@ -71,9 +88,9 @@ def main() -> None:
         print(f"  total understatement recovered  EUR {floor['total_understatement']:,.2f}")
         print(f"  mean understatement % of true   {floor['mean_understatement_pct_of_true']}%")
         print(f"  mean understatement % of bank   {floor['mean_understatement_pct_of_bank']}%")
-        print(f"  mean employer-IKA wedge % bank  {floor['mean_employer_ika_wedge_pct_of_bank']}%")
+        print(f"  mean employer social-sec wedge % bank  {floor['mean_employer_social_security_wedge_pct_of_bank']}%")
 
-    out = Path(__file__).resolve().parent / "RESULTS.json"
+    out = Path(args.out) if args.out else Path(__file__).resolve().parent / "RESULTS.json"
     out.write_text(json.dumps(
         {"corpus": corpus_dir, "ceiling": ceiling, "degraded": degraded, "naive_floor": floor},
         indent=2), encoding="utf-8")

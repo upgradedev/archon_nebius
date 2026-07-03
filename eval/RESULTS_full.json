@@ -1,0 +1,1083 @@
+{
+  "corpus": "eval/corpus/full",
+  "ceiling": {
+    "extractor": "perfect_extractor",
+    "cases": 40,
+    "classification": {
+      "total": 210,
+      "correct": 210,
+      "accuracy": 1.0,
+      "errors": []
+    },
+    "field": {
+      "total": 420,
+      "correct": 420,
+      "accuracy": 1.0
+    },
+    "validation": {
+      "total": 160,
+      "correct": 155,
+      "accuracy": 0.9688,
+      "divergences": [
+        {
+          "case": "case-0003",
+          "rule": "R4",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 register or payslips absent."
+        },
+        {
+          "case": "case-0017",
+          "rule": "R4",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 register or payslips absent."
+        },
+        {
+          "case": "case-0018",
+          "rule": "R4",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 register or payslips absent."
+        },
+        {
+          "case": "case-0023",
+          "rule": "R4",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 register or payslips absent."
+        },
+        {
+          "case": "case-0035",
+          "rule": "R4",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 register or payslips absent."
+        }
+      ],
+      "rule_activity": {
+        "R1": {
+          "applicable": 31,
+          "fired": 31
+        },
+        "R2": {
+          "applicable": 37,
+          "fired": 0
+        },
+        "R3": {
+          "applicable": 31,
+          "fired": 31
+        },
+        "R4": {
+          "applicable": 37,
+          "fired": 0
+        }
+      }
+    },
+    "fusion": {
+      "total": 37,
+      "correct": 37,
+      "accuracy": 1.0,
+      "detail": [
+        {
+          "case": "case-0001",
+          "figure": "payroll_expense",
+          "expected": 6789.08,
+          "actual": 6789.08,
+          "match": true
+        },
+        {
+          "case": "case-0002",
+          "figure": "payroll_expense",
+          "expected": 3383.02,
+          "actual": 3383.02,
+          "match": true
+        },
+        {
+          "case": "case-0003",
+          "figure": "payroll_expense",
+          "expected": 16058.13,
+          "actual": 16058.13,
+          "match": true
+        },
+        {
+          "case": "case-0005",
+          "figure": "payroll_expense",
+          "expected": 16305.67,
+          "actual": 16305.67,
+          "match": true
+        },
+        {
+          "case": "case-0006",
+          "figure": "payroll_expense",
+          "expected": 16094.36,
+          "actual": 16094.36,
+          "match": true
+        },
+        {
+          "case": "case-0007",
+          "figure": "payroll_expense",
+          "expected": 3390.18,
+          "actual": 3390.18,
+          "match": true
+        },
+        {
+          "case": "case-0008",
+          "figure": "payroll_expense",
+          "expected": 13285.19,
+          "actual": 13285.19,
+          "match": true
+        },
+        {
+          "case": "case-0009",
+          "figure": "payroll_expense",
+          "expected": 6300.89,
+          "actual": 6300.89,
+          "match": true
+        },
+        {
+          "case": "case-0010",
+          "figure": "payroll_expense",
+          "expected": 15346.53,
+          "actual": 15346.53,
+          "match": true
+        },
+        {
+          "case": "case-0011",
+          "figure": "payroll_expense",
+          "expected": 17277.02,
+          "actual": 17277.02,
+          "match": true
+        },
+        {
+          "case": "case-0012",
+          "figure": "payroll_expense",
+          "expected": 4593.6,
+          "actual": 4593.6,
+          "match": true
+        },
+        {
+          "case": "case-0013",
+          "figure": "payroll_expense",
+          "expected": 20317.32,
+          "actual": 20317.32,
+          "match": true
+        },
+        {
+          "case": "case-0014",
+          "figure": "payroll_expense",
+          "expected": 8184.62,
+          "actual": 8184.62,
+          "match": true
+        },
+        {
+          "case": "case-0015",
+          "figure": "payroll_expense",
+          "expected": 18371.03,
+          "actual": 18371.03,
+          "match": true
+        },
+        {
+          "case": "case-0016",
+          "figure": "payroll_expense",
+          "expected": 20776.88,
+          "actual": 20776.88,
+          "match": true
+        },
+        {
+          "case": "case-0017",
+          "figure": "payroll_expense",
+          "expected": 5662.53,
+          "actual": 5662.53,
+          "match": true
+        },
+        {
+          "case": "case-0018",
+          "figure": "payroll_expense",
+          "expected": 6184.13,
+          "actual": 6184.13,
+          "match": true
+        },
+        {
+          "case": "case-0019",
+          "figure": "payroll_expense",
+          "expected": 9632.35,
+          "actual": 9632.35,
+          "match": true
+        },
+        {
+          "case": "case-0020",
+          "figure": "payroll_expense",
+          "expected": 17869.69,
+          "actual": 17869.69,
+          "match": true
+        },
+        {
+          "case": "case-0021",
+          "figure": "payroll_expense",
+          "expected": 16121.93,
+          "actual": 16121.93,
+          "match": true
+        },
+        {
+          "case": "case-0022",
+          "figure": "payroll_expense",
+          "expected": 10965.42,
+          "actual": 10965.42,
+          "match": true
+        },
+        {
+          "case": "case-0023",
+          "figure": "payroll_expense",
+          "expected": 8721.22,
+          "actual": 8721.22,
+          "match": true
+        },
+        {
+          "case": "case-0024",
+          "figure": "payroll_expense",
+          "expected": 11332.22,
+          "actual": 11332.22,
+          "match": true
+        },
+        {
+          "case": "case-0025",
+          "figure": "payroll_expense",
+          "expected": 4119.2,
+          "actual": 4119.2,
+          "match": true
+        },
+        {
+          "case": "case-0026",
+          "figure": "payroll_expense",
+          "expected": 16981.02,
+          "actual": 16981.02,
+          "match": true
+        },
+        {
+          "case": "case-0027",
+          "figure": "payroll_expense",
+          "expected": 17280.81,
+          "actual": 17280.81,
+          "match": true
+        },
+        {
+          "case": "case-0028",
+          "figure": "payroll_expense",
+          "expected": 2986.38,
+          "actual": 2986.38,
+          "match": true
+        },
+        {
+          "case": "case-0031",
+          "figure": "payroll_expense",
+          "expected": 24356.81,
+          "actual": 24356.81,
+          "match": true
+        },
+        {
+          "case": "case-0032",
+          "figure": "payroll_expense",
+          "expected": 9474.19,
+          "actual": 9474.19,
+          "match": true
+        },
+        {
+          "case": "case-0033",
+          "figure": "payroll_expense",
+          "expected": 19383.06,
+          "actual": 19383.06,
+          "match": true
+        },
+        {
+          "case": "case-0034",
+          "figure": "payroll_expense",
+          "expected": 9076.5,
+          "actual": 9076.5,
+          "match": true
+        },
+        {
+          "case": "case-0035",
+          "figure": "payroll_expense",
+          "expected": 11157.78,
+          "actual": 11157.78,
+          "match": true
+        },
+        {
+          "case": "case-0036",
+          "figure": "payroll_expense",
+          "expected": 10865.91,
+          "actual": 10865.91,
+          "match": true
+        },
+        {
+          "case": "case-0037",
+          "figure": "payroll_expense",
+          "expected": 17949.49,
+          "actual": 17949.49,
+          "match": true
+        },
+        {
+          "case": "case-0038",
+          "figure": "payroll_expense",
+          "expected": 7295.64,
+          "actual": 7295.64,
+          "match": true
+        },
+        {
+          "case": "case-0039",
+          "figure": "payroll_expense",
+          "expected": 8343.34,
+          "actual": 8343.34,
+          "match": true
+        },
+        {
+          "case": "case-0040",
+          "figure": "payroll_expense",
+          "expected": 4914.08,
+          "actual": 4914.08,
+          "match": true
+        }
+      ]
+    }
+  },
+  "degraded": {
+    "extractor": "degraded_extractor",
+    "cases": 40,
+    "classification": {
+      "total": 210,
+      "correct": 156,
+      "accuracy": 0.7429,
+      "errors": [
+        {
+          "case": "case-0002",
+          "src": "payslip_EMP-001_2025-06.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0003",
+          "src": "bank_confirmation_2025-08.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0003",
+          "src": "payslip_EMP-003_2025-08.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0004",
+          "src": "bank_confirmation_2026-03.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0005",
+          "src": "bank_confirmation_2026-10.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0006",
+          "src": "payslip_EMP-001_2026-05.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0007",
+          "src": "payslip_EMP-001_2026-07.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0008",
+          "src": "payroll_register_2026-12.pdf",
+          "expected": "payroll_register",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0009",
+          "src": "bank_confirmation_2026-01.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0010",
+          "src": "bank_confirmation_2025-08.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0010",
+          "src": "payslip_EMP-001_2025-08.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0010",
+          "src": "payslip_EMP-005_2025-08.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0012",
+          "src": "payslip_EMP-001_2026-02.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0013",
+          "src": "payslip_EMP-004_2025-04.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0015",
+          "src": "bank_confirmation_2026-06.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0016",
+          "src": "bank_confirmation_2025-08.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0016",
+          "src": "payslip_EMP-001_2025-08.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0016",
+          "src": "payslip_EMP-003_2025-08.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0016",
+          "src": "payslip_EMP-005_2025-08.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0018",
+          "src": "payslip_EMP-001_2026-11.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0019",
+          "src": "bank_confirmation_2025-01.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0020",
+          "src": "payslip_EMP-003_2026-08.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0021",
+          "src": "payslip_EMP-003_2025-06.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0021",
+          "src": "payslip_EMP-005_2025-06.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0022",
+          "src": "payroll_register_2025-12.pdf",
+          "expected": "payroll_register",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0022",
+          "src": "payslip_EMP-002_2025-12.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0023",
+          "src": "bank_confirmation_2026-03.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0023",
+          "src": "payslip_EMP-001_2026-03.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0023",
+          "src": "payslip_EMP-003_2026-03.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0025",
+          "src": "bank_confirmation_2026-02.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0026",
+          "src": "payslip_EMP-004_2026-08.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0026",
+          "src": "payslip_EMP-006_2026-08.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0027",
+          "src": "bank_confirmation_2025-09.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0027",
+          "src": "payslip_EMP-003_2025-09.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0027",
+          "src": "payslip_EMP-005_2025-09.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0028",
+          "src": "payslip_EMP-001_2025-05.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0029",
+          "src": "bank_confirmation_2026-10.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0029",
+          "src": "payslip_EMP-002_2026-10.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0030",
+          "src": "bank_confirmation_2025-04.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0031",
+          "src": "payroll_register_2025-01.pdf",
+          "expected": "payroll_register",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0031",
+          "src": "payslip_EMP-004_2025-01.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0031",
+          "src": "payslip_EMP-006_2025-01.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0033",
+          "src": "payroll_register_2026-09.pdf",
+          "expected": "payroll_register",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0033",
+          "src": "payslip_EMP-002_2026-09.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0033",
+          "src": "payslip_EMP-004_2026-09.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0035",
+          "src": "bank_confirmation_2025-03.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0035",
+          "src": "payslip_EMP-001_2025-03.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0036",
+          "src": "bank_confirmation_2026-12.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0036",
+          "src": "payslip_EMP-003_2026-12.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0037",
+          "src": "bank_confirmation_2025-11.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0037",
+          "src": "payslip_EMP-003_2025-11.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0037",
+          "src": "payslip_EMP-005_2025-11.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0040",
+          "src": "bank_confirmation_2025-08.pdf",
+          "expected": "bank_confirmation",
+          "actual": "unknown"
+        },
+        {
+          "case": "case-0040",
+          "src": "payslip_EMP-001_2025-08.pdf",
+          "expected": "payslip",
+          "actual": "unknown"
+        }
+      ]
+    },
+    "field": {
+      "total": 420,
+      "correct": 326,
+      "accuracy": 0.7762
+    },
+    "validation": {
+      "total": 160,
+      "correct": 146,
+      "accuracy": 0.9125,
+      "divergences": [
+        {
+          "case": "case-0003",
+          "rule": "R1",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 incomplete event (missing bank or payslips)."
+        },
+        {
+          "case": "case-0003",
+          "rule": "R4",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 register or payslips absent."
+        },
+        {
+          "case": "case-0006",
+          "rule": "R1",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Bank 8794.70 vs payslips 7693.20 (14.3% deviation \u2014 threshold 2%)"
+        },
+        {
+          "case": "case-0010",
+          "rule": "R1",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 incomplete event (missing bank or payslips)."
+        },
+        {
+          "case": "case-0012",
+          "rule": "R1",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Bank 2661.37 vs payslips 1716.20 (55.1% deviation \u2014 threshold 2%)"
+        },
+        {
+          "case": "case-0017",
+          "rule": "R4",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 register or payslips absent."
+        },
+        {
+          "case": "case-0018",
+          "rule": "R4",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 register or payslips absent."
+        },
+        {
+          "case": "case-0020",
+          "rule": "R1",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Bank 10353.06 vs payslips 8376.15 (23.6% deviation \u2014 threshold 2%)"
+        },
+        {
+          "case": "case-0021",
+          "rule": "R1",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Bank 9470.08 vs payslips 6885.59 (37.5% deviation \u2014 threshold 2%)"
+        },
+        {
+          "case": "case-0023",
+          "rule": "R1",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 incomplete event (missing bank or payslips)."
+        },
+        {
+          "case": "case-0023",
+          "rule": "R4",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 register or payslips absent."
+        },
+        {
+          "case": "case-0035",
+          "rule": "R1",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 incomplete event (missing bank or payslips)."
+        },
+        {
+          "case": "case-0035",
+          "rule": "R4",
+          "expected_pass": false,
+          "actual_pass": true,
+          "detail": "Skipped \u2014 register or payslips absent."
+        },
+        {
+          "case": "case-0038",
+          "rule": "R1",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Bank 4044.15 vs payslips 4188.09 (3.4% deviation \u2014 threshold 2%)"
+        }
+      ],
+      "rule_activity": {
+        "R1": {
+          "applicable": 31,
+          "fired": 11
+        },
+        "R2": {
+          "applicable": 37,
+          "fired": 0
+        },
+        "R3": {
+          "applicable": 31,
+          "fired": 14
+        },
+        "R4": {
+          "applicable": 37,
+          "fired": 0
+        }
+      }
+    },
+    "fusion": {
+      "total": 37,
+      "correct": 20,
+      "accuracy": 0.5405,
+      "detail": [
+        {
+          "case": "case-0001",
+          "figure": "payroll_expense",
+          "expected": 6789.08,
+          "actual": 6831.25,
+          "match": false
+        },
+        {
+          "case": "case-0002",
+          "figure": "payroll_expense",
+          "expected": 3383.02,
+          "actual": 3527.63,
+          "match": false
+        },
+        {
+          "case": "case-0003",
+          "figure": "payroll_expense",
+          "expected": 16058.13,
+          "actual": 16058.13,
+          "match": true
+        },
+        {
+          "case": "case-0005",
+          "figure": "payroll_expense",
+          "expected": 16305.67,
+          "actual": 16305.67,
+          "match": true
+        },
+        {
+          "case": "case-0006",
+          "figure": "payroll_expense",
+          "expected": 16094.36,
+          "actual": 16094.36,
+          "match": true
+        },
+        {
+          "case": "case-0007",
+          "figure": "payroll_expense",
+          "expected": 3390.18,
+          "actual": 3390.18,
+          "match": true
+        },
+        {
+          "case": "case-0008",
+          "figure": "payroll_expense",
+          "expected": 13285.19,
+          "actual": 7606.97,
+          "match": false
+        },
+        {
+          "case": "case-0009",
+          "figure": "payroll_expense",
+          "expected": 6300.89,
+          "actual": 6300.89,
+          "match": true
+        },
+        {
+          "case": "case-0010",
+          "figure": "payroll_expense",
+          "expected": 15346.53,
+          "actual": 15346.53,
+          "match": true
+        },
+        {
+          "case": "case-0011",
+          "figure": "payroll_expense",
+          "expected": 17277.02,
+          "actual": 17960.41,
+          "match": false
+        },
+        {
+          "case": "case-0012",
+          "figure": "payroll_expense",
+          "expected": 4593.6,
+          "actual": 4593.6,
+          "match": true
+        },
+        {
+          "case": "case-0013",
+          "figure": "payroll_expense",
+          "expected": 20317.32,
+          "actual": 20317.32,
+          "match": true
+        },
+        {
+          "case": "case-0014",
+          "figure": "payroll_expense",
+          "expected": 8184.62,
+          "actual": 7928.38,
+          "match": false
+        },
+        {
+          "case": "case-0015",
+          "figure": "payroll_expense",
+          "expected": 18371.03,
+          "actual": 18371.03,
+          "match": true
+        },
+        {
+          "case": "case-0016",
+          "figure": "payroll_expense",
+          "expected": 20776.88,
+          "actual": 20776.88,
+          "match": true
+        },
+        {
+          "case": "case-0017",
+          "figure": "payroll_expense",
+          "expected": 5662.53,
+          "actual": 5531.3,
+          "match": false
+        },
+        {
+          "case": "case-0018",
+          "figure": "payroll_expense",
+          "expected": 6184.13,
+          "actual": 6072.36,
+          "match": false
+        },
+        {
+          "case": "case-0019",
+          "figure": "payroll_expense",
+          "expected": 9632.35,
+          "actual": 9632.35,
+          "match": true
+        },
+        {
+          "case": "case-0020",
+          "figure": "payroll_expense",
+          "expected": 17869.69,
+          "actual": 18768.49,
+          "match": false
+        },
+        {
+          "case": "case-0021",
+          "figure": "payroll_expense",
+          "expected": 16121.93,
+          "actual": 16637.01,
+          "match": false
+        },
+        {
+          "case": "case-0022",
+          "figure": "payroll_expense",
+          "expected": 10965.42,
+          "actual": 4554.66,
+          "match": false
+        },
+        {
+          "case": "case-0023",
+          "figure": "payroll_expense",
+          "expected": 8721.22,
+          "actual": 8721.22,
+          "match": true
+        },
+        {
+          "case": "case-0024",
+          "figure": "payroll_expense",
+          "expected": 11332.22,
+          "actual": 10974.87,
+          "match": false
+        },
+        {
+          "case": "case-0025",
+          "figure": "payroll_expense",
+          "expected": 4119.2,
+          "actual": 3951.57,
+          "match": false
+        },
+        {
+          "case": "case-0026",
+          "figure": "payroll_expense",
+          "expected": 16981.02,
+          "actual": 16981.02,
+          "match": true
+        },
+        {
+          "case": "case-0027",
+          "figure": "payroll_expense",
+          "expected": 17280.81,
+          "actual": 17280.81,
+          "match": true
+        },
+        {
+          "case": "case-0028",
+          "figure": "payroll_expense",
+          "expected": 2986.38,
+          "actual": 2986.38,
+          "match": true
+        },
+        {
+          "case": "case-0031",
+          "figure": "payroll_expense",
+          "expected": 24356.81,
+          "actual": 8899.62,
+          "match": false
+        },
+        {
+          "case": "case-0032",
+          "figure": "payroll_expense",
+          "expected": 9474.19,
+          "actual": 9474.19,
+          "match": true
+        },
+        {
+          "case": "case-0033",
+          "figure": "payroll_expense",
+          "expected": 19383.06,
+          "actual": 8243.85,
+          "match": false
+        },
+        {
+          "case": "case-0034",
+          "figure": "payroll_expense",
+          "expected": 9076.5,
+          "actual": 8846.68,
+          "match": false
+        },
+        {
+          "case": "case-0035",
+          "figure": "payroll_expense",
+          "expected": 11157.78,
+          "actual": 11157.78,
+          "match": true
+        },
+        {
+          "case": "case-0036",
+          "figure": "payroll_expense",
+          "expected": 10865.91,
+          "actual": 10865.91,
+          "match": true
+        },
+        {
+          "case": "case-0037",
+          "figure": "payroll_expense",
+          "expected": 17949.49,
+          "actual": 17077.21,
+          "match": false
+        },
+        {
+          "case": "case-0038",
+          "figure": "payroll_expense",
+          "expected": 7295.64,
+          "actual": 7300.8,
+          "match": true
+        },
+        {
+          "case": "case-0039",
+          "figure": "payroll_expense",
+          "expected": 8343.34,
+          "actual": 8146.91,
+          "match": false
+        },
+        {
+          "case": "case-0040",
+          "figure": "payroll_expense",
+          "expected": 4914.08,
+          "actual": 4914.08,
+          "match": true
+        }
+      ]
+    }
+  },
+  "naive_floor": {
+    "cases": 31,
+    "total_bank_only": 185543.72,
+    "total_true_cost": 318925.43,
+    "total_understatement": 133381.71,
+    "mean_understatement_pct_of_true": 41.84,
+    "mean_understatement_pct_of_bank": 71.97,
+    "mean_employer_social_security_wedge_pct_of_bank": 35.49,
+    "max_understatement_pct_of_bank": 72.6
+  }
+}

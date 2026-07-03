@@ -22,8 +22,8 @@
       "vendor_name": "Saronikos Marine IKE",
       "currency": "EUR",
       "total_amount": 20556.06,
-      "notes": "Misthodotiki katastasi - IKA ergodoti - synoliko kostos ergodoti",
-      "raw_text_excerpt": "MISTHODOTIKH KATASTASH IKA EFKA EISFORES ERGODOTH"
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },
     {
       "source_file": "payslip_EMP-001_2025-09.pdf",
@@ -98,9 +98,9 @@
   ],
   "truth": {
     "gross_total": 16314.34,
-    "employee_ika_total": 2610.29,
+    "employee_social_security_total": 2610.29,
     "tax_withheld_total": 1794.58,
-    "employer_ika_total": 4241.72,
+    "employer_social_security_total": 4241.72,
     "employer_cost_total": 20556.06,
     "net_total": 11909.47,
     "bank_net_total": 11909.47,
@@ -109,50 +109,50 @@
       {
         "employee_code": "EMP-001",
         "gross": 3493.47,
-        "employee_ika": 558.96,
+        "employee_social_security": 558.96,
         "tax": 384.28,
         "net": 2550.23,
-        "employer_ika": 908.3,
+        "employer_social_security": 908.3,
         "employer_cost": 4401.77,
         "name": "Dimitris Nikolaou"
       },
       {
         "employee_code": "EMP-002",
         "gross": 3179.24,
-        "employee_ika": 508.68,
+        "employee_social_security": 508.68,
         "tax": 349.72,
         "net": 2320.84,
-        "employer_ika": 826.6,
+        "employer_social_security": 826.6,
         "employer_cost": 4005.84,
         "name": "Kostas Ioannidis"
       },
       {
         "employee_code": "EMP-003",
         "gross": 2792.65,
-        "employee_ika": 446.82,
+        "employee_social_security": 446.82,
         "tax": 307.19,
         "net": 2038.64,
-        "employer_ika": 726.09,
+        "employer_social_security": 726.09,
         "employer_cost": 3518.74,
         "name": "Petros Samaras"
       },
       {
         "employee_code": "EMP-004",
         "gross": 3663.89,
-        "employee_ika": 586.22,
+        "employee_social_security": 586.22,
         "tax": 403.03,
         "net": 2674.64,
-        "employer_ika": 952.61,
+        "employer_social_security": 952.61,
         "employer_cost": 4616.5,
         "name": "Eleni Ioannidis"
       },
       {
         "employee_code": "EMP-005",
         "gross": 3185.09,
-        "employee_ika": 509.61,
+        "employee_social_security": 509.61,
         "tax": 350.36,
         "net": 2325.12,
-        "employer_ika": 828.12,
+        "employer_social_security": 828.12,
         "employer_cost": 4013.21,
         "name": "Sofia Antoniou"
       }

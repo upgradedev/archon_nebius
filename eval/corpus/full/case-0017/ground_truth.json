@@ -1,0 +1,106 @@
+{
+  "case_id": "case-0017",
+  "company": "Dodekanisa Trade AE",
+  "period": "2025-03",
+  "payment_date": "2025-03-31",
+  "edge_cases": [
+    "missing_payslip"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 1,
+    "employees_true": 2
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-03.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 3280.67,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2025-03.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Dodekanisa Trade AE",
+      "currency": "EUR",
+      "total_amount": 5662.53,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-03.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Dodekanisa Trade AE",
+      "currency": "EUR",
+      "total_amount": 687.87,
+      "employee_name": "Kostas Ioannidis",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 4494.07,
+    "employee_social_security_total": 719.05,
+    "tax_withheld_total": 494.35,
+    "employer_social_security_total": 1168.46,
+    "employer_cost_total": 5662.53,
+    "net_total": 3280.67,
+    "bank_net_total": 3280.67,
+    "employee_count": 2,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 942.29,
+        "employee_social_security": 150.77,
+        "tax": 103.65,
+        "net": 687.87,
+        "employer_social_security": 245.0,
+        "employer_cost": 1187.29,
+        "name": "Kostas Ioannidis"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 3551.78,
+        "employee_social_security": 568.28,
+        "tax": 390.7,
+        "net": 2592.8,
+        "employer_social_security": 923.46,
+        "employer_cost": 4475.24,
+        "name": "Nikos Dimou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": false,
+    "R2": true,
+    "R3": true,
+    "R4": false
+  },
+  "expected_figures": {
+    "employer_cost_total": 5662.53,
+    "bank_net_total": 3280.67,
+    "employee_count": 2
+  },
+  "naive": {
+    "bank_only_payroll_cost": 3280.67,
+    "true_employer_cost": 5662.53,
+    "understatement_amount": 2381.86,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

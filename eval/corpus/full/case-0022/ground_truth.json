@@ -1,0 +1,125 @@
+{
+  "case_id": "case-0022",
+  "company": "Epirus Dairy EPE",
+  "period": "2025-12",
+  "payment_date": "2025-12-31",
+  "edge_cases": [
+    "missing_bank"
+  ],
+  "document_mix": {
+    "bank": false,
+    "register": true,
+    "payslips_emitted": 3,
+    "employees_true": 3
+  },
+  "documents": [
+    {
+      "source_file": "payroll_register_2025-12.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-12-31",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 10965.42,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-12.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-12-31",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 1726.71,
+      "employee_name": "Anna Ioannidis",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2025-12.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-12-31",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 1862.2,
+      "employee_name": "Giorgos Makris",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2025-12.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-12-31",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 2764.07,
+      "employee_name": "Eleni Makris",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 8702.72,
+    "employee_social_security_total": 1392.44,
+    "tax_withheld_total": 957.3,
+    "employer_social_security_total": 2262.7,
+    "employer_cost_total": 10965.42,
+    "net_total": 6352.98,
+    "bank_net_total": 6352.98,
+    "employee_count": 3,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2365.36,
+        "employee_social_security": 378.46,
+        "tax": 260.19,
+        "net": 1726.71,
+        "employer_social_security": 614.99,
+        "employer_cost": 2980.35,
+        "name": "Anna Ioannidis"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 2550.97,
+        "employee_social_security": 408.16,
+        "tax": 280.61,
+        "net": 1862.2,
+        "employer_social_security": 663.25,
+        "employer_cost": 3214.22,
+        "name": "Giorgos Makris"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 3786.39,
+        "employee_social_security": 605.82,
+        "tax": 416.5,
+        "net": 2764.07,
+        "employer_social_security": 984.46,
+        "employer_cost": 4770.85,
+        "name": "Eleni Makris"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 10965.42,
+    "bank_net_total": 6352.98,
+    "employee_count": 3
+  },
+  "naive": null
+}

@@ -7,7 +7,7 @@ All rules are deterministic (no LLM call) — fast, auditable, zero cost.
 Distinguishes the three payroll document subtypes that represent the same
 payroll event from different perspectives:
   - bank_confirmation  : bank batch payment confirmation (net total only)
-  - payroll_register   : official payroll sheet (gross + IKA + employer cost)
+  - payroll_register   : official payroll sheet (gross + social security + employer cost)
   - payslip            : individual employee pay slip (net per person)
 """
 
@@ -32,7 +32,8 @@ _BANK_CONFIRMATION_KW = {
 
 _PAYROLL_REGISTER_KW = {
     "μισθοδοτικη κατασταση", "payroll register", "κατασταση μισθοδοσιας",
-    "συνολικο κοστος εργοδοτη", "ika", "ικα", "εφκα",
+    "συνολικο κοστος εργοδοτη", "social security", "social insurance",
+    "employer contributions", "employer cost",
     "ασφαλιστικες εισφορες", "εισφορες εργοδοτη", "αναλυτικη κατασταση",
 }
 

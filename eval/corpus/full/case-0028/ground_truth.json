@@ -1,0 +1,94 @@
+{
+  "case_id": "case-0028",
+  "company": "Olympus Retail AE",
+  "period": "2025-05",
+  "payment_date": "2025-05-31",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 1,
+    "employees_true": 1
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-05.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-05-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 1730.2,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2025-05.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-05-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 2986.38,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-05.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-05-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 1730.2,
+      "employee_name": "Dimitris Makris",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 2370.14,
+    "employee_social_security_total": 379.22,
+    "tax_withheld_total": 260.72,
+    "employer_social_security_total": 616.24,
+    "employer_cost_total": 2986.38,
+    "net_total": 1730.2,
+    "bank_net_total": 1730.2,
+    "employee_count": 1,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2370.14,
+        "employee_social_security": 379.22,
+        "tax": 260.72,
+        "net": 1730.2,
+        "employer_social_security": 616.24,
+        "employer_cost": 2986.38,
+        "name": "Dimitris Makris"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 2986.38,
+    "bank_net_total": 1730.2,
+    "employee_count": 1
+  },
+  "naive": {
+    "bank_only_payroll_cost": 1730.2,
+    "true_employer_cost": 2986.38,
+    "understatement_amount": 1256.18,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

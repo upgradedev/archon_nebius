@@ -202,7 +202,7 @@ def naive_floor(cases: list[dict]) -> dict:
         "total_understatement": round(under, 2),
         "mean_understatement_pct_of_true": round(sum(r["understatement_pct_of_true"] for r in rows) / n, 2),
         "mean_understatement_pct_of_bank": round(sum(r["understatement_pct_of_bank"] for r in rows) / n, 2),
-        "mean_employer_ika_wedge_pct_of_bank": round(sum(r["employer_ika_wedge_pct_of_bank"] for r in rows) / n, 2),
+        "mean_employer_social_security_wedge_pct_of_bank": round(sum(r["employer_social_security_wedge_pct_of_bank"] for r in rows) / n, 2),
         "max_understatement_pct_of_bank": round(max(r["understatement_pct_of_bank"] for r in rows), 2),
     }
 

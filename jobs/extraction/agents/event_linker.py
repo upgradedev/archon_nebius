@@ -6,7 +6,7 @@ and one or more payslips are all describing the *same* payroll event (same
 company, same period, overlapping amounts) and package them together.
 
 This solves the core insight: the bank confirmation alone understates the
-true employer payroll cost by ~28% (net only vs gross + IKA contributions).
+true employer payroll cost by ~28% (net only vs gross + employer social-security contributions).
 Only by linking all three doc subtypes can we compute the real P&L impact.
 """
 

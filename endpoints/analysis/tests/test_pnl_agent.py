@@ -1,7 +1,7 @@
 """
 PnLAgent — the fusion-math core. Verifies that the P&L reports the TRUE
-employer payroll cost (gross + IKA) from the register, not the bank net, and
-that the three payroll subtypes are never double-counted.
+employer payroll cost (gross + employer social-security) from the register, not
+the bank net, and that the three payroll subtypes are never double-counted.
 """
 from agents import pnl_agent
 
@@ -9,7 +9,7 @@ from agents import pnl_agent
 # ── _compute_expenses / build_pnl: the 28% payroll wedge ──────────────────────
 
 def test_register_employer_cost_is_authoritative(doc):
-    # bank net 10_000, but register says employer cost is 12_800 (gross + IKA).
+    # bank net 10_000, but register says employer cost is 12_800 (gross + employer social-security).
     # The P&L expense MUST be the register's employer_cost_total, not the bank net.
     docs = [
         doc(source_file="bank.pdf", doc_type="bank_confirmation", total_amount=10_000),

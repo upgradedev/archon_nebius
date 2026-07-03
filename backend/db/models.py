@@ -46,8 +46,8 @@ class EmployeePayrollRecord(BaseModel):
     gross_pay: float | None
     net_pay: float
     employer_cost: float | None
-    ika_employee: float | None
-    ika_employer: float | None
+    employee_social_security: float | None
+    employer_social_security: float | None
     income_tax: float | None
     document_id: UUID | None
 

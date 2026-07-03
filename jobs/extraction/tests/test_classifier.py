@@ -5,8 +5,9 @@ Only UNKNOWN/PAYROLL docs are reclassified.
 FINDING (documented by test_greek_accented_text_is_not_matched): `_search_text`
 normalises via NFD + `.encode("ascii", "ignore")`, which DROPS every non-ASCII
 character — including all Greek letters. So the Greek entries in the keyword
-sets are effectively dead; only the ASCII keywords ("payroll register", "ika",
-"payslip", "batch payment", ...) and ASCII vendor names ("eurobank") match.
+sets are effectively dead; only the ASCII keywords ("payroll register",
+"social security", "payslip", "batch payment", ...) and ASCII vendor names
+("eurobank") match.
 These tests therefore assert the real (ASCII-only) behaviour.
 """
 from agents import classifier
@@ -23,8 +24,8 @@ def test_bank_confirmation_from_vendor_name(doc):
     assert out[0].doc_type == DocType.BANK_CONFIRMATION
 
 
-def test_register_from_ika_keyword(doc):
-    out = classifier.run([doc(doc_type=DocType.PAYROLL, notes="payroll register with ika contributions")])
+def test_register_from_social_security_keyword(doc):
+    out = classifier.run([doc(doc_type=DocType.PAYROLL, notes="employer social security contributions")])
     assert out[0].doc_type == DocType.PAYROLL_REGISTER
 
 
@@ -51,10 +52,10 @@ def test_no_keyword_stays_unknown(doc):
 def test_greek_accented_text_is_not_matched(doc):
     # Greek-only notes are stripped to whitespace by the ascii-ignore normaliser,
     # so no Greek keyword can fire. Documents the latent limitation.
-    out = classifier.run([doc(doc_type=DocType.UNKNOWN, notes="Μισθοδοτική κατάσταση ΙΚΑ")])
+    out = classifier.run([doc(doc_type=DocType.UNKNOWN, notes="Μισθοδοτική κατάσταση εργοδότη")])
     assert out[0].doc_type == DocType.UNKNOWN
 
 
 def test_already_typed_docs_not_touched(doc):
-    out = classifier.run([doc(doc_type=DocType.INVOICE, notes="payroll register ika")])
+    out = classifier.run([doc(doc_type=DocType.INVOICE, notes="payroll register social security")])
     assert out[0].doc_type == DocType.INVOICE

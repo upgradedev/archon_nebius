@@ -1,0 +1,118 @@
+{
+  "case_id": "case-0014",
+  "company": "Makedonia Metals AE",
+  "period": "2026-11",
+  "payment_date": "2026-11-30",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 2,
+    "employees_true": 2
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-11.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-11-30",
+      "recipient_name": "Makedonia Metals AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 4741.88,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-11.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-11-30",
+      "recipient_name": "Makedonia Metals AE",
+      "vendor_name": "Makedonia Metals AE",
+      "currency": "EUR",
+      "total_amount": 8184.62,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-11.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-11-30",
+      "recipient_name": "Makedonia Metals AE",
+      "vendor_name": "Makedonia Metals AE",
+      "currency": "EUR",
+      "total_amount": 2120.15,
+      "employee_name": "Giorgos Georgiou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-11.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-11-30",
+      "recipient_name": "Makedonia Metals AE",
+      "vendor_name": "Makedonia Metals AE",
+      "currency": "EUR",
+      "total_amount": 2621.73,
+      "employee_name": "Vasilis Georgiou",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 6495.73,
+    "employee_social_security_total": 1039.32,
+    "tax_withheld_total": 714.53,
+    "employer_social_security_total": 1688.89,
+    "employer_cost_total": 8184.62,
+    "net_total": 4741.88,
+    "bank_net_total": 4741.88,
+    "employee_count": 2,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2904.31,
+        "employee_social_security": 464.69,
+        "tax": 319.47,
+        "net": 2120.15,
+        "employer_social_security": 755.12,
+        "employer_cost": 3659.43,
+        "name": "Giorgos Georgiou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 3591.42,
+        "employee_social_security": 574.63,
+        "tax": 395.06,
+        "net": 2621.73,
+        "employer_social_security": 933.77,
+        "employer_cost": 4525.19,
+        "name": "Vasilis Georgiou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 8184.62,
+    "bank_net_total": 4741.88,
+    "employee_count": 2
+  },
+  "naive": {
+    "bank_only_payroll_cost": 4741.88,
+    "true_employer_cost": 8184.62,
+    "understatement_amount": 3442.74,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

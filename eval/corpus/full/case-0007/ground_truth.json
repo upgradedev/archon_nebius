@@ -1,0 +1,96 @@
+{
+  "case_id": "case-0007",
+  "company": "Kyklades Software EPE",
+  "period": "2026-07",
+  "payment_date": "2026-07-31",
+  "edge_cases": [
+    "single_employee"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 1,
+    "employees_true": 1
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-07.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-07-31",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 1964.15,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-07.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-07-31",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Kyklades Software EPE",
+      "currency": "EUR",
+      "total_amount": 3390.18,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-07.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-07-31",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Kyklades Software EPE",
+      "currency": "EUR",
+      "total_amount": 1964.15,
+      "employee_name": "Nikos Vlachos",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 2690.62,
+    "employee_social_security_total": 430.5,
+    "tax_withheld_total": 295.97,
+    "employer_social_security_total": 699.56,
+    "employer_cost_total": 3390.18,
+    "net_total": 1964.15,
+    "bank_net_total": 1964.15,
+    "employee_count": 1,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2690.62,
+        "employee_social_security": 430.5,
+        "tax": 295.97,
+        "net": 1964.15,
+        "employer_social_security": 699.56,
+        "employer_cost": 3390.18,
+        "name": "Nikos Vlachos"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 3390.18,
+    "bank_net_total": 1964.15,
+    "employee_count": 1
+  },
+  "naive": {
+    "bank_only_payroll_cost": 1964.15,
+    "true_employer_cost": 3390.18,
+    "understatement_amount": 1426.03,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

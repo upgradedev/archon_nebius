@@ -1,0 +1,96 @@
+{
+  "case_id": "case-0040",
+  "company": "Attiki Build AE",
+  "period": "2025-08",
+  "payment_date": "2025-08-31",
+  "edge_cases": [
+    "single_employee"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 1,
+    "employees_true": 1
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-08.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 2847.04,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2025-08.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 4914.08,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 2847.04,
+      "employee_name": "Eleni Antoniou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 3900.06,
+    "employee_social_security_total": 624.01,
+    "tax_withheld_total": 429.01,
+    "employer_social_security_total": 1014.02,
+    "employer_cost_total": 4914.08,
+    "net_total": 2847.04,
+    "bank_net_total": 2847.04,
+    "employee_count": 1,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 3900.06,
+        "employee_social_security": 624.01,
+        "tax": 429.01,
+        "net": 2847.04,
+        "employer_social_security": 1014.02,
+        "employer_cost": 4914.08,
+        "name": "Eleni Antoniou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 4914.08,
+    "bank_net_total": 2847.04,
+    "employee_count": 1
+  },
+  "naive": {
+    "bank_only_payroll_cost": 2847.04,
+    "true_employer_cost": 4914.08,
+    "understatement_amount": 2067.04,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

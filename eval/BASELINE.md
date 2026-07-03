@@ -14,14 +14,18 @@ python eval/evaluate.py               # score the real agents -> table + RESULTS
 python -m pytest eval/tests -q        # assert the baselines below stay true
 ```
 
-The 6-case `eval/corpus/sample/` is committed (JSON labels only — no PDFs, no
-extra deps) and reproduces every number here. The 40-case `eval/corpus/full/` is
-gitignored; regenerate it deterministically:
+Both corpora are committed as JSON labels only (no PDFs, no extra deps): the
+6-case `eval/corpus/sample/` and the 40-case `eval/corpus/full/`. The committed
+`eval/RESULTS_full.json` is the machine-readable output for the full corpus, so
+the headline 40-case table below regenerates offline and byte-for-byte:
 
 ```bash
 python eval/generate_corpus.py --out corpus/full --n 40 --seed 7
-python eval/evaluate.py eval/corpus/full
+python eval/evaluate.py --corpus eval/corpus/full --out eval/RESULTS_full.json
 ```
+
+Both generation and scoring are deterministic (`--seed 7`), so re-running the two
+commands reproduces `RESULTS_full.json` and every full-corpus number in this file.
 
 Runtime: ~3 s for the sample, ~6 s for the full corpus on a laptop CPU. Cost:
 **€0** — the perfect/degraded extractors are deterministic; no inference is
@@ -50,8 +54,8 @@ production extraction prompt emits** (`jobs/extraction/extractors/image.py::
 EXTRACTION_PROMPT`): generic document fields + `total_amount`, and *nothing*
 payroll-specific. So the "perfect" extractor is the real product's ceiling — it
 is faithful to what the deployed pipeline can actually know, not to an idealised
-schema. The full payroll truth (gross, IKA, per-employee) lives in `truth{}` and
-feeds the naive floor and the domain-truth validations.
+schema. The full payroll truth (gross, social security, per-employee) lives in
+`truth{}` and feeds the naive floor and the domain-truth validations.
 
 ---
 
@@ -70,8 +74,8 @@ Perfect read of the fields the current prompt emits → the **real**
 | Validation-outcome accuracy | **95.83%** (23/24) | **96.88%** (155/160) |
 
 The fusion result is the load-bearing positive: under perfect extraction the
-`PnLAgent` reports the **employer cost** (gross + employer IKA), not the bank net
-transfer, to the cent across 40 diverse cases — the core "the bank number
+`PnLAgent` reports the **employer cost** (gross + employer social-security), not
+the bank net transfer, to the cent across 40 diverse cases — the core "the bank number
 understates payroll" thesis is verified, not asserted.
 
 The validation accuracy is **below 100% on purpose** — see §3.
@@ -122,15 +126,15 @@ The owner who books the bank salary transfer as "the payroll cost":
 | Total bank-only (the wrong number) | EUR 36,355.30 | EUR 185,543.72 |
 | Total true employer cost | EUR 62,503.72 | EUR 318,925.43 |
 | **Total understatement recovered** | **EUR 26,148.42** | **EUR 133,381.71** |
-| Mean understatement, % of true cost | 41.37% | 41.68% |
-| Mean understatement, % over the bank figure | 70.65% | 71.54% |
-| Mean employer-IKA wedge, % over bank | 35.22% | 35.40% |
+| Mean understatement, % of true cost | 41.37% | 41.84% |
+| Mean understatement, % over the bank figure | 70.65% | 71.97% |
+| Mean employer social-security wedge, % over bank | 35.22% | 35.49% |
 
 **Two numbers, reported separately on purpose.** The project's headline "~28%"
-is the *employer-IKA wedge only* (employer IKA ÷ bank net). The *full*
-understatement also includes withheld employee IKA and income tax, so it is
-roughly double — ~71% over the bank figure. Both are honest; they answer
-different questions.
+is the *employer social-security wedge only* (employer social-security ÷ bank
+net). The *full* understatement also includes withheld employee social-security
+and income tax, so it is roughly double — ~72% over the bank figure. Both are
+honest; they answer different questions.
 
 ---
 
@@ -178,9 +182,9 @@ this confound); it is a linker-keying limitation worth a follow-up.
 
 `ClassifierAgent._search_text` strips non-ASCII (`encode("ascii","ignore")`)
 before matching, but several keyword sets are raw Greek — those entries can
-never match. Recovery works through the ASCII/English keywords (`ika`,
-`payslip`, `payroll register`, `payroll transfer`, …). The corpus text uses
-those, mirroring how the deployed classifier actually behaves.
+never match. Recovery works through the ASCII/English keywords (`payroll
+register`, `social security`, `payslip`, `payroll transfer`, …). The corpus
+text uses those, mirroring how the deployed classifier actually behaves.
 
 ---
 

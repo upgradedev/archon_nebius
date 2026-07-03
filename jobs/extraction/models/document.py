@@ -6,7 +6,7 @@ class DocType(str, Enum):
     INVOICE = "invoice"                       # vendor/purchase invoice
     SALES = "sales"                           # sales invoice (company is the seller)
     EXPENSE = "expense"                       # expense receipt
-    PAYROLL_REGISTER = "payroll_register"     # official payroll sheet (gross + IKA + employer cost)
+    PAYROLL_REGISTER = "payroll_register"     # official payroll sheet (gross + social security + employer cost)
     BANK_CONFIRMATION = "bank_confirmation"   # bank batch payroll transfer confirmation (net total)
     PAYSLIP = "payslip"                       # individual employee pay slip (net per person)
     PAYROLL = "payroll"                       # generic payroll when subtype cannot be determined
@@ -56,7 +56,7 @@ class ExtractedDocument(BaseModel):
     # Payroll-specific fields (populated for payroll_register / bank_confirmation / payslip)
     employee_count: int | None = None
     gross_pay_total: float | None = None       # total gross wages (payroll_register)
-    employer_cost_total: float | None = None   # gross + IKA employer share (payroll_register)
+    employer_cost_total: float | None = None   # gross + employer social-security share (payroll_register)
     net_pay_total: float | None = None         # total net transfers (bank_confirmation)
     employee_name: str | None = None           # for payslip docs
     employee_code: str | None = None           # internal employee code (payslip)

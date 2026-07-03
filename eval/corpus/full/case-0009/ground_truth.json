@@ -1,0 +1,118 @@
+{
+  "case_id": "case-0009",
+  "company": "Thraki Agro IKE",
+  "period": "2026-01",
+  "payment_date": "2026-01-31",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 2,
+    "employees_true": 2
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-01.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-01-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 3650.51,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-01.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-01-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 6300.89,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-01.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-01-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 1645.03,
+      "employee_name": "Dimitris Dimou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-01.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-01-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 2005.48,
+      "employee_name": "Nikos Makris",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 5000.71,
+    "employee_social_security_total": 800.12,
+    "tax_withheld_total": 550.08,
+    "employer_social_security_total": 1300.18,
+    "employer_cost_total": 6300.89,
+    "net_total": 3650.51,
+    "bank_net_total": 3650.51,
+    "employee_count": 2,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2253.47,
+        "employee_social_security": 360.56,
+        "tax": 247.88,
+        "net": 1645.03,
+        "employer_social_security": 585.9,
+        "employer_cost": 2839.37,
+        "name": "Dimitris Dimou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 2747.24,
+        "employee_social_security": 439.56,
+        "tax": 302.2,
+        "net": 2005.48,
+        "employer_social_security": 714.28,
+        "employer_cost": 3461.52,
+        "name": "Nikos Makris"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 6300.89,
+    "bank_net_total": 3650.51,
+    "employee_count": 2
+  },
+  "naive": {
+    "bank_only_payroll_cost": 3650.51,
+    "true_employer_cost": 6300.89,
+    "understatement_amount": 2650.38,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

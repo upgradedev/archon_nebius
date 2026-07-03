@@ -1,0 +1,173 @@
+{
+  "case_id": "case-0011",
+  "company": "Kyklades Software EPE",
+  "period": "2025-06",
+  "payment_date": "2025-06-30",
+  "edge_cases": [
+    "missing_bank"
+  ],
+  "document_mix": {
+    "bank": false,
+    "register": true,
+    "payslips_emitted": 5,
+    "employees_true": 5
+  },
+  "documents": [
+    {
+      "source_file": "payroll_register_2025-06.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-06-30",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Kyklades Software EPE",
+      "currency": "EUR",
+      "total_amount": 17277.02,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-06.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-06-30",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Kyklades Software EPE",
+      "currency": "EUR",
+      "total_amount": 682.86,
+      "employee_name": "Giorgos Dimou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2025-06.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-06-30",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Kyklades Software EPE",
+      "currency": "EUR",
+      "total_amount": 1540.57,
+      "employee_name": "Ioanna Alexiou",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2025-06.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-06-30",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Kyklades Software EPE",
+      "currency": "EUR",
+      "total_amount": 2957.1,
+      "employee_name": "Kostas Nikolaou",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2025-06.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-06-30",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Kyklades Software EPE",
+      "currency": "EUR",
+      "total_amount": 1780.03,
+      "employee_name": "Sofia Ioannidis",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-005_2025-06.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-06-30",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Kyklades Software EPE",
+      "currency": "EUR",
+      "total_amount": 3049.13,
+      "employee_name": "Petros Ioannidis",
+      "employee_code": "EMP-005",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 13711.92,
+    "employee_social_security_total": 2193.91,
+    "tax_withheld_total": 1508.32,
+    "employer_social_security_total": 3565.1,
+    "employer_cost_total": 17277.02,
+    "net_total": 10009.69,
+    "bank_net_total": 10009.69,
+    "employee_count": 5,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 935.43,
+        "employee_social_security": 149.67,
+        "tax": 102.9,
+        "net": 682.86,
+        "employer_social_security": 243.21,
+        "employer_cost": 1178.64,
+        "name": "Giorgos Dimou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 2110.37,
+        "employee_social_security": 337.66,
+        "tax": 232.14,
+        "net": 1540.57,
+        "employer_social_security": 548.7,
+        "employer_cost": 2659.07,
+        "name": "Ioanna Alexiou"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 4050.82,
+        "employee_social_security": 648.13,
+        "tax": 445.59,
+        "net": 2957.1,
+        "employer_social_security": 1053.21,
+        "employer_cost": 5104.03,
+        "name": "Kostas Nikolaou"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 2438.41,
+        "employee_social_security": 390.15,
+        "tax": 268.23,
+        "net": 1780.03,
+        "employer_social_security": 633.99,
+        "employer_cost": 3072.4,
+        "name": "Sofia Ioannidis"
+      },
+      {
+        "employee_code": "EMP-005",
+        "gross": 4176.89,
+        "employee_social_security": 668.3,
+        "tax": 459.46,
+        "net": 3049.13,
+        "employer_social_security": 1085.99,
+        "employer_cost": 5262.88,
+        "name": "Petros Ioannidis"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 17277.02,
+    "bank_net_total": 10009.69,
+    "employee_count": 5
+  },
+  "naive": null
+}

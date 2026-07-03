@@ -59,9 +59,9 @@ CREATE TABLE IF NOT EXISTS employee_payroll (
     period          TEXT NOT NULL,
     gross_pay       NUMERIC(12,2),
     net_pay         NUMERIC(12,2) NOT NULL,
-    employer_cost   NUMERIC(12,2),          -- gross + IKA employer share
-    ika_employee    NUMERIC(12,2),          -- employee IKA deduction
-    ika_employer    NUMERIC(12,2),          -- employer IKA contribution
+    employer_cost               NUMERIC(12,2),  -- gross + employer social-security share
+    employee_social_security    NUMERIC(12,2),  -- employee social-security deduction
+    employer_social_security    NUMERIC(12,2),  -- employer social-security contribution
     income_tax      NUMERIC(12,2),
     document_id     UUID REFERENCES documents(id),
     created_at      TIMESTAMPTZ DEFAULT now(),

@@ -1,0 +1,166 @@
+{
+  "case_id": "case-0005",
+  "company": "Ionian Services EPE",
+  "period": "2026-10",
+  "payment_date": "2026-10-31",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 4,
+    "employees_true": 4
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-10.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-10-31",
+      "recipient_name": "Ionian Services EPE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 9446.95,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-10.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-10-31",
+      "recipient_name": "Ionian Services EPE",
+      "vendor_name": "Ionian Services EPE",
+      "currency": "EUR",
+      "total_amount": 16305.67,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-10.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-10-31",
+      "recipient_name": "Ionian Services EPE",
+      "vendor_name": "Ionian Services EPE",
+      "currency": "EUR",
+      "total_amount": 2038.64,
+      "employee_name": "Petros Samaras",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-10.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-10-31",
+      "recipient_name": "Ionian Services EPE",
+      "vendor_name": "Ionian Services EPE",
+      "currency": "EUR",
+      "total_amount": 2674.64,
+      "employee_name": "Eleni Ioannidis",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2026-10.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-10-31",
+      "recipient_name": "Ionian Services EPE",
+      "vendor_name": "Ionian Services EPE",
+      "currency": "EUR",
+      "total_amount": 2325.12,
+      "employee_name": "Sofia Antoniou",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2026-10.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-10-31",
+      "recipient_name": "Ionian Services EPE",
+      "vendor_name": "Ionian Services EPE",
+      "currency": "EUR",
+      "total_amount": 2408.55,
+      "employee_name": "Eleni Dimou",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 12941.01,
+    "employee_social_security_total": 2070.55,
+    "tax_withheld_total": 1423.51,
+    "employer_social_security_total": 3364.66,
+    "employer_cost_total": 16305.67,
+    "net_total": 9446.95,
+    "bank_net_total": 9446.95,
+    "employee_count": 4,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2792.65,
+        "employee_social_security": 446.82,
+        "tax": 307.19,
+        "net": 2038.64,
+        "employer_social_security": 726.09,
+        "employer_cost": 3518.74,
+        "name": "Petros Samaras"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 3663.89,
+        "employee_social_security": 586.22,
+        "tax": 403.03,
+        "net": 2674.64,
+        "employer_social_security": 952.61,
+        "employer_cost": 4616.5,
+        "name": "Eleni Ioannidis"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 3185.09,
+        "employee_social_security": 509.61,
+        "tax": 350.36,
+        "net": 2325.12,
+        "employer_social_security": 828.12,
+        "employer_cost": 4013.21,
+        "name": "Sofia Antoniou"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 3299.38,
+        "employee_social_security": 527.9,
+        "tax": 362.93,
+        "net": 2408.55,
+        "employer_social_security": 857.84,
+        "employer_cost": 4157.22,
+        "name": "Eleni Dimou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 16305.67,
+    "bank_net_total": 9446.95,
+    "employee_count": 4
+  },
+  "naive": {
+    "bank_only_payroll_cost": 9446.95,
+    "true_employer_cost": 16305.67,
+    "understatement_amount": 6858.72,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

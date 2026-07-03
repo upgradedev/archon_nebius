@@ -8,7 +8,7 @@ per rule per event. Results are written to storage alongside extracted docs.
 Rules enforced:
   R1  bank.total_amount ≈ sum(payslips.total_amount)  within 2 %
   R2  register.employer_cost_total / register.net_pay_total in [1.25, 1.45]
-        (IKA employer share is 25-35 % of gross; typical range is 125-145 % of net)
+        (employer social-security share is 25-35 % of gross; typical range is 125-145 % of net)
   R3  bank.issue_date <= last calendar day of the stated period
   R4  register.employee_count == len(payslips)  (when both present)
 """

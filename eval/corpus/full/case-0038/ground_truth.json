@@ -1,0 +1,142 @@
+{
+  "case_id": "case-0038",
+  "company": "Saronikos Marine IKE",
+  "period": "2025-08",
+  "payment_date": "2025-08-31",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 3,
+    "employees_true": 3
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-08.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 4226.84,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2025-08.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 7295.64,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 628.6,
+      "employee_name": "Sofia Makris",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 2816.21,
+      "employee_name": "Sofia Makris",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 782.03,
+      "employee_name": "Vasilis Ioannidis",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 5790.19,
+    "employee_social_security_total": 926.43,
+    "tax_withheld_total": 636.92,
+    "employer_social_security_total": 1505.45,
+    "employer_cost_total": 7295.64,
+    "net_total": 4226.84,
+    "bank_net_total": 4226.84,
+    "employee_count": 3,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 861.1,
+        "employee_social_security": 137.78,
+        "tax": 94.72,
+        "net": 628.6,
+        "employer_social_security": 223.89,
+        "employer_cost": 1084.99,
+        "name": "Sofia Makris"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 3857.82,
+        "employee_social_security": 617.25,
+        "tax": 424.36,
+        "net": 2816.21,
+        "employer_social_security": 1003.03,
+        "employer_cost": 4860.85,
+        "name": "Sofia Makris"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 1071.27,
+        "employee_social_security": 171.4,
+        "tax": 117.84,
+        "net": 782.03,
+        "employer_social_security": 278.53,
+        "employer_cost": 1349.8,
+        "name": "Vasilis Ioannidis"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 7295.64,
+    "bank_net_total": 4226.84,
+    "employee_count": 3
+  },
+  "naive": {
+    "bank_only_payroll_cost": 4226.84,
+    "true_employer_cost": 7295.64,
+    "understatement_amount": 3068.8,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

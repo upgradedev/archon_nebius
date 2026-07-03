@@ -1,0 +1,118 @@
+{
+  "case_id": "case-0012",
+  "company": "Kriti Tourism IKE",
+  "period": "2026-02",
+  "payment_date": "2026-02-28",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 2,
+    "employees_true": 2
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-02.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-02-28",
+      "recipient_name": "Kriti Tourism IKE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 2661.37,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-02.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-02-28",
+      "recipient_name": "Kriti Tourism IKE",
+      "vendor_name": "Kriti Tourism IKE",
+      "currency": "EUR",
+      "total_amount": 4593.6,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-02.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-02-28",
+      "recipient_name": "Kriti Tourism IKE",
+      "vendor_name": "Kriti Tourism IKE",
+      "currency": "EUR",
+      "total_amount": 870.4,
+      "employee_name": "Dimitris Alexiou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-02.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-02-28",
+      "recipient_name": "Kriti Tourism IKE",
+      "vendor_name": "Kriti Tourism IKE",
+      "currency": "EUR",
+      "total_amount": 1790.97,
+      "employee_name": "Vasilis Papadopoulos",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 3645.71,
+    "employee_social_security_total": 583.31,
+    "tax_withheld_total": 401.03,
+    "employer_social_security_total": 947.89,
+    "employer_cost_total": 4593.6,
+    "net_total": 2661.37,
+    "bank_net_total": 2661.37,
+    "employee_count": 2,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 1192.33,
+        "employee_social_security": 190.77,
+        "tax": 131.16,
+        "net": 870.4,
+        "employer_social_security": 310.01,
+        "employer_cost": 1502.34,
+        "name": "Dimitris Alexiou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 2453.38,
+        "employee_social_security": 392.54,
+        "tax": 269.87,
+        "net": 1790.97,
+        "employer_social_security": 637.88,
+        "employer_cost": 3091.26,
+        "name": "Vasilis Papadopoulos"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 4593.6,
+    "bank_net_total": 2661.37,
+    "employee_count": 2
+  },
+  "naive": {
+    "bank_only_payroll_cost": 2661.37,
+    "true_employer_cost": 4593.6,
+    "understatement_amount": 1932.23,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

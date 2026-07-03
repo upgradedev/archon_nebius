@@ -1,0 +1,154 @@
+{
+  "case_id": "case-0035",
+  "company": "Thraki Agro IKE",
+  "period": "2025-03",
+  "payment_date": "2025-03-31",
+  "edge_cases": [
+    "missing_payslip"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 3,
+    "employees_true": 4
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-03.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 6464.44,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2025-03.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 11157.78,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-03.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 2055.52,
+      "employee_name": "Katerina Antoniou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2025-03.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 1353.28,
+      "employee_name": "Ioanna Georgiou",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2025-03.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-03-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 827.11,
+      "employee_name": "Anna Papadopoulos",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 8855.38,
+    "employee_social_security_total": 1416.85,
+    "tax_withheld_total": 974.09,
+    "employer_social_security_total": 2302.4,
+    "employer_cost_total": 11157.78,
+    "net_total": 6464.44,
+    "bank_net_total": 6464.44,
+    "employee_count": 4,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2815.78,
+        "employee_social_security": 450.52,
+        "tax": 309.74,
+        "net": 2055.52,
+        "employer_social_security": 732.1,
+        "employer_cost": 3547.88,
+        "name": "Katerina Antoniou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 1853.81,
+        "employee_social_security": 296.61,
+        "tax": 203.92,
+        "net": 1353.28,
+        "employer_social_security": 481.99,
+        "employer_cost": 2335.8,
+        "name": "Ioanna Georgiou"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 1133.02,
+        "employee_social_security": 181.28,
+        "tax": 124.63,
+        "net": 827.11,
+        "employer_social_security": 294.59,
+        "employer_cost": 1427.61,
+        "name": "Anna Papadopoulos"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 3052.77,
+        "employee_social_security": 488.44,
+        "tax": 335.8,
+        "net": 2228.53,
+        "employer_social_security": 793.72,
+        "employer_cost": 3846.49,
+        "name": "Vasilis Dimou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": false,
+    "R2": true,
+    "R3": true,
+    "R4": false
+  },
+  "expected_figures": {
+    "employer_cost_total": 11157.78,
+    "bank_net_total": 6464.44,
+    "employee_count": 4
+  },
+  "naive": {
+    "bank_only_payroll_cost": 6464.44,
+    "true_employer_cost": 11157.78,
+    "understatement_amount": 4693.34,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}
