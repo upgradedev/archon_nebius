@@ -90,5 +90,5 @@ def test_naive_floor_quantifies_the_value(cases):
     floor = metrics.naive_floor(cases)
     assert floor["cases"] >= 1
     assert floor["total_understatement"] > 0
-    # the headline employer-IKA wedge is a meaningful fraction of the bank figure
-    assert floor["mean_employer_ika_wedge_pct_of_bank"] > 10
+    # the headline employer social-security wedge is a meaningful fraction of the bank figure
+    assert floor["mean_employer_social_security_wedge_pct_of_bank"] > 10

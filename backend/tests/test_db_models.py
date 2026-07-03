@@ -60,7 +60,7 @@ def test_employee_payroll_record_requires_net_pay():
     rec = EmployeePayrollRecord(
         id=UID, employee_id=UID, period="2026-01",
         gross_pay=1200.0, net_pay=950.0, employer_cost=1500.0,
-        ika_employee=200.0, ika_employer=300.0, income_tax=50.0, document_id=UID,
+        employee_social_security=200.0, employer_social_security=300.0, income_tax=50.0, document_id=UID,
     )
     assert rec.net_pay == 950.0
     assert isinstance(rec.employee_id, UUID)

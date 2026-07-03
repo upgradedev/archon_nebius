@@ -1,0 +1,214 @@
+{
+  "case_id": "case-0015",
+  "company": "Olympus Retail AE",
+  "period": "2026-06",
+  "payment_date": "2026-06-30",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 6,
+    "employees_true": 6
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-06.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-06-30",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 10643.52,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-06.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-06-30",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 18371.03,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-06.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-06-30",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 691.37,
+      "employee_name": "Maria Alexiou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-06.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-06-30",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 1775.36,
+      "employee_name": "Giorgos Dimou",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2026-06.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-06-30",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 2959.66,
+      "employee_name": "Petros Nikolaou",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2026-06.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-06-30",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 2955.95,
+      "employee_name": "Dimitris Samaras",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-005_2026-06.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-06-30",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 1159.64,
+      "employee_name": "Giorgos Ioannidis",
+      "employee_code": "EMP-005",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-006_2026-06.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-06-30",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 1101.54,
+      "employee_name": "Giorgos Ioannidis",
+      "employee_code": "EMP-006",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 14580.18,
+    "employee_social_security_total": 2332.83,
+    "tax_withheld_total": 1603.83,
+    "employer_social_security_total": 3790.85,
+    "employer_cost_total": 18371.03,
+    "net_total": 10643.52,
+    "bank_net_total": 10643.52,
+    "employee_count": 6,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 947.08,
+        "employee_social_security": 151.53,
+        "tax": 104.18,
+        "net": 691.37,
+        "employer_social_security": 246.24,
+        "employer_cost": 1193.32,
+        "name": "Maria Alexiou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 2432.0,
+        "employee_social_security": 389.12,
+        "tax": 267.52,
+        "net": 1775.36,
+        "employer_social_security": 632.32,
+        "employer_cost": 3064.32,
+        "name": "Giorgos Dimou"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 4054.33,
+        "employee_social_security": 648.69,
+        "tax": 445.98,
+        "net": 2959.66,
+        "employer_social_security": 1054.13,
+        "employer_cost": 5108.46,
+        "name": "Petros Nikolaou"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 4049.25,
+        "employee_social_security": 647.88,
+        "tax": 445.42,
+        "net": 2955.95,
+        "employer_social_security": 1052.81,
+        "employer_cost": 5102.06,
+        "name": "Dimitris Samaras"
+      },
+      {
+        "employee_code": "EMP-005",
+        "gross": 1588.55,
+        "employee_social_security": 254.17,
+        "tax": 174.74,
+        "net": 1159.64,
+        "employer_social_security": 413.02,
+        "employer_cost": 2001.57,
+        "name": "Giorgos Ioannidis"
+      },
+      {
+        "employee_code": "EMP-006",
+        "gross": 1508.97,
+        "employee_social_security": 241.44,
+        "tax": 165.99,
+        "net": 1101.54,
+        "employer_social_security": 392.33,
+        "employer_cost": 1901.3,
+        "name": "Giorgos Ioannidis"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 18371.03,
+    "bank_net_total": 10643.52,
+    "employee_count": 6
+  },
+  "naive": {
+    "bank_only_payroll_cost": 10643.52,
+    "true_employer_cost": 18371.03,
+    "understatement_amount": 7727.51,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

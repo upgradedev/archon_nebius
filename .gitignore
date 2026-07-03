@@ -60,9 +60,9 @@ uploads/
 sample-data/generated/
 reports/
 
-# Eval harness — commit the small JSON-only sample corpus; ignore the large
-# regenerable full corpus, rendered PDFs, and the machine-readable results dump.
-eval/corpus/full/
+# Eval harness — commit the JSON-only sample AND full corpora + the full-corpus
+# results (so the headline 40-case table regenerates offline). Ignore only the
+# rendered PDFs and the transient sample results dump.
 eval/corpus/**/docs/
 eval/RESULTS.json
 

@@ -1,0 +1,120 @@
+{
+  "case_id": "case-0001",
+  "company": "Kyklades Software EPE",
+  "period": "2026-07",
+  "payment_date": "2026-07-31",
+  "edge_cases": [
+    "bank_mismatch"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 2,
+    "employees_true": 2
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-07.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-07-31",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 4169.36,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-07.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-07-31",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Kyklades Software EPE",
+      "currency": "EUR",
+      "total_amount": 6789.08,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-07.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-07-31",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Kyklades Software EPE",
+      "currency": "EUR",
+      "total_amount": 1942.75,
+      "employee_name": "Kostas Alexiou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-07.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-07-31",
+      "recipient_name": "Kyklades Software EPE",
+      "vendor_name": "Kyklades Software EPE",
+      "currency": "EUR",
+      "total_amount": 1990.61,
+      "employee_name": "Ioanna Papadopoulos",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 5388.16,
+    "employee_social_security_total": 862.11,
+    "tax_withheld_total": 592.69,
+    "employer_social_security_total": 1400.92,
+    "employer_cost_total": 6789.08,
+    "net_total": 3933.36,
+    "bank_net_total": 4169.36,
+    "employee_count": 2,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2661.3,
+        "employee_social_security": 425.81,
+        "tax": 292.74,
+        "net": 1942.75,
+        "employer_social_security": 691.94,
+        "employer_cost": 3353.24,
+        "name": "Kostas Alexiou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 2726.86,
+        "employee_social_security": 436.3,
+        "tax": 299.95,
+        "net": 1990.61,
+        "employer_social_security": 708.98,
+        "employer_cost": 3435.84,
+        "name": "Ioanna Papadopoulos"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": false,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 6789.08,
+    "bank_net_total": 4169.36,
+    "employee_count": 2
+  },
+  "naive": {
+    "bank_only_payroll_cost": 4169.36,
+    "true_employer_cost": 6789.08,
+    "understatement_amount": 2619.72,
+    "understatement_pct_of_true": 38.59,
+    "understatement_pct_of_bank": 62.83,
+    "employer_social_security_wedge_pct_of_bank": 33.6
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "case_id": "case-0025",
+  "company": "Ionian Services EPE",
+  "period": "2026-02",
+  "payment_date": "2026-02-28",
+  "edge_cases": [
+    "single_employee"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 1,
+    "employees_true": 1
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-02.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-02-28",
+      "recipient_name": "Ionian Services EPE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 2386.53,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-02.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-02-28",
+      "recipient_name": "Ionian Services EPE",
+      "vendor_name": "Ionian Services EPE",
+      "currency": "EUR",
+      "total_amount": 4119.2,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-02.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-02-28",
+      "recipient_name": "Ionian Services EPE",
+      "vendor_name": "Ionian Services EPE",
+      "currency": "EUR",
+      "total_amount": 2386.53,
+      "employee_name": "Maria Nikolaou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 3269.21,
+    "employee_social_security_total": 523.07,
+    "tax_withheld_total": 359.61,
+    "employer_social_security_total": 849.99,
+    "employer_cost_total": 4119.2,
+    "net_total": 2386.53,
+    "bank_net_total": 2386.53,
+    "employee_count": 1,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 3269.21,
+        "employee_social_security": 523.07,
+        "tax": 359.61,
+        "net": 2386.53,
+        "employer_social_security": 849.99,
+        "employer_cost": 4119.2,
+        "name": "Maria Nikolaou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 4119.2,
+    "bank_net_total": 2386.53,
+    "employee_count": 1
+  },
+  "naive": {
+    "bank_only_payroll_cost": 2386.53,
+    "true_employer_cost": 4119.2,
+    "understatement_amount": 1732.67,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "case_id": "case-0030",
+  "company": "Aigaio Foods AE",
+  "period": "2025-04",
+  "payment_date": "2025-04-30",
+  "edge_cases": [
+    "missing_register"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": false,
+    "payslips_emitted": 3,
+    "employees_true": 3
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-04.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-04-30",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 4769.57,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-04.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-04-30",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Aigaio Foods AE",
+      "currency": "EUR",
+      "total_amount": 2157.91,
+      "employee_name": "Anna Georgiou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2025-04.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-04-30",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Aigaio Foods AE",
+      "currency": "EUR",
+      "total_amount": 1329.6,
+      "employee_name": "Anna Papadopoulos",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2025-04.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-04-30",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Aigaio Foods AE",
+      "currency": "EUR",
+      "total_amount": 1282.06,
+      "employee_name": "Maria Alexiou",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 6533.67,
+    "employee_social_security_total": 1045.39,
+    "tax_withheld_total": 718.71,
+    "employer_social_security_total": 1698.75,
+    "employer_cost_total": 8232.42,
+    "net_total": 4769.57,
+    "bank_net_total": 4769.57,
+    "employee_count": 3,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2956.05,
+        "employee_social_security": 472.97,
+        "tax": 325.17,
+        "net": 2157.91,
+        "employer_social_security": 768.57,
+        "employer_cost": 3724.62,
+        "name": "Anna Georgiou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 1821.37,
+        "employee_social_security": 291.42,
+        "tax": 200.35,
+        "net": 1329.6,
+        "employer_social_security": 473.56,
+        "employer_cost": 2294.93,
+        "name": "Anna Papadopoulos"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 1756.25,
+        "employee_social_security": 281.0,
+        "tax": 193.19,
+        "net": 1282.06,
+        "employer_social_security": 456.62,
+        "employer_cost": 2212.87,
+        "name": "Maria Alexiou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 8232.42,
+    "bank_net_total": 4769.57,
+    "employee_count": 3
+  },
+  "naive": {
+    "bank_only_payroll_cost": 4769.57,
+    "true_employer_cost": 8232.42,
+    "understatement_amount": 3462.85,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

@@ -1,0 +1,216 @@
+{
+  "case_id": "case-0010",
+  "company": "Epirus Dairy EPE",
+  "period": "2025-08",
+  "payment_date": "2025-08-31",
+  "edge_cases": [
+    "bank_mismatch"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 6,
+    "employees_true": 6
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-08.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 9424.7,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2025-08.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 15346.53,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 2571.69,
+      "employee_name": "Katerina Vlachos",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 1596.21,
+      "employee_name": "Sofia Ioannidis",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 2171.65,
+      "employee_name": "Maria Georgiou",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 785.19,
+      "employee_name": "Giorgos Ioannidis",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-005_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 1017.41,
+      "employee_name": "Dimitris Dimou",
+      "employee_code": "EMP-005",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-006_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 749.08,
+      "employee_name": "Maria Dimou",
+      "employee_code": "EMP-006",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 12179.78,
+    "employee_social_security_total": 1948.77,
+    "tax_withheld_total": 1339.78,
+    "employer_social_security_total": 3166.75,
+    "employer_cost_total": 15346.53,
+    "net_total": 8891.23,
+    "bank_net_total": 9424.7,
+    "employee_count": 6,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 3522.87,
+        "employee_social_security": 563.66,
+        "tax": 387.52,
+        "net": 2571.69,
+        "employer_social_security": 915.95,
+        "employer_cost": 4438.82,
+        "name": "Katerina Vlachos"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 2186.58,
+        "employee_social_security": 349.85,
+        "tax": 240.52,
+        "net": 1596.21,
+        "employer_social_security": 568.51,
+        "employer_cost": 2755.09,
+        "name": "Sofia Ioannidis"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 2974.87,
+        "employee_social_security": 475.98,
+        "tax": 327.24,
+        "net": 2171.65,
+        "employer_social_security": 773.47,
+        "employer_cost": 3748.34,
+        "name": "Maria Georgiou"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 1075.61,
+        "employee_social_security": 172.1,
+        "tax": 118.32,
+        "net": 785.19,
+        "employer_social_security": 279.66,
+        "employer_cost": 1355.27,
+        "name": "Giorgos Ioannidis"
+      },
+      {
+        "employee_code": "EMP-005",
+        "gross": 1393.72,
+        "employee_social_security": 223.0,
+        "tax": 153.31,
+        "net": 1017.41,
+        "employer_social_security": 362.37,
+        "employer_cost": 1756.09,
+        "name": "Dimitris Dimou"
+      },
+      {
+        "employee_code": "EMP-006",
+        "gross": 1026.13,
+        "employee_social_security": 164.18,
+        "tax": 112.87,
+        "net": 749.08,
+        "employer_social_security": 266.79,
+        "employer_cost": 1292.92,
+        "name": "Maria Dimou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": false,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 15346.53,
+    "bank_net_total": 9424.7,
+    "employee_count": 6
+  },
+  "naive": {
+    "bank_only_payroll_cost": 9424.7,
+    "true_employer_cost": 15346.53,
+    "understatement_amount": 5921.83,
+    "understatement_pct_of_true": 38.59,
+    "understatement_pct_of_bank": 62.83,
+    "employer_social_security_wedge_pct_of_bank": 33.6
+  }
+}

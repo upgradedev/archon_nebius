@@ -8,7 +8,8 @@ Emits, per case, a `ground_truth.json` carrying:
     the harness feeds to the REAL classifier / event-linker / validator / P&L
     agents.
   * `truth`      — the full payroll truth we know because we synthesised it
-    (gross, employee/employer IKA, tax, per-employee rows). Free ground truth.
+    (gross, employee/employer social-security, tax, per-employee rows). Free
+    ground truth.
   * `expected_validations` — domain truth for R1–R4 (is this payroll actually
     consistent?), kept SEPARATE from the figures so a rule bug cannot hide.
   * `expected_figures`     — the fused numbers the product should report.
@@ -36,9 +37,9 @@ from datetime import date
 from pathlib import Path
 
 # ── payroll arithmetic (single source of truth) ───────────────────────────────
-EMPLOYEE_IKA_RATE = 0.16     # employee social-security withholding
-TAX_RATE = 0.11              # PAYE (ΦΜΥ) withholding
-EMPLOYER_IKA_RATE = 0.26     # employer social-security contribution (the hidden cost)
+EMPLOYEE_SOCIAL_SECURITY_RATE = 0.16   # employee social-security withholding
+TAX_RATE = 0.11                        # PAYE income-tax withholding
+EMPLOYER_SOCIAL_SECURITY_RATE = 0.26   # employer social-security contribution (the hidden cost)
 
 COMPANIES = [
     "Aigaio Foods AE", "Pindos Logistics IKE", "Kyklades Software EPE",
@@ -53,14 +54,15 @@ LAST = ["Antoniou", "Samaras", "Papadopoulos", "Georgiou", "Alexiou",
 
 
 def _employee(emp_id: str, gross: float) -> dict:
-    ika = round(gross * EMPLOYEE_IKA_RATE, 2)
+    employee_ss = round(gross * EMPLOYEE_SOCIAL_SECURITY_RATE, 2)
     tax = round(gross * TAX_RATE, 2)
-    net = round(gross - ika - tax, 2)
-    employer_ika = round(gross * EMPLOYER_IKA_RATE, 2)
-    employer_cost = round(gross + employer_ika, 2)
+    net = round(gross - employee_ss - tax, 2)
+    employer_ss = round(gross * EMPLOYER_SOCIAL_SECURITY_RATE, 2)
+    employer_cost = round(gross + employer_ss, 2)
     return {
-        "employee_code": emp_id, "gross": gross, "employee_ika": ika,
-        "tax": tax, "net": net, "employer_ika": employer_ika,
+        "employee_code": emp_id, "gross": gross,
+        "employee_social_security": employee_ss,
+        "tax": tax, "net": net, "employer_social_security": employer_ss,
         "employer_cost": employer_cost,
     }
 
@@ -87,9 +89,9 @@ def build_case(case_id: str, rng: random.Random, edge_cases: list[str] | None = 
         employees.append(emp)
 
     gross_total = round(sum(e["gross"] for e in employees), 2)
-    employee_ika_total = round(sum(e["employee_ika"] for e in employees), 2)
+    employee_social_security_total = round(sum(e["employee_social_security"] for e in employees), 2)
     tax_total = round(sum(e["tax"] for e in employees), 2)
-    employer_ika_total = round(sum(e["employer_ika"] for e in employees), 2)
+    employer_social_security_total = round(sum(e["employer_social_security"] for e in employees), 2)
     employer_cost_total = round(sum(e["employer_cost"] for e in employees), 2)
     net_total = round(sum(e["net"] for e in employees), 2)
 
@@ -137,12 +139,12 @@ def build_case(case_id: str, rng: random.Random, edge_cases: list[str] | None = 
             "vendor_name": company,
             "currency": "EUR",
             # Best-case perfect read: the register's headline total is the
-            # employer cost (gross + employer IKA). See BASELINE.md §4 for why
-            # this is the *only* economically-correct reading and why the
-            # explicit field (not total_amount) is what the product needs.
+            # employer cost (gross + employer social-security). See BASELINE.md
+            # §4 for why this is the *only* economically-correct reading and why
+            # the explicit field (not total_amount) is what the product needs.
             "total_amount": employer_cost_total,
-            "notes": "Misthodotiki katastasi - IKA ergodoti - synoliko kostos ergodoti",
-            "raw_text_excerpt": "MISTHODOTIKH KATASTASH IKA EFKA EISFORES ERGODOTH",
+            "notes": "Payroll register - employer social-security contributions - total employer cost",
+            "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST",
         })
     for e in employees[:payslips_emitted]:
         documents.append({
@@ -166,7 +168,7 @@ def build_case(case_id: str, rng: random.Random, edge_cases: list[str] | None = 
     r1 = has_bank and payslips_emitted > 0 and abs(bank_net - slips_net) / slips_net <= 0.02
     if not has_bank or payslips_emitted == 0:
         r1 = True   # rule correctly skips -> treated as pass
-    # R2: employer_cost / net ratio is a legitimate Greek payroll ratio (~1.73).
+    # R2: employer_cost / net ratio is a legitimate payroll ratio (~1.73).
     #     Domain truth = consistent (pass). The product's [1.25,1.45] band is a
     #     known mis-calibration, surfaced by the harness (BASELINE §4).
     r2 = True
@@ -188,7 +190,7 @@ def build_case(case_id: str, rng: random.Random, edge_cases: list[str] | None = 
             "understatement_amount": understatement,
             "understatement_pct_of_true": round(understatement / employer_cost_total * 100, 2),
             "understatement_pct_of_bank": round(understatement / bank_net * 100, 2),
-            "employer_ika_wedge_pct_of_bank": round(employer_ika_total / bank_net * 100, 2),
+            "employer_social_security_wedge_pct_of_bank": round(employer_social_security_total / bank_net * 100, 2),
         }
 
     return {
@@ -204,9 +206,9 @@ def build_case(case_id: str, rng: random.Random, edge_cases: list[str] | None = 
         "documents": documents,
         "truth": {
             "gross_total": gross_total,
-            "employee_ika_total": employee_ika_total,
+            "employee_social_security_total": employee_social_security_total,
             "tax_withheld_total": tax_total,
-            "employer_ika_total": employer_ika_total,
+            "employer_social_security_total": employer_social_security_total,
             "employer_cost_total": employer_cost_total,
             "net_total": net_total,
             "bank_net_total": bank_net,
@@ -292,11 +294,11 @@ def _render_pdfs(docs_dir: Path, case: dict) -> None:
             line(4.2, "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS", 12, bold=True)
             line(6, f"TOTAL TRANSFER (net): EUR {d['total_amount']:.2f}", 12, bold=True)
         elif d["doc_type"] == "payroll_register":
-            line(4.2, "MISTHODOTIKH KATASTASH (IKA / EFKA)", 12, bold=True)
-            line(5.4, f"Gross total:        EUR {truth['gross_total']:.2f}")
-            line(6.0, f"Employee IKA:       EUR {truth['employee_ika_total']:.2f}")
-            line(6.6, f"Employer IKA:       EUR {truth['employer_ika_total']:.2f}")
-            line(7.2, f"Net total:          EUR {truth['net_total']:.2f}")
+            line(4.2, "PAYROLL REGISTER (EMPLOYER SOCIAL SECURITY)", 12, bold=True)
+            line(5.4, f"Gross total:              EUR {truth['gross_total']:.2f}")
+            line(6.0, f"Employee social security: EUR {truth['employee_social_security_total']:.2f}")
+            line(6.6, f"Employer social security: EUR {truth['employer_social_security_total']:.2f}")
+            line(7.2, f"Net total:                EUR {truth['net_total']:.2f}")
             line(8.0, f"EMPLOYER COST TOTAL: EUR {truth['employer_cost_total']:.2f}", 11, bold=True)
             line(8.8, f"Employees: {truth['employee_count']}")
         else:  # payslip

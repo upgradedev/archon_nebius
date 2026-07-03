@@ -1,0 +1,214 @@
+{
+  "case_id": "case-0006",
+  "company": "Saronikos Marine IKE",
+  "period": "2026-05",
+  "payment_date": "2026-05-31",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 6,
+    "employees_true": 6
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-05.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-05-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 9324.53,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-05.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-05-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 16094.36,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-05.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-05-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 1563.96,
+      "employee_name": "Ioanna Nikolaou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-05.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-05-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 675.69,
+      "employee_name": "Petros Nikolaou",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2026-05.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-05-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 1031.46,
+      "employee_name": "Sofia Ioannidis",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2026-05.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-05-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 764.68,
+      "employee_name": "Eleni Papadopoulos",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-005_2026-05.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-05-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 2426.17,
+      "employee_name": "Katerina Vlachos",
+      "employee_code": "EMP-005",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-006_2026-05.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-05-31",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 2862.57,
+      "employee_name": "Petros Samaras",
+      "employee_code": "EMP-006",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 12773.3,
+    "employee_social_security_total": 2043.71,
+    "tax_withheld_total": 1405.06,
+    "employer_social_security_total": 3321.06,
+    "employer_cost_total": 16094.36,
+    "net_total": 9324.53,
+    "bank_net_total": 9324.53,
+    "employee_count": 6,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2142.4,
+        "employee_social_security": 342.78,
+        "tax": 235.66,
+        "net": 1563.96,
+        "employer_social_security": 557.02,
+        "employer_cost": 2699.42,
+        "name": "Ioanna Nikolaou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 925.59,
+        "employee_social_security": 148.09,
+        "tax": 101.81,
+        "net": 675.69,
+        "employer_social_security": 240.65,
+        "employer_cost": 1166.24,
+        "name": "Petros Nikolaou"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 1412.96,
+        "employee_social_security": 226.07,
+        "tax": 155.43,
+        "net": 1031.46,
+        "employer_social_security": 367.37,
+        "employer_cost": 1780.33,
+        "name": "Sofia Ioannidis"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 1047.5,
+        "employee_social_security": 167.6,
+        "tax": 115.22,
+        "net": 764.68,
+        "employer_social_security": 272.35,
+        "employer_cost": 1319.85,
+        "name": "Eleni Papadopoulos"
+      },
+      {
+        "employee_code": "EMP-005",
+        "gross": 3323.52,
+        "employee_social_security": 531.76,
+        "tax": 365.59,
+        "net": 2426.17,
+        "employer_social_security": 864.12,
+        "employer_cost": 4187.64,
+        "name": "Katerina Vlachos"
+      },
+      {
+        "employee_code": "EMP-006",
+        "gross": 3921.33,
+        "employee_social_security": 627.41,
+        "tax": 431.35,
+        "net": 2862.57,
+        "employer_social_security": 1019.55,
+        "employer_cost": 4940.88,
+        "name": "Petros Samaras"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 16094.36,
+    "bank_net_total": 9324.53,
+    "employee_count": 6
+  },
+  "naive": {
+    "bank_only_payroll_cost": 9324.53,
+    "true_employer_cost": 16094.36,
+    "understatement_amount": 6769.83,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

@@ -34,8 +34,8 @@
       "vendor_name": "Thraki Agro IKE",
       "currency": "EUR",
       "total_amount": 23905.55,
-      "notes": "Misthodotiki katastasi - IKA ergodoti - synoliko kostos ergodoti",
-      "raw_text_excerpt": "MISTHODOTIKH KATASTASH IKA EFKA EISFORES ERGODOTH"
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },
     {
       "source_file": "payslip_EMP-001_2025-03.pdf",
@@ -110,9 +110,9 @@
   ],
   "truth": {
     "gross_total": 18972.66,
-    "employee_ika_total": 3035.61,
+    "employee_social_security_total": 3035.61,
     "tax_withheld_total": 2086.99,
-    "employer_ika_total": 4932.89,
+    "employer_social_security_total": 4932.89,
     "employer_cost_total": 23905.55,
     "net_total": 13850.06,
     "bank_net_total": 13850.06,
@@ -121,60 +121,60 @@
       {
         "employee_code": "EMP-001",
         "gross": 3462.43,
-        "employee_ika": 553.99,
+        "employee_social_security": 553.99,
         "tax": 380.87,
         "net": 2527.57,
-        "employer_ika": 900.23,
+        "employer_social_security": 900.23,
         "employer_cost": 4362.66,
         "name": "Sofia Dimou"
       },
       {
         "employee_code": "EMP-002",
         "gross": 1855.83,
-        "employee_ika": 296.93,
+        "employee_social_security": 296.93,
         "tax": 204.14,
         "net": 1354.76,
-        "employer_ika": 482.52,
+        "employer_social_security": 482.52,
         "employer_cost": 2338.35,
         "name": "Petros Nikolaou"
       },
       {
         "employee_code": "EMP-003",
         "gross": 3293.64,
-        "employee_ika": 526.98,
+        "employee_social_security": 526.98,
         "tax": 362.3,
         "net": 2404.36,
-        "employer_ika": 856.35,
+        "employer_social_security": 856.35,
         "employer_cost": 4149.99,
         "name": "Eleni Dimou"
       },
       {
         "employee_code": "EMP-004",
         "gross": 4133.59,
-        "employee_ika": 661.37,
+        "employee_social_security": 661.37,
         "tax": 454.69,
         "net": 3017.53,
-        "employer_ika": 1074.73,
+        "employer_social_security": 1074.73,
         "employer_cost": 5208.32,
         "name": "Sofia Makris"
       },
       {
         "employee_code": "EMP-005",
         "gross": 2250.71,
-        "employee_ika": 360.11,
+        "employee_social_security": 360.11,
         "tax": 247.58,
         "net": 1643.02,
-        "employer_ika": 585.18,
+        "employer_social_security": 585.18,
         "employer_cost": 2835.89,
         "name": "Dimitris Papadopoulos"
       },
       {
         "employee_code": "EMP-006",
         "gross": 3976.46,
-        "employee_ika": 636.23,
+        "employee_social_security": 636.23,
         "tax": 437.41,
         "net": 2902.82,
-        "employer_ika": 1033.88,
+        "employer_social_security": 1033.88,
         "employer_cost": 5010.34,
         "name": "Katerina Antoniou"
       }
@@ -197,6 +197,6 @@
     "understatement_amount": 10055.49,
     "understatement_pct_of_true": 42.06,
     "understatement_pct_of_bank": 72.6,
-    "employer_ika_wedge_pct_of_bank": 35.62
+    "employer_social_security_wedge_pct_of_bank": 35.62
   }
 }

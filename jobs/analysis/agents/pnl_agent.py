@@ -6,7 +6,7 @@ No LLM call; deterministic and fast.
 
 Uses employer_cost_total from payroll_register documents (when available)
 as the authoritative payroll expense figure — not the bank net transfer —
-to capture the full employer cost including IKA contributions.
+to capture the full employer cost including employer social-security contributions.
 """
 
 from collections import defaultdict
@@ -104,7 +104,7 @@ def _compute_expenses(docs: list[ExtractedDoc]) -> float:
         if doc.doc_type in REVENUE_DOC_TYPES:
             continue
         if doc.doc_type == "payroll_register":
-            # prefer employer_cost_total (includes IKA); fall back to total_amount
+            # prefer employer_cost_total (includes employer social security); fall back to total_amount
             total += doc.employer_cost_total or doc.total_amount
         elif doc.doc_type in ("bank_confirmation", "payslip") and has_register:
             continue  # already counted via register

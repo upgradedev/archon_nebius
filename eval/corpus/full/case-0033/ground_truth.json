@@ -1,0 +1,197 @@
+{
+  "case_id": "case-0033",
+  "company": "Saronikos Marine IKE",
+  "period": "2026-09",
+  "payment_date": "2026-09-30",
+  "edge_cases": [
+    "missing_bank"
+  ],
+  "document_mix": {
+    "bank": false,
+    "register": true,
+    "payslips_emitted": 6,
+    "employees_true": 6
+  },
+  "documents": [
+    {
+      "source_file": "payroll_register_2026-09.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 19383.06,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 2994.91,
+      "employee_name": "Kostas Georgiou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 2314.47,
+      "employee_name": "Maria Ioannidis",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2026-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 1073.78,
+      "employee_name": "Eleni Ioannidis",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2026-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 629.36,
+      "employee_name": "Dimitris Nikolaou",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-005_2026-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 2999.05,
+      "employee_name": "Anna Nikolaou",
+      "employee_code": "EMP-005",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-006_2026-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-09-30",
+      "recipient_name": "Saronikos Marine IKE",
+      "vendor_name": "Saronikos Marine IKE",
+      "currency": "EUR",
+      "total_amount": 1218.3,
+      "employee_name": "Eleni Georgiou",
+      "employee_code": "EMP-006",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 15383.38,
+    "employee_social_security_total": 2461.34,
+    "tax_withheld_total": 1692.17,
+    "employer_social_security_total": 3999.68,
+    "employer_cost_total": 19383.06,
+    "net_total": 11229.87,
+    "bank_net_total": 11229.87,
+    "employee_count": 6,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 4102.62,
+        "employee_social_security": 656.42,
+        "tax": 451.29,
+        "net": 2994.91,
+        "employer_social_security": 1066.68,
+        "employer_cost": 5169.3,
+        "name": "Kostas Georgiou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 3170.5,
+        "employee_social_security": 507.28,
+        "tax": 348.75,
+        "net": 2314.47,
+        "employer_social_security": 824.33,
+        "employer_cost": 3994.83,
+        "name": "Maria Ioannidis"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 1470.93,
+        "employee_social_security": 235.35,
+        "tax": 161.8,
+        "net": 1073.78,
+        "employer_social_security": 382.44,
+        "employer_cost": 1853.37,
+        "name": "Eleni Ioannidis"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 862.14,
+        "employee_social_security": 137.94,
+        "tax": 94.84,
+        "net": 629.36,
+        "employer_social_security": 224.16,
+        "employer_cost": 1086.3,
+        "name": "Dimitris Nikolaou"
+      },
+      {
+        "employee_code": "EMP-005",
+        "gross": 4108.29,
+        "employee_social_security": 657.33,
+        "tax": 451.91,
+        "net": 2999.05,
+        "employer_social_security": 1068.16,
+        "employer_cost": 5176.45,
+        "name": "Anna Nikolaou"
+      },
+      {
+        "employee_code": "EMP-006",
+        "gross": 1668.9,
+        "employee_social_security": 267.02,
+        "tax": 183.58,
+        "net": 1218.3,
+        "employer_social_security": 433.91,
+        "employer_cost": 2102.81,
+        "name": "Eleni Georgiou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 19383.06,
+    "bank_net_total": 11229.87,
+    "employee_count": 6
+  },
+  "naive": null
+}

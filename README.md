@@ -44,7 +44,7 @@ Archon exercises the Nebius platform end-to-end, not a single service:
 | # | Nebius service | Role in Archon |
 |---|---|---|
 | 1 | **AI Endpoints** (CPU `cpu-d3`) | Always-on FastAPI orchestration backend (`/upload · /jobs · /analyze · /reports`) |
-| 2 | **AI Jobs** (CPU `cpu-d3`) | Two on-demand pipelines — **extraction** (4 agents) and **analysis** (6 agents) — self-terminating |
+| 2 | **AI Jobs** (CPU `cpu-d3`) | Two on-demand pipelines — **extraction** (4 agents) and **analysis** (7 agents) — self-terminating |
 | 3 | **Inference API** (`studio.nebius.ai`) | Qwen2.5-VL-72B (vision extraction) + Llama-3.3-70B (analysis narration), OpenAI-compatible |
 | 4 | **Object Storage** (S3-compatible) | `raw-docs/ · extracted/ · reports/` — documents, events, validation, reports |
 | 5 | **Managed PostgreSQL** | `documents · employees · payroll_events · employee_payroll · validation_results` |
@@ -69,46 +69,43 @@ Security & supply chain: every change passes **gitleaks** (secrets), **CodeQL** 
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                  Firebase Hosting (Google CDN)                  │
-│                     React Frontend                              │
-│            Ant Design  ·  Recharts  ·  TypeScript               │
-│  Upload ──► Job Status ──► P&L Dashboard ──► Executive Report   │
+│                  Firebase Hosting (Google CDN)                   │
+│        React Frontend — Ant Design · Recharts · TypeScript       │
+│   Upload ──► Job Status ──► P&L Dashboard ──► Executive Report    │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ REST / JSON
 ┌───────────────────────────▼─────────────────────────────────────┐
-│         Nebius Serverless AI Endpoint  (CPU · always-on)        │
+│         Nebius Serverless AI Endpoint  (CPU · always-on)         │
 │                 FastAPI Orchestration Backend                    │
-│   /upload  ·  /jobs  ·  /analyze  ·  /reports                   │
-│         JobRunner abstraction (cloud-portable)                  │
-└──────┬──────────────────────────────┬────────────────────────────┘
-       │ submit job                   │ call endpoint
-┌──────▼──────────────────┐  ┌────────▼───────────────────────────┐
-│  Nebius Serverless      │  │  Nebius Serverless                 │
-│  AI Job (CPU)           │  │  AI Job (CPU)                      │
-│  ─────────────────────  │  │  ─────────────────────────────     │
-│  Document Extraction    │  │  Financial Analysis Agent          │
-│                         │  │                                    │
-│  ┌─ Type Detector ─┐    │  │  ┌─ Classifier ──────────────┐    │
-│  │ .jpg .png .tiff │─►  │  │  │ invoice/payroll/expense   │    │
-│  │ scanned PDF     │ Vision  │  └──────────────────────────┘    │
-│  │                 │ LLM  │  │  ┌─ P&L Builder ────────────┐   │
-│  │ digital PDF     │─►  │  │  │ monthly aggregation       │   │
-│  │ .docx .doc      │ Text│  │  │ ratios · trends           │   │
-│  │                 │ LLM  │  │  └──────────────────────────┘   │
-│  └─────────────────┘    │  │  ┌─ Executive Narrator ──────┐   │
-│           │              │  │  │ LLM-written summary       │   │
-│           ▼              │  │  └──────────────────────────┘   │
-│     Structured JSON      │  │           │                       │
-└──────────┬───────────────┘  └───────────┼───────────────────────┘
-           │ write                        │ read / write
-┌──────────▼───────────────────────────────▼───────────────────────┐
-│                 Nebius Object Storage (S3-compatible)            │
-│         raw-docs/  ·  extracted/  ·  reports/                   │
-└──────────────────────────────────────────────────────────────────┘
-                            │ OpenAI-compatible API
-┌───────────────────────────▼──────────────────────────────────────┐
-│              Nebius Inference API (studio.nebius.ai)             │
-│  Qwen2.5-VL-72B (vision)  ·  Llama-3.3-70B-Instruct (analysis)  │
+│       /upload  ·  /jobs  ·  /analyze  ·  /reports                │
+│            JobRunner abstraction (cloud-portable)                │
+└──────┬───────────────────────────────────────┬──────────────────┘
+       │ submit extraction job                  │ call analysis endpoint
+┌──────▼───────────────────────────────────────▼──────────────────┐
+│ Nebius Serverless AI Job (CPU) — Document Extraction (4 agents)   │
+│   1. Extractor      — vision/text LLM per file → ExtractedDoc     │
+│   2. Classifier     — deterministic doc_type refinement          │
+│   3. EventLinker    — group the 3 payroll subtypes per period    │
+│   4. Validator      — cross-document consistency (R1–R4)          │
+├──────────────────────────────────────────────────────────────────┤
+│ Nebius Serverless AI Job (CPU) — Financial Analysis (7 agents)    │
+│   1. Classifier          — re-classify for analysis context      │
+│   2. PnLAgent            — P&L; employer cost, not bank net       │
+│   3. CashFlowAgent       — real cash from bank transfers          │
+│   4. EmployeeAgent       — per-employee salary analytics          │
+│   5. ValidatorAgent      — cross-document re-validation           │
+│   6. ReconciliationAgent — vendor statement vs invoices on file   │
+│   7. NarratorAgent       — Llama-3.3-70B executive summary        │
+└──────────────────────────────┬───────────────────────────────────┘
+                               │ read / write
+┌──────────────────────────────▼───────────────────────────────────┐
+│                 Nebius Object Storage (S3-compatible)             │
+│          raw-docs/  ·  extracted/  ·  reports/                    │
+└──────────────────────────────┬───────────────────────────────────┘
+                               │ OpenAI-compatible API
+┌──────────────────────────────▼───────────────────────────────────┐
+│               Nebius Inference API (studio.nebius.ai)            │
+│  Qwen2.5-VL-72B (vision)  ·  Llama-3.3-70B-Instruct (analysis)    │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -257,7 +254,7 @@ CORS_ORIGINS=https://archon-pnl.web.app
 
 Four GitHub Actions pipelines guard every change:
 
-- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **153 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
+- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **142 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
 - **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), including the **28% payroll-gap invariant** (`employer_cost_total ≥ bank net`). Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
 - **CodeQL** (`codeql.yml`, every PR + weekly) — SAST over both language families (Python: backend + extraction Job + analysis Endpoint; JavaScript/TypeScript: frontend) with the `security-and-quality` query suite.
 - **Dependency Audit** (`security-audit.yml`, every PR + weekly) — `pip-audit` against all three Python requirement sets and `npm audit` for the frontend; high/critical dependency CVEs fail the build.
@@ -341,7 +338,7 @@ real Qwen2.5-VL extractor on Nebius ([`eval/LIVE_EXTRACTION.md`](eval/LIVE_EXTRA
 - **Positive result:** under perfect extraction the `PnLAgent` reports the
   *employer cost* (gross + employer social-security contributions), not the bank
   net, to the cent across 40 diverse cases — the core thesis is verified, and the
-  **naive bank-only floor understates workforce cost by EUR 133,381 (~71% over the
+  **naive bank-only floor understates workforce cost by EUR 133,381 (~72% over the
   bank figure)** on the corpus.
 - **Keystone finding (the harness earns its place):** validation rules **R2 and
   R4 are DORMANT — they fire 0/37 times** because no extractor populates the

@@ -112,9 +112,9 @@
   ],
   "truth": {
     "gross_total": 13719.5,
-    "employee_ika_total": 2195.12,
+    "employee_social_security_total": 2195.12,
     "tax_withheld_total": 1509.14,
-    "employer_ika_total": 3567.06,
+    "employer_social_security_total": 3567.06,
     "employer_cost_total": 17286.56,
     "net_total": 10015.24,
     "bank_net_total": 10015.24,
@@ -123,60 +123,60 @@
       {
         "employee_code": "EMP-001",
         "gross": 1455.43,
-        "employee_ika": 232.87,
+        "employee_social_security": 232.87,
         "tax": 160.1,
         "net": 1062.46,
-        "employer_ika": 378.41,
+        "employer_social_security": 378.41,
         "employer_cost": 1833.84,
         "name": "Kostas Dimou"
       },
       {
         "employee_code": "EMP-002",
         "gross": 2990.36,
-        "employee_ika": 478.46,
+        "employee_social_security": 478.46,
         "tax": 328.94,
         "net": 2182.96,
-        "employer_ika": 777.49,
+        "employer_social_security": 777.49,
         "employer_cost": 3767.85,
         "name": "Dimitris Samaras"
       },
       {
         "employee_code": "EMP-003",
         "gross": 2684.94,
-        "employee_ika": 429.59,
+        "employee_social_security": 429.59,
         "tax": 295.34,
         "net": 1960.01,
-        "employer_ika": 698.08,
+        "employer_social_security": 698.08,
         "employer_cost": 3383.02,
         "name": "Sofia Dimou"
       },
       {
         "employee_code": "EMP-004",
         "gross": 1049.66,
-        "employee_ika": 167.95,
+        "employee_social_security": 167.95,
         "tax": 115.46,
         "net": 766.25,
-        "employer_ika": 272.91,
+        "employer_social_security": 272.91,
         "employer_cost": 1322.57,
         "name": "Giorgos Ioannidis"
       },
       {
         "employee_code": "EMP-005",
         "gross": 3129.34,
-        "employee_ika": 500.69,
+        "employee_social_security": 500.69,
         "tax": 344.23,
         "net": 2284.42,
-        "employer_ika": 813.63,
+        "employer_social_security": 813.63,
         "employer_cost": 3942.97,
         "name": "Katerina Nikolaou"
       },
       {
         "employee_code": "EMP-006",
         "gross": 2409.77,
-        "employee_ika": 385.56,
+        "employee_social_security": 385.56,
         "tax": 265.07,
         "net": 1759.14,
-        "employer_ika": 626.54,
+        "employer_social_security": 626.54,
         "employer_cost": 3036.31,
         "name": "Petros Nikolaou"
       }
@@ -199,6 +199,6 @@
     "understatement_amount": 7271.32,
     "understatement_pct_of_true": 42.06,
     "understatement_pct_of_bank": 72.6,
-    "employer_ika_wedge_pct_of_bank": 35.62
+    "employer_social_security_wedge_pct_of_bank": 35.62
   }
 }

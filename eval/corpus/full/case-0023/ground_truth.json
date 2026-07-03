@@ -1,0 +1,154 @@
+{
+  "case_id": "case-0023",
+  "company": "Olympus Retail AE",
+  "period": "2026-03",
+  "payment_date": "2026-03-31",
+  "edge_cases": [
+    "missing_payslip"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 3,
+    "employees_true": 4
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-03.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-03-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 5052.78,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-03.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-03-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 8721.22,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-03.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-03-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 917.92,
+      "employee_name": "Petros Nikolaou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-03.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-03-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 797.92,
+      "employee_name": "Giorgos Vlachos",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2026-03.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-03-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 799.32,
+      "employee_name": "Ioanna Alexiou",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 6921.6,
+    "employee_social_security_total": 1107.45,
+    "tax_withheld_total": 761.37,
+    "employer_social_security_total": 1799.62,
+    "employer_cost_total": 8721.22,
+    "net_total": 5052.78,
+    "bank_net_total": 5052.78,
+    "employee_count": 4,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 1257.43,
+        "employee_social_security": 201.19,
+        "tax": 138.32,
+        "net": 917.92,
+        "employer_social_security": 326.93,
+        "employer_cost": 1584.36,
+        "name": "Petros Nikolaou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 1093.03,
+        "employee_social_security": 174.88,
+        "tax": 120.23,
+        "net": 797.92,
+        "employer_social_security": 284.19,
+        "employer_cost": 1377.22,
+        "name": "Giorgos Vlachos"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 1094.95,
+        "employee_social_security": 175.19,
+        "tax": 120.44,
+        "net": 799.32,
+        "employer_social_security": 284.69,
+        "employer_cost": 1379.64,
+        "name": "Ioanna Alexiou"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 3476.19,
+        "employee_social_security": 556.19,
+        "tax": 382.38,
+        "net": 2537.62,
+        "employer_social_security": 903.81,
+        "employer_cost": 4380.0,
+        "name": "Nikos Nikolaou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": false,
+    "R2": true,
+    "R3": true,
+    "R4": false
+  },
+  "expected_figures": {
+    "employer_cost_total": 8721.22,
+    "bank_net_total": 5052.78,
+    "employee_count": 4
+  },
+  "naive": {
+    "bank_only_payroll_cost": 5052.78,
+    "true_employer_cost": 8721.22,
+    "understatement_amount": 3668.44,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

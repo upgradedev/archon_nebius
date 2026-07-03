@@ -1,0 +1,190 @@
+{
+  "case_id": "case-0037",
+  "company": "Epirus Dairy EPE",
+  "period": "2025-11",
+  "payment_date": "2025-11-30",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 5,
+    "employees_true": 5
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-11.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-11-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 10399.3,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2025-11.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-11-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 17949.49,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-11.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-11-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 2571.93,
+      "employee_name": "Vasilis Georgiou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2025-11.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-11-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 828.59,
+      "employee_name": "Maria Papadopoulos",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2025-11.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-11-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 2178.57,
+      "employee_name": "Sofia Vlachos",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2025-11.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-11-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 2664.5,
+      "employee_name": "Anna Antoniou",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-005_2025-11.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-11-30",
+      "recipient_name": "Epirus Dairy EPE",
+      "vendor_name": "Epirus Dairy EPE",
+      "currency": "EUR",
+      "total_amount": 2155.71,
+      "employee_name": "Ioanna Makris",
+      "employee_code": "EMP-005",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 14245.62,
+    "employee_social_security_total": 2279.3,
+    "tax_withheld_total": 1567.02,
+    "employer_social_security_total": 3703.87,
+    "employer_cost_total": 17949.49,
+    "net_total": 10399.3,
+    "bank_net_total": 10399.3,
+    "employee_count": 5,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 3523.19,
+        "employee_social_security": 563.71,
+        "tax": 387.55,
+        "net": 2571.93,
+        "employer_social_security": 916.03,
+        "employer_cost": 4439.22,
+        "name": "Vasilis Georgiou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 1135.06,
+        "employee_social_security": 181.61,
+        "tax": 124.86,
+        "net": 828.59,
+        "employer_social_security": 295.12,
+        "employer_cost": 1430.18,
+        "name": "Maria Papadopoulos"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 2984.35,
+        "employee_social_security": 477.5,
+        "tax": 328.28,
+        "net": 2178.57,
+        "employer_social_security": 775.93,
+        "employer_cost": 3760.28,
+        "name": "Sofia Vlachos"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 3650.0,
+        "employee_social_security": 584.0,
+        "tax": 401.5,
+        "net": 2664.5,
+        "employer_social_security": 949.0,
+        "employer_cost": 4599.0,
+        "name": "Anna Antoniou"
+      },
+      {
+        "employee_code": "EMP-005",
+        "gross": 2953.02,
+        "employee_social_security": 472.48,
+        "tax": 324.83,
+        "net": 2155.71,
+        "employer_social_security": 767.79,
+        "employer_cost": 3720.81,
+        "name": "Ioanna Makris"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 17949.49,
+    "bank_net_total": 10399.3,
+    "employee_count": 5
+  },
+  "naive": {
+    "bank_only_payroll_cost": 10399.3,
+    "true_employer_cost": 17949.49,
+    "understatement_amount": 7550.19,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

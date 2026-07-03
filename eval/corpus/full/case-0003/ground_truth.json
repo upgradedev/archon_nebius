@@ -1,0 +1,202 @@
+{
+  "case_id": "case-0003",
+  "company": "Aigaio Foods AE",
+  "period": "2025-08",
+  "payment_date": "2025-08-31",
+  "edge_cases": [
+    "missing_payslip"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 5,
+    "employees_true": 6
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-08.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 9303.54,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2025-08.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Aigaio Foods AE",
+      "currency": "EUR",
+      "total_amount": 16058.13,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Aigaio Foods AE",
+      "currency": "EUR",
+      "total_amount": 1920.82,
+      "employee_name": "Dimitris Ioannidis",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Aigaio Foods AE",
+      "currency": "EUR",
+      "total_amount": 2052.49,
+      "employee_name": "Petros Nikolaou",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Aigaio Foods AE",
+      "currency": "EUR",
+      "total_amount": 1353.58,
+      "employee_name": "Nikos Georgiou",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Aigaio Foods AE",
+      "currency": "EUR",
+      "total_amount": 820.68,
+      "employee_name": "Eleni Makris",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-005_2025-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-08-31",
+      "recipient_name": "Aigaio Foods AE",
+      "vendor_name": "Aigaio Foods AE",
+      "currency": "EUR",
+      "total_amount": 1831.31,
+      "employee_name": "Dimitris Ioannidis",
+      "employee_code": "EMP-005",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 12744.55,
+    "employee_social_security_total": 2039.12,
+    "tax_withheld_total": 1401.89,
+    "employer_social_security_total": 3313.58,
+    "employer_cost_total": 16058.13,
+    "net_total": 9303.54,
+    "bank_net_total": 9303.54,
+    "employee_count": 6,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2631.26,
+        "employee_social_security": 421.0,
+        "tax": 289.44,
+        "net": 1920.82,
+        "employer_social_security": 684.13,
+        "employer_cost": 3315.39,
+        "name": "Dimitris Ioannidis"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 2811.63,
+        "employee_social_security": 449.86,
+        "tax": 309.28,
+        "net": 2052.49,
+        "employer_social_security": 731.02,
+        "employer_cost": 3542.65,
+        "name": "Petros Nikolaou"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 1854.22,
+        "employee_social_security": 296.68,
+        "tax": 203.96,
+        "net": 1353.58,
+        "employer_social_security": 482.1,
+        "employer_cost": 2336.32,
+        "name": "Nikos Georgiou"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 1124.21,
+        "employee_social_security": 179.87,
+        "tax": 123.66,
+        "net": 820.68,
+        "employer_social_security": 292.29,
+        "employer_cost": 1416.5,
+        "name": "Eleni Makris"
+      },
+      {
+        "employee_code": "EMP-005",
+        "gross": 2508.64,
+        "employee_social_security": 401.38,
+        "tax": 275.95,
+        "net": 1831.31,
+        "employer_social_security": 652.25,
+        "employer_cost": 3160.89,
+        "name": "Dimitris Ioannidis"
+      },
+      {
+        "employee_code": "EMP-006",
+        "gross": 1814.59,
+        "employee_social_security": 290.33,
+        "tax": 199.6,
+        "net": 1324.66,
+        "employer_social_security": 471.79,
+        "employer_cost": 2286.38,
+        "name": "Sofia Samaras"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": false,
+    "R2": true,
+    "R3": true,
+    "R4": false
+  },
+  "expected_figures": {
+    "employer_cost_total": 16058.13,
+    "bank_net_total": 9303.54,
+    "employee_count": 6
+  },
+  "naive": {
+    "bank_only_payroll_cost": 9303.54,
+    "true_employer_cost": 16058.13,
+    "understatement_amount": 6754.59,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

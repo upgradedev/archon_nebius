@@ -1,0 +1,142 @@
+{
+  "case_id": "case-0019",
+  "company": "Olympus Retail AE",
+  "period": "2025-01",
+  "payment_date": "2025-01-31",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 3,
+    "employees_true": 3
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-01.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-01-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 5580.65,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2025-01.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-01-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 9632.35,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-01.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-01-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 1140.85,
+      "employee_name": "Anna Georgiou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2025-01.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-01-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 2488.08,
+      "employee_name": "Dimitris Alexiou",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2025-01.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-01-31",
+      "recipient_name": "Olympus Retail AE",
+      "vendor_name": "Olympus Retail AE",
+      "currency": "EUR",
+      "total_amount": 1951.72,
+      "employee_name": "Nikos Antoniou",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 7644.72,
+    "employee_social_security_total": 1223.15,
+    "tax_withheld_total": 840.92,
+    "employer_social_security_total": 1987.63,
+    "employer_cost_total": 9632.35,
+    "net_total": 5580.65,
+    "bank_net_total": 5580.65,
+    "employee_count": 3,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 1562.81,
+        "employee_social_security": 250.05,
+        "tax": 171.91,
+        "net": 1140.85,
+        "employer_social_security": 406.33,
+        "employer_cost": 1969.14,
+        "name": "Anna Georgiou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 3408.33,
+        "employee_social_security": 545.33,
+        "tax": 374.92,
+        "net": 2488.08,
+        "employer_social_security": 886.17,
+        "employer_cost": 4294.5,
+        "name": "Dimitris Alexiou"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 2673.58,
+        "employee_social_security": 427.77,
+        "tax": 294.09,
+        "net": 1951.72,
+        "employer_social_security": 695.13,
+        "employer_cost": 3368.71,
+        "name": "Nikos Antoniou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 9632.35,
+    "bank_net_total": 5580.65,
+    "employee_count": 3
+  },
+  "naive": {
+    "bank_only_payroll_cost": 5580.65,
+    "true_employer_cost": 9632.35,
+    "understatement_amount": 4051.7,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

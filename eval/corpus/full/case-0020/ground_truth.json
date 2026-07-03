@@ -1,0 +1,214 @@
+{
+  "case_id": "case-0020",
+  "company": "Dodekanisa Trade AE",
+  "period": "2026-08",
+  "payment_date": "2026-08-31",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 6,
+    "employees_true": 6
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-08.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-08-31",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 10353.06,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-08.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-08-31",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Dodekanisa Trade AE",
+      "currency": "EUR",
+      "total_amount": 17869.69,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-08-31",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Dodekanisa Trade AE",
+      "currency": "EUR",
+      "total_amount": 2047.08,
+      "employee_name": "Anna Vlachos",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-08-31",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Dodekanisa Trade AE",
+      "currency": "EUR",
+      "total_amount": 2643.27,
+      "employee_name": "Anna Papadopoulos",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2026-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-08-31",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Dodekanisa Trade AE",
+      "currency": "EUR",
+      "total_amount": 1921.07,
+      "employee_name": "Anna Makris",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2026-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-08-31",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Dodekanisa Trade AE",
+      "currency": "EUR",
+      "total_amount": 666.24,
+      "employee_name": "Petros Papadopoulos",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-005_2026-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-08-31",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Dodekanisa Trade AE",
+      "currency": "EUR",
+      "total_amount": 2108.72,
+      "employee_name": "Nikos Papadopoulos",
+      "employee_code": "EMP-005",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-006_2026-08.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-08-31",
+      "recipient_name": "Dodekanisa Trade AE",
+      "vendor_name": "Dodekanisa Trade AE",
+      "currency": "EUR",
+      "total_amount": 966.68,
+      "employee_name": "Kostas Samaras",
+      "employee_code": "EMP-006",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 14182.29,
+    "employee_social_security_total": 2269.19,
+    "tax_withheld_total": 1560.04,
+    "employer_social_security_total": 3687.4,
+    "employer_cost_total": 17869.69,
+    "net_total": 10353.06,
+    "bank_net_total": 10353.06,
+    "employee_count": 6,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2804.22,
+        "employee_social_security": 448.68,
+        "tax": 308.46,
+        "net": 2047.08,
+        "employer_social_security": 729.1,
+        "employer_cost": 3533.32,
+        "name": "Anna Vlachos"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 3620.92,
+        "employee_social_security": 579.35,
+        "tax": 398.3,
+        "net": 2643.27,
+        "employer_social_security": 941.44,
+        "employer_cost": 4562.36,
+        "name": "Anna Papadopoulos"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 2631.61,
+        "employee_social_security": 421.06,
+        "tax": 289.48,
+        "net": 1921.07,
+        "employer_social_security": 684.22,
+        "employer_cost": 3315.83,
+        "name": "Anna Makris"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 912.66,
+        "employee_social_security": 146.03,
+        "tax": 100.39,
+        "net": 666.24,
+        "employer_social_security": 237.29,
+        "employer_cost": 1149.95,
+        "name": "Petros Papadopoulos"
+      },
+      {
+        "employee_code": "EMP-005",
+        "gross": 2888.66,
+        "employee_social_security": 462.19,
+        "tax": 317.75,
+        "net": 2108.72,
+        "employer_social_security": 751.05,
+        "employer_cost": 3639.71,
+        "name": "Nikos Papadopoulos"
+      },
+      {
+        "employee_code": "EMP-006",
+        "gross": 1324.22,
+        "employee_social_security": 211.88,
+        "tax": 145.66,
+        "net": 966.68,
+        "employer_social_security": 344.3,
+        "employer_cost": 1668.52,
+        "name": "Kostas Samaras"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 17869.69,
+    "bank_net_total": 10353.06,
+    "employee_count": 6
+  },
+  "naive": {
+    "bank_only_payroll_cost": 10353.06,
+    "true_employer_cost": 17869.69,
+    "understatement_amount": 7516.63,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

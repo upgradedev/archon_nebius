@@ -1,0 +1,101 @@
+{
+  "case_id": "case-0039",
+  "company": "Thraki Agro IKE",
+  "period": "2025-05",
+  "payment_date": "2025-05-31",
+  "edge_cases": [
+    "missing_bank"
+  ],
+  "document_mix": {
+    "bank": false,
+    "register": true,
+    "payslips_emitted": 2,
+    "employees_true": 2
+  },
+  "documents": [
+    {
+      "source_file": "payroll_register_2025-05.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-05-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 8343.34,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-05.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-05-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 2404.09,
+      "employee_name": "Giorgos Georgiou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2025-05.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-05-31",
+      "recipient_name": "Thraki Agro IKE",
+      "vendor_name": "Thraki Agro IKE",
+      "currency": "EUR",
+      "total_amount": 2429.75,
+      "employee_name": "Petros Ioannidis",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 6621.7,
+    "employee_social_security_total": 1059.47,
+    "tax_withheld_total": 728.39,
+    "employer_social_security_total": 1721.64,
+    "employer_cost_total": 8343.34,
+    "net_total": 4833.84,
+    "bank_net_total": 4833.84,
+    "employee_count": 2,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 3293.27,
+        "employee_social_security": 526.92,
+        "tax": 362.26,
+        "net": 2404.09,
+        "employer_social_security": 856.25,
+        "employer_cost": 4149.52,
+        "name": "Giorgos Georgiou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 3328.43,
+        "employee_social_security": 532.55,
+        "tax": 366.13,
+        "net": 2429.75,
+        "employer_social_security": 865.39,
+        "employer_cost": 4193.82,
+        "name": "Petros Ioannidis"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 8343.34,
+    "bank_net_total": 4833.84,
+    "employee_count": 2
+  },
+  "naive": null
+}

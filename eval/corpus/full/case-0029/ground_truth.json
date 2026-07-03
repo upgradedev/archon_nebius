@@ -1,0 +1,108 @@
+{
+  "case_id": "case-0029",
+  "company": "Attiki Build AE",
+  "period": "2026-10",
+  "payment_date": "2026-10-31",
+  "edge_cases": [
+    "missing_register"
+  ],
+  "document_mix": {
+    "bank": true,
+    "register": false,
+    "payslips_emitted": 2,
+    "employees_true": 2
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-10.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-10-31",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 3640.84,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-10.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-10-31",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 726.16,
+      "employee_name": "Vasilis Georgiou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-10.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-10-31",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 2914.68,
+      "employee_name": "Nikos Alexiou",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 4987.46,
+    "employee_social_security_total": 798.0,
+    "tax_withheld_total": 548.62,
+    "employer_social_security_total": 1296.74,
+    "employer_cost_total": 6284.2,
+    "net_total": 3640.84,
+    "bank_net_total": 3640.84,
+    "employee_count": 2,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 994.74,
+        "employee_social_security": 159.16,
+        "tax": 109.42,
+        "net": 726.16,
+        "employer_social_security": 258.63,
+        "employer_cost": 1253.37,
+        "name": "Vasilis Georgiou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 3992.72,
+        "employee_social_security": 638.84,
+        "tax": 439.2,
+        "net": 2914.68,
+        "employer_social_security": 1038.11,
+        "employer_cost": 5030.83,
+        "name": "Nikos Alexiou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 6284.2,
+    "bank_net_total": 3640.84,
+    "employee_count": 2
+  },
+  "naive": {
+    "bank_only_payroll_cost": 3640.84,
+    "true_employer_cost": 6284.2,
+    "understatement_amount": 2643.36,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

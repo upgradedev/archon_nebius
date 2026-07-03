@@ -1,0 +1,94 @@
+{
+  "case_id": "case-0002",
+  "company": "Pindos Logistics IKE",
+  "period": "2025-06",
+  "payment_date": "2025-06-30",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 1,
+    "employees_true": 1
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-06.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-06-30",
+      "recipient_name": "Pindos Logistics IKE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 1960.01,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2025-06.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-06-30",
+      "recipient_name": "Pindos Logistics IKE",
+      "vendor_name": "Pindos Logistics IKE",
+      "currency": "EUR",
+      "total_amount": 3383.02,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-06.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-06-30",
+      "recipient_name": "Pindos Logistics IKE",
+      "vendor_name": "Pindos Logistics IKE",
+      "currency": "EUR",
+      "total_amount": 1960.01,
+      "employee_name": "Sofia Dimou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 2684.94,
+    "employee_social_security_total": 429.59,
+    "tax_withheld_total": 295.34,
+    "employer_social_security_total": 698.08,
+    "employer_cost_total": 3383.02,
+    "net_total": 1960.01,
+    "bank_net_total": 1960.01,
+    "employee_count": 1,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2684.94,
+        "employee_social_security": 429.59,
+        "tax": 295.34,
+        "net": 1960.01,
+        "employer_social_security": 698.08,
+        "employer_cost": 3383.02,
+        "name": "Sofia Dimou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 3383.02,
+    "bank_net_total": 1960.01,
+    "employee_count": 1
+  },
+  "naive": {
+    "bank_only_payroll_cost": 1960.01,
+    "true_employer_cost": 3383.02,
+    "understatement_amount": 1423.01,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

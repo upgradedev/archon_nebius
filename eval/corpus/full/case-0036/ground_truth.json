@@ -1,0 +1,166 @@
+{
+  "case_id": "case-0036",
+  "company": "Attiki Build AE",
+  "period": "2026-12",
+  "payment_date": "2026-12-31",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 4,
+    "employees_true": 4
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2026-12.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2026-12-31",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 6295.32,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2026-12.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2026-12-31",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 10865.91,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2026-12.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-12-31",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 986.01,
+      "employee_name": "Vasilis Dimou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2026-12.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-12-31",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 2193.49,
+      "employee_name": "Maria Makris",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2026-12.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-12-31",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 2154.64,
+      "employee_name": "Vasilis Makris",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2026-12.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2026-12-31",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 961.18,
+      "employee_name": "Anna Makris",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 8623.73,
+    "employee_social_security_total": 1379.8,
+    "tax_withheld_total": 948.61,
+    "employer_social_security_total": 2242.18,
+    "employer_cost_total": 10865.91,
+    "net_total": 6295.32,
+    "bank_net_total": 6295.32,
+    "employee_count": 4,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 1350.7,
+        "employee_social_security": 216.11,
+        "tax": 148.58,
+        "net": 986.01,
+        "employer_social_security": 351.18,
+        "employer_cost": 1701.88,
+        "name": "Vasilis Dimou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 3004.79,
+        "employee_social_security": 480.77,
+        "tax": 330.53,
+        "net": 2193.49,
+        "employer_social_security": 781.25,
+        "employer_cost": 3786.04,
+        "name": "Maria Makris"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 2951.56,
+        "employee_social_security": 472.25,
+        "tax": 324.67,
+        "net": 2154.64,
+        "employer_social_security": 767.41,
+        "employer_cost": 3718.97,
+        "name": "Vasilis Makris"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 1316.68,
+        "employee_social_security": 210.67,
+        "tax": 144.83,
+        "net": 961.18,
+        "employer_social_security": 342.34,
+        "employer_cost": 1659.02,
+        "name": "Anna Makris"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 10865.91,
+    "bank_net_total": 6295.32,
+    "employee_count": 4
+  },
+  "naive": {
+    "bank_only_payroll_cost": 6295.32,
+    "true_employer_cost": 10865.91,
+    "understatement_amount": 4570.59,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}

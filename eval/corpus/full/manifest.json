@@ -1,0 +1,209 @@
+{
+  "seed": 7,
+  "cases": [
+    {
+      "case_id": "case-0001",
+      "edge_cases": [
+        "bank_mismatch"
+      ]
+    },
+    {
+      "case_id": "case-0002",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0003",
+      "edge_cases": [
+        "missing_payslip"
+      ]
+    },
+    {
+      "case_id": "case-0004",
+      "edge_cases": [
+        "missing_register"
+      ]
+    },
+    {
+      "case_id": "case-0005",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0006",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0007",
+      "edge_cases": [
+        "single_employee"
+      ]
+    },
+    {
+      "case_id": "case-0008",
+      "edge_cases": [
+        "missing_bank"
+      ]
+    },
+    {
+      "case_id": "case-0009",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0010",
+      "edge_cases": [
+        "bank_mismatch"
+      ]
+    },
+    {
+      "case_id": "case-0011",
+      "edge_cases": [
+        "missing_bank"
+      ]
+    },
+    {
+      "case_id": "case-0012",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0013",
+      "edge_cases": [
+        "missing_bank"
+      ]
+    },
+    {
+      "case_id": "case-0014",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0015",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0016",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0017",
+      "edge_cases": [
+        "missing_payslip"
+      ]
+    },
+    {
+      "case_id": "case-0018",
+      "edge_cases": [
+        "missing_payslip"
+      ]
+    },
+    {
+      "case_id": "case-0019",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0020",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0021",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0022",
+      "edge_cases": [
+        "missing_bank"
+      ]
+    },
+    {
+      "case_id": "case-0023",
+      "edge_cases": [
+        "missing_payslip"
+      ]
+    },
+    {
+      "case_id": "case-0024",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0025",
+      "edge_cases": [
+        "single_employee"
+      ]
+    },
+    {
+      "case_id": "case-0026",
+      "edge_cases": [
+        "missing_bank"
+      ]
+    },
+    {
+      "case_id": "case-0027",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0028",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0029",
+      "edge_cases": [
+        "missing_register"
+      ]
+    },
+    {
+      "case_id": "case-0030",
+      "edge_cases": [
+        "missing_register"
+      ]
+    },
+    {
+      "case_id": "case-0031",
+      "edge_cases": [
+        "missing_bank"
+      ]
+    },
+    {
+      "case_id": "case-0032",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0033",
+      "edge_cases": [
+        "missing_bank"
+      ]
+    },
+    {
+      "case_id": "case-0034",
+      "edge_cases": [
+        "missing_bank"
+      ]
+    },
+    {
+      "case_id": "case-0035",
+      "edge_cases": [
+        "missing_payslip"
+      ]
+    },
+    {
+      "case_id": "case-0036",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0037",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0038",
+      "edge_cases": []
+    },
+    {
+      "case_id": "case-0039",
+      "edge_cases": [
+        "missing_bank"
+      ]
+    },
+    {
+      "case_id": "case-0040",
+      "edge_cases": [
+        "single_employee"
+      ]
+    }
+  ]
+}

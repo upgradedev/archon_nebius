@@ -34,8 +34,8 @@
       "vendor_name": "Aigaio Foods AE",
       "currency": "EUR",
       "total_amount": 4107.81,
-      "notes": "Misthodotiki katastasi - IKA ergodoti - synoliko kostos ergodoti",
-      "raw_text_excerpt": "MISTHODOTIKH KATASTASH IKA EFKA EISFORES ERGODOTH"
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },
     {
       "source_file": "payslip_EMP-001_2026-01.pdf",
@@ -68,9 +68,9 @@
   ],
   "truth": {
     "gross_total": 3260.17,
-    "employee_ika_total": 521.63,
+    "employee_social_security_total": 521.63,
     "tax_withheld_total": 358.62,
-    "employer_ika_total": 847.64,
+    "employer_social_security_total": 847.64,
     "employer_cost_total": 4107.81,
     "net_total": 2379.92,
     "bank_net_total": 2522.72,
@@ -79,20 +79,20 @@
       {
         "employee_code": "EMP-001",
         "gross": 1006.05,
-        "employee_ika": 160.97,
+        "employee_social_security": 160.97,
         "tax": 110.67,
         "net": 734.41,
-        "employer_ika": 261.57,
+        "employer_social_security": 261.57,
         "employer_cost": 1267.62,
         "name": "Nikos Alexiou"
       },
       {
         "employee_code": "EMP-002",
         "gross": 2254.12,
-        "employee_ika": 360.66,
+        "employee_social_security": 360.66,
         "tax": 247.95,
         "net": 1645.51,
-        "employer_ika": 586.07,
+        "employer_social_security": 586.07,
         "employer_cost": 2840.19,
         "name": "Anna Samaras"
       }
@@ -115,6 +115,6 @@
     "understatement_amount": 1585.09,
     "understatement_pct_of_true": 38.59,
     "understatement_pct_of_bank": 62.83,
-    "employer_ika_wedge_pct_of_bank": 33.6
+    "employer_social_security_wedge_pct_of_bank": 33.6
   }
 }

@@ -1,0 +1,190 @@
+{
+  "case_id": "case-0027",
+  "company": "Attiki Build AE",
+  "period": "2025-09",
+  "payment_date": "2025-09-30",
+  "edge_cases": [],
+  "document_mix": {
+    "bank": true,
+    "register": true,
+    "payslips_emitted": 5,
+    "employees_true": 5
+  },
+  "documents": [
+    {
+      "source_file": "bank_confirmation_2025-09.pdf",
+      "doc_type": "bank_confirmation",
+      "detected_language": "el",
+      "issue_date": "2025-09-30",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Trapeza Peiraios AE",
+      "currency": "EUR",
+      "total_amount": 10011.9,
+      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
+      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+    },
+    {
+      "source_file": "payroll_register_2025-09.pdf",
+      "doc_type": "payroll_register",
+      "detected_language": "el",
+      "issue_date": "2025-09-30",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 17280.81,
+      "notes": "Payroll register - employer social-security contributions - total employer cost",
+      "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
+    },
+    {
+      "source_file": "payslip_EMP-001_2025-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-09-30",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 2015.89,
+      "employee_name": "Vasilis Nikolaou",
+      "employee_code": "EMP-001",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-002_2025-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-09-30",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 839.28,
+      "employee_name": "Maria Papadopoulos",
+      "employee_code": "EMP-002",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-003_2025-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-09-30",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 1660.61,
+      "employee_name": "Sofia Alexiou",
+      "employee_code": "EMP-003",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-004_2025-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-09-30",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 2915.23,
+      "employee_name": "Ioanna Samaras",
+      "employee_code": "EMP-004",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    },
+    {
+      "source_file": "payslip_EMP-005_2025-09.pdf",
+      "doc_type": "payslip",
+      "detected_language": "el",
+      "issue_date": "2025-09-30",
+      "recipient_name": "Attiki Build AE",
+      "vendor_name": "Attiki Build AE",
+      "currency": "EUR",
+      "total_amount": 2580.89,
+      "employee_name": "Sofia Dimou",
+      "employee_code": "EMP-005",
+      "notes": "Ekkatharistiko misthodosias (payslip)",
+      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+    }
+  ],
+  "truth": {
+    "gross_total": 13714.93,
+    "employee_social_security_total": 2194.39,
+    "tax_withheld_total": 1508.64,
+    "employer_social_security_total": 3565.88,
+    "employer_cost_total": 17280.81,
+    "net_total": 10011.9,
+    "bank_net_total": 10011.9,
+    "employee_count": 5,
+    "per_employee": [
+      {
+        "employee_code": "EMP-001",
+        "gross": 2761.49,
+        "employee_social_security": 441.84,
+        "tax": 303.76,
+        "net": 2015.89,
+        "employer_social_security": 717.99,
+        "employer_cost": 3479.48,
+        "name": "Vasilis Nikolaou"
+      },
+      {
+        "employee_code": "EMP-002",
+        "gross": 1149.7,
+        "employee_social_security": 183.95,
+        "tax": 126.47,
+        "net": 839.28,
+        "employer_social_security": 298.92,
+        "employer_cost": 1448.62,
+        "name": "Maria Papadopoulos"
+      },
+      {
+        "employee_code": "EMP-003",
+        "gross": 2274.81,
+        "employee_social_security": 363.97,
+        "tax": 250.23,
+        "net": 1660.61,
+        "employer_social_security": 591.45,
+        "employer_cost": 2866.26,
+        "name": "Sofia Alexiou"
+      },
+      {
+        "employee_code": "EMP-004",
+        "gross": 3993.47,
+        "employee_social_security": 638.96,
+        "tax": 439.28,
+        "net": 2915.23,
+        "employer_social_security": 1038.3,
+        "employer_cost": 5031.77,
+        "name": "Ioanna Samaras"
+      },
+      {
+        "employee_code": "EMP-005",
+        "gross": 3535.46,
+        "employee_social_security": 565.67,
+        "tax": 388.9,
+        "net": 2580.89,
+        "employer_social_security": 919.22,
+        "employer_cost": 4454.68,
+        "name": "Sofia Dimou"
+      }
+    ]
+  },
+  "expected_validations": {
+    "R1": true,
+    "R2": true,
+    "R3": true,
+    "R4": true
+  },
+  "expected_figures": {
+    "employer_cost_total": 17280.81,
+    "bank_net_total": 10011.9,
+    "employee_count": 5
+  },
+  "naive": {
+    "bank_only_payroll_cost": 10011.9,
+    "true_employer_cost": 17280.81,
+    "understatement_amount": 7268.91,
+    "understatement_pct_of_true": 42.06,
+    "understatement_pct_of_bank": 72.6,
+    "employer_social_security_wedge_pct_of_bank": 35.62
+  }
+}
