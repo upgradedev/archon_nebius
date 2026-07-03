@@ -306,7 +306,7 @@ jobs:
             --env "ANALYSIS_JOB_IMAGE=$REGISTRY/$REGISTRY_PROJECT/archon-analysis:latest" \
             --env "ANALYSIS_JOB_PLATFORM=cpu-d3" \
             --env "ANALYSIS_JOB_PRESET=8vcpu-32gb" \
-            --env "JOB_PRESET_LADDER=cpu-d3:8vcpu-32gb,cpu-d3:16vcpu-64gb,gpu-h200-sxm:1gpu-16vcpu-200gb" \
+            --env "JOB_PRESET_LADDER=gpu-h200-sxm:1gpu-16vcpu-200gb,cpu-d3:8vcpu-32gb,cpu-d3:16vcpu-64gb" \
             --env "JOB_PROVISION_PROBE_SECS=45" \
             --env "CORS_ORIGINS=https://archon-pnl.web.app,http://localhost:3000" \
             --env "JOB_RUNNER_BACKEND=nebius" \
