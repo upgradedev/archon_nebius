@@ -113,6 +113,61 @@ def test_get_documents_not_found(client):
     assert resp.status_code == 404
 
 
+# ── PUT /api/documents/{period} ──────────────────────────────────────────────
+
+def test_update_documents_writes_reviewed_and_deletes_originals(client):
+    """Reviewed set is written dict-shaped at the reviewed key; the prior
+    per-upload documents.json blobs are removed so analysis does not double-count."""
+    docs = [
+        {"source_file": "invoice.pdf", "doc_type": "invoice", "total_amount": 1200.0},
+        {"source_file": "payslip.pdf", "doc_type": "payslip", "total_amount": 900.0},
+    ]
+    with patch("services.storage.list_keys", return_value=[
+                "extracted/2025-01/up1/documents.json",
+                "extracted/2025-01/up2/documents.json"]), \
+         patch("services.storage.put_json", return_value="ok") as mock_put, \
+         patch("services.storage.delete_key") as mock_del:
+        resp = client.put("/api/documents/2025-01", json={"documents": docs})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body == {"period": "2025-01", "documents": 2, "deleted": 2}
+
+    # reviewed set written dict-shaped at the reviewed key
+    key, payload = mock_put.call_args.args
+    assert key == "extracted/2025-01/reviewed/documents.json"
+    assert payload["period"] == "2025-01"
+    assert payload["upload_id"] == "reviewed"
+    assert payload["documents"] == docs
+
+    # both prior per-upload blobs removed
+    deleted_keys = {c.args[0] for c in mock_del.call_args_list}
+    assert deleted_keys == {
+        "extracted/2025-01/up1/documents.json",
+        "extracted/2025-01/up2/documents.json",
+    }
+
+
+def test_update_documents_idempotent_excludes_reviewed_key(client):
+    """A repeated review must not delete the reviewed blob it just wrote."""
+    docs = [{"source_file": "a.pdf", "doc_type": "invoice"}]
+    with patch("services.storage.list_keys", return_value=[
+                "extracted/2025-01/reviewed/documents.json"]), \
+         patch("services.storage.put_json", return_value="ok") as mock_put, \
+         patch("services.storage.delete_key") as mock_del:
+        resp = client.put("/api/documents/2025-01", json={"documents": docs})
+
+    assert resp.status_code == 200
+    assert resp.json()["deleted"] == 0
+    mock_put.assert_called_once()
+    mock_del.assert_not_called()
+
+
+def test_update_documents_rejects_bad_period(client):
+    resp = client.put("/api/documents/not-a-period", json={"documents": []})
+    assert resp.status_code == 422
+
+
 # ── GET /api/company-profile ──────────────────────────────────────────────────
 
 def test_get_company_profile_exists(client):
