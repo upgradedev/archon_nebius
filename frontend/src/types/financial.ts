@@ -125,4 +125,16 @@ export interface ExtractedDoc {
   employer_cost_total?: number
   bank_transfer_amount?: number
   employee_count?: number
+  // ── Drill-down columns (appended, all optional) ──────────────────────────────
+  // The analysis endpoint serialises the file name as `source_file`; the drill-down
+  // reads either it or `filename`. The remaining fields back the KPI drill-down
+  // document table (see MetricsCards). Kept additive/optional so extractor payloads
+  // that omit them still type-check.
+  source_file?: string
+  recipient_name?: string
+  invoice_number?: string
+  issue_date?: string
+  subtotal?: number
+  vat_amount?: number
+  confidence?: number
 }
