@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-# Deploy the Archon analysis container as a Nebius Serverless AI Endpoint.
-# Run this once after pushing the analysis image.
+# ⚠  LEGACY / NOT THE LIVE PATH.
+# This script deploys the analysis container as an always-on GPU AI *Endpoint*.
+# The live architecture runs analysis as an on-demand CPU AI *Job* (cpu-d3),
+# submitted by the backend via the Nebius Python SDK — see `nebius/redeploy.sh`,
+# which is the canonical deploy for backend + extraction + analysis. This file is
+# kept only as a reference for the standalone GPU-endpoint deployment pattern; it
+# is NOT invoked by redeploy.sh or CI. Prefer `bash nebius/redeploy.sh --build`.
+#
+# Deploy the Archon analysis container as a Nebius Serverless AI Endpoint (legacy).
 # Docs: https://docs.nebius.com/serverless/endpoints/manage
 #
 # Backward-compatible cookbook-aligned options (all optional, default = current behaviour):
@@ -14,6 +21,11 @@
 set -euo pipefail
 
 source "$(dirname "$0")/../.env"
+
+echo "⚠  LEGACY SCRIPT: this deploys analysis as an always-on GPU Endpoint."
+echo "   The LIVE path runs analysis as an on-demand CPU Job — use 'bash nebius/redeploy.sh'."
+echo "   Continue only if you specifically want the standalone GPU-endpoint pattern."
+echo ""
 
 ENDPOINT_NAME="archon-analysis"
 
