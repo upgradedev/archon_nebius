@@ -47,7 +47,7 @@ Archon exercises the Nebius platform end-to-end, not a single service:
 | 2 | **AI Jobs** (CPU `cpu-d3`) | Two on-demand pipelines — **extraction** (4 agents) and **analysis** (7 agents) — self-terminating |
 | 3 | **Inference API** (`studio.nebius.ai`) | Qwen2.5-VL-72B (vision extraction) + Llama-3.3-70B (analysis narration), OpenAI-compatible |
 | 4 | **Object Storage** (S3-compatible) | `raw-docs/ · extracted/ · reports/` — documents, events, validation, reports |
-| 5 | **Managed PostgreSQL** | `documents · employees · payroll_events · employee_payroll · validation_results` |
+| 5 | **Managed PostgreSQL** | `documents · employees · employee_payroll · payroll_events · payroll_event_payslips · validation_results` |
 | 6 | **Container Registry** | Hosts the `archon-backend`, `archon-extraction`, `archon-analysis` images |
 
 Security & supply chain: every change passes **gitleaks** (secrets), **CodeQL** (SAST, Python + TypeScript), **pip-audit / npm audit** (dependency CVEs), and a unit → integration → E2E test suite — see [Testing & CI](#testing--ci).
@@ -124,7 +124,7 @@ Edit `.env` with your Nebius credentials:
 
 ```bash
 NEBIUS_IAM_TOKEN=your_iam_token_here
-NEBIUS_BUCKET_NAME=archon-docs
+NEBIUS_BUCKET_NAME=archon-bucket
 NEBIUS_PROJECT_ID=your_project_id
 NEBIUS_REGION=eu-west1
 NEBIUS_INFERENCE_BASE_URL=https://api.studio.nebius.ai/v1
@@ -136,7 +136,7 @@ ANALYSIS_MODEL=meta-llama/Llama-3.3-70B-Instruct
 ### 2. Create object storage bucket
 
 ```bash
-nebius storage bucket create --name archon-docs
+nebius storage bucket create --name archon-bucket
 ```
 
 ### 3. Build, push, and deploy on Nebius
@@ -215,7 +215,7 @@ CORS_ORIGINS=https://archon-pnl.web.app
 Four GitHub Actions pipelines guard every change:
 
 - **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **142 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
-- **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), including the **28% payroll-gap invariant** (`employer_cost_total ≥ bank net`). Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
+- **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), and a **conditional payroll-cost invariant** (`employer_cost_total ≥ bank net`) that asserts the ~28% workforce-cost gap *when* the register's `employer_cost_total` is populated — today it is skipped in real runs pending that extractor field (see [`eval/BASELINE.md`](eval/BASELINE.md) §3). Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
 - **CodeQL** (`codeql.yml`, every PR + weekly) — SAST over both language families (Python: backend + extraction Job + analysis Endpoint; JavaScript/TypeScript: frontend) with the `security-and-quality` query suite.
 - **Dependency Audit** (`security-audit.yml`, every PR + weekly) — `pip-audit` against all three Python requirement sets and `npm audit` for the frontend; high/critical dependency CVEs fail the build.
 
@@ -406,7 +406,7 @@ This project runs on Nebius Serverless AI infrastructure:
 - **Backend AI Endpoint** (CPU `cpu-d3`) — target backend behind the Firebase BFF. Unauthenticated `GET https://archon-pnl.web.app/api/periods` returns `401` at the proxy/auth gate; authenticated upload/analyze requests require the Nebius endpoint deployment to be restored. List the endpoint with `nebius ai endpoint list --parent-id <project-id>`.
 - **Extraction & Analysis AI Jobs** (CPU `cpu-d3`) — submitted on demand by the backend via the Nebius Python SDK; completed runs appear in `nebius ai job list`.
 - **Object Storage** — bucket `archon-bucket` with `raw-docs/`, `extracted/`, and `reports/` prefixes.
-- **Managed PostgreSQL** — cluster `postgresql-e01mek1w9re2vdxc8g`, 6 tables live (`documents`, `employees`, `payroll_events`, `employee_payroll`, `validation_results`, `financial_reports`).
+- **Managed PostgreSQL** — cluster `postgresql-e01mek1w9re2vdxc8g`, 6 tables live (`documents`, `employees`, `employee_payroll`, `payroll_events`, `payroll_event_payslips`, `validation_results`). Reports are written to Object Storage, not a table.
 
 ---
 
