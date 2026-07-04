@@ -16,7 +16,7 @@ script is committed, the output is not), one per Archon document category:
 
 ```
 sample-data/generated/
-├── attiki_odos_invoice_202601.pdf     services invoice (EUR, domestic VAT)
+├── toll_invoice_202601.pdf           services invoice (EUR, domestic VAT)
 ├── anthropic_invoice_202601.pdf       SaaS invoice (USD, reverse charge)
 ├── aws_invoice_202601.pdf             cloud invoice (USD, reverse charge)
 ├── payroll_register_202601.pdf        payroll register (gross · net · employer cost)

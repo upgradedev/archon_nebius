@@ -35,9 +35,9 @@ def ln(c, x1, y1, x2, y2):
     c.line(x1 * cm, H - y1 * cm, x2 * cm, H - y2 * cm)
 
 
-# ── 1. Toll invoice (Attiki Odos) ─────────────────────────────────────────────
-def gen_attiki():
-    c = _c("attiki_odos_invoice_202601.pdf")
+# ── 1. Toll / motorway services invoice ──────────────────────────────────────
+def gen_toll_invoice():
+    c = _c("toll_invoice_202601.pdf")
     t(c, 2, 2, "Meridian Tollways Ltd", 14, bold=True)
     t(c, 2, 2.9, "Tax ID: 094506571  |  Tax Office: Central")
     t(c, 2, 3.7, "12 Riverside Avenue, Metro City")
@@ -62,7 +62,7 @@ def gen_attiki():
     t(c, 2, 16.8, "TOTAL:", bold=True)
     t(c, 15, 16.8, "85,40", bold=True)
     c.save()
-    print("  + attiki_odos_invoice_202601.pdf")
+    print("  + toll_invoice_202601.pdf")
 
 
 # ── 2. Anthropic SaaS invoice (USD, reverse charge) ───────────────────────────
@@ -270,7 +270,7 @@ def gen_statement():
 
 if __name__ == "__main__":
     print(f"Generating synthetic sample documents → {OUT}/")
-    gen_attiki()
+    gen_toll_invoice()
     gen_anthropic()
     gen_aws()
     gen_payroll_register()
