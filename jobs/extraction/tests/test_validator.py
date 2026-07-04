@@ -77,6 +77,19 @@ def test_r2_skip_when_fields_absent(doc):
     assert "Skipped" in _by_rule(validator.run([ev]))["R2"].message
 
 
+def test_r2_zero_net_is_skipped_not_warned(doc):
+    # net_pay_total == 0 is caught by the leading falsy guard, so R2 is SKIPPED
+    # (ratio undefined without a positive net). The old "net is zero" warning
+    # branch was unreachable dead code and was removed; pin the contract here.
+    ev = _event(register=doc(doc_type=DocType.PAYROLL_REGISTER,
+                             employer_cost_total=12_800, net_pay_total=0))
+    r2 = _by_rule(validator.run([ev]))["R2"]
+    assert r2.passed is True
+    assert r2.severity == "info"
+    assert "Skipped" in r2.message
+    assert "zero" not in r2.message.lower()
+
+
 # ── R3 ────────────────────────────────────────────────────────────────────────
 
 def test_r3_pass(doc):

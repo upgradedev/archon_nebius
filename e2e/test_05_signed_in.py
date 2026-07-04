@@ -31,7 +31,14 @@ _API_KEY = os.environ.get("E2E_FIREBASE_API_KEY")
 _EMAIL = os.environ.get("E2E_EMAIL")
 _PASSWORD = os.environ.get("E2E_PASSWORD")
 
-pytestmark = pytest.mark.skipif(
+# NOTE: there is deliberately NO module-level `pytestmark` skip. Only the tests
+# that actually sign in (and therefore need the three E2E_* credentials) carry
+# `requires_creds`. The unauthenticated-401 assertion needs no credentials, so
+# it must NOT be gated behind them — otherwise the one check that guards the
+# auth boundary silently skips alongside the credentialed tests (the original
+# bug this split fixes). It runs whenever this module is collected against a
+# real, auth-enabled backend.
+requires_creds = pytest.mark.skipif(
     not (_API_KEY and _EMAIL and _PASSWORD),
     reason="signed-in e2e needs E2E_FIREBASE_API_KEY / E2E_EMAIL / E2E_PASSWORD",
 )
@@ -67,12 +74,14 @@ def _sample_pdfs() -> list[Path]:
     return pdfs[:3]
 
 
+@requires_creds
 def test_health_is_ok(base_url, auth_session):
     r = auth_session.get(f"{base_url}/health", timeout=20)
     assert r.status_code == 200
     assert r.json().get("status") == "ok"
 
 
+@requires_creds
 def test_signed_in_upload_and_job_submit(base_url, auth_session, period):
     # Upload must be accepted (200) with the Bearer token and persist to storage.
     pdfs = _sample_pdfs()

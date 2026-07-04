@@ -68,12 +68,18 @@ def test_r2_fail_out_of_range_warns(doc):
     assert r2.passed is False and r2.severity == "warning"   # 1.60 > 1.45
 
 
-def test_r2_zero_net_warns(doc):
+def test_r2_zero_net_is_skipped_not_warned(doc):
+    # net_pay_total == 0 is caught by the leading falsy guard (`or not
+    # register.net_pay_total`), so R2 is SKIPPED — the ratio is undefined without
+    # a positive net. There is intentionally NO separate "net is zero" warning
+    # branch (it was unreachable dead code and was deleted); this test pins that
+    # contract so the branch cannot silently return.
     docs = [doc(doc_type="payroll_register", employer_cost_total=12_800, net_pay_total=0)]
-    # employer_cost_total truthy but net_pay_total 0 → "or not net_pay_total" skips first,
-    # so this exercises the skip branch (0 is falsy) → Skipped, not the zero-warn.
     r2 = _rules(validator_agent.run("2026-01", docs))["R2"]
-    assert r2.passed is True and "Skipped" in r2.message
+    assert r2.passed is True
+    assert r2.severity == "info"
+    assert "Skipped" in r2.message
+    assert "zero" not in r2.message.lower()
 
 
 def test_r2_skipped_when_fields_absent(doc):

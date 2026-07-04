@@ -1,14 +1,26 @@
 name: Exhaustive E2E Pipeline
 
 # The fast per-PR gate is "Pipeline Smoke Test" (smoke-test.yml). This workflow
-# is the EXHAUSTIVE end-to-end suite: it drives the live stack through the whole
+# is the EXHAUSTIVE end-to-end suite: it drives the stack through the whole
 # pipeline (upload -> extract -> link -> validate -> analyze -> report ->
-# dashboard) with deep assertions, using the real Nebius Inference API.
-# It makes real (billable) model calls, so it runs on master, on demand, and
-# weekly — not on every PR.
+# dashboard) with DEEP CONTENT assertions.
+#
+# Two jobs:
+#   * e2e             — runs the LOCAL, non-billable stack (JOB_RUNNER_BACKEND=
+#                       local, SKIP_AUTH=true: no Nebius Jobs/Endpoints compute
+#                       spend). It DOES gate PRs so the content assertions block
+#                       merges, on push, and weekly. It excludes test_05
+#                       (signed-in live) because that needs the real auth-enabled
+#                       backend, not the local skip-auth stack.
+#   * signed-in-live  — opt-in (workflow_dispatch / schedule only): exercises the
+#                       authenticated path against the LIVE backend with the three
+#                       E2E_* secrets. Kept off PRs so it never spends on live
+#                       uploads per PR.
 
 on:
   push:
+    branches: [master, main]
+  pull_request:
     branches: [master, main]
   workflow_dispatch:
   schedule:
@@ -107,7 +119,9 @@ jobs:
           E2E_EXTRACT_TIMEOUT_S: "600"
         run: |
           pip install -r e2e/requirements.txt -q
-          python -m pytest e2e/ -v --junitxml=/tmp/e2e-results.xml
+          # test_05 (signed-in live) needs the real auth-enabled backend; it runs
+          # in the opt-in signed-in-live job, not against this local skip-auth stack.
+          python -m pytest e2e/ -v --ignore=e2e/test_05_signed_in.py --junitxml=/tmp/e2e-results.xml
         timeout-minutes: 25
 
       - name: Upload E2E results
@@ -121,3 +135,50 @@ jobs:
       - name: Dump service logs on failure
         if: failure()
         run: docker compose logs --tail=200
+
+  signed-in-live:
+    # Opt-in ONLY (manual dispatch or the weekly schedule) — never on push/PR, so
+    # it never spends on live uploads per PR. Exercises the authenticated path
+    # (Firebase sign-in -> Bearer token -> /api/upload -> /api/jobs) against the
+    # LIVE backend, plus the no-token -> 401 boundary check. Requires three repo
+    # secrets: E2E_FIREBASE_API_KEY, E2E_EMAIL, E2E_PASSWORD. Target backend URL
+    # comes from the E2E_BACKEND_URL repo variable (falls back to the live host).
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate synthetic sample PDFs
+        run: |
+          pip install reportlab -q
+          python scripts/generate-sample-data.py
+
+      - name: Run signed-in live E2E (test_05)
+        env:
+          BACKEND_URL: ${{ vars.E2E_BACKEND_URL || 'https://archon-api.duckdns.org' }}
+          E2E_FIREBASE_API_KEY: ${{ secrets.E2E_FIREBASE_API_KEY }}
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          E2E_VERIFY_TLS: "false"
+        run: |
+          if [ -z "$E2E_FIREBASE_API_KEY" ] || [ -z "$E2E_EMAIL" ] || [ -z "$E2E_PASSWORD" ]; then
+            echo "ERROR: signed-in-live requires E2E_FIREBASE_API_KEY / E2E_EMAIL / E2E_PASSWORD repo secrets."
+            echo "Set them in repo settings, then re-run this job."
+            exit 1
+          fi
+          pip install -r e2e/requirements.txt -q
+          python -m pytest e2e/test_05_signed_in.py -v --junitxml=/tmp/e2e-signed-in.xml
+
+      - name: Upload signed-in results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-signed-in-results
+          path: /tmp/e2e-signed-in.xml
+          if-no-files-found: ignore
