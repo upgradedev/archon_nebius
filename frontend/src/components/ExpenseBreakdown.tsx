@@ -28,7 +28,7 @@ export default function ExpenseBreakdown({ data }: Props) {
         </Pie>
         <Tooltip
           formatter={(v: number) =>
-            new Intl.NumberFormat('en-EU', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
+            new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
           }
         />
         <Legend />

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Card, Progress, Space, Typography, Alert, Tag, Button } from 'antd'
 import { LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
@@ -40,8 +40,16 @@ export default function JobStatus({
     },
   })
 
+  // Fire onComplete exactly once, even though the query keeps a `completed` job
+  // cached across re-renders (the effect re-runs whenever onComplete's identity
+  // changes). Without the ref an unstable onComplete would re-trigger the parent's
+  // completion flow repeatedly.
+  const hasCompletedRef = useRef(false)
   useEffect(() => {
-    if (job?.status === 'completed') onComplete()
+    if (job?.status === 'completed' && !hasCompletedRef.current) {
+      hasCompletedRef.current = true
+      onComplete()
+    }
   }, [job?.status, onComplete])
 
   if (error) {
@@ -78,12 +86,15 @@ export default function JobStatus({
           {job.status === 'failed'    && (job.errorMessage ?? 'Job failed')}
         </Text>
 
-        {job.status === 'failed' && onDismiss && (
+        {/* A failed job always exposes a recovery action so the user is never
+            stranded on a red card. onDismiss (supplied by every caller) resets the
+            host flow; the best-effort deleteJob clears the failed job server-side. */}
+        {job.status === 'failed' && (
           <Button
             size="small"
             onClick={() => {
               api.deleteJob(jobId).catch(() => {/* best-effort — backend sweep handles it next time */})
-              onDismiss()
+              onDismiss?.()
             }}
           >
             Dismiss &amp; Retry

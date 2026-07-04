@@ -17,7 +17,7 @@ interface Props {
 }
 
 const fmt = (v: number) =>
-  new Intl.NumberFormat('en-EU', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
+  new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
 
 // Plain-English definition shown on the (i) icon of each tile. Universal
 // terminology only — no jurisdiction-specific tax terms.
@@ -120,7 +120,8 @@ export default function MetricsCards({ report, period }: Props) {
     enabled: !!activeTile && !!period && !isDemoMode(),
     retry: false,
   })
-  const allDocs = docsRaw as ExtractedDoc[]
+  // getDocuments() already returns a typed, shape-normalised ExtractedDoc[].
+  const allDocs = docsRaw
   const tileDocs = activeTile
     ? allDocs.filter(d => TILE_DOC_TYPES[activeTile]?.includes(d.doc_type))
     : []

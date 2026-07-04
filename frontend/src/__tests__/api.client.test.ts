@@ -12,7 +12,7 @@ const mockHttp = vi.hoisted(() => ({
   get: vi.fn(),
   put: vi.fn(),
   delete: vi.fn(),
-  interceptors: { request: { use: vi.fn() } },
+  interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } },
 }))
 
 vi.mock('../firebase', () => ({
