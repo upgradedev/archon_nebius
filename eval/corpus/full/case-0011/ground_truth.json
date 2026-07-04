@@ -1,6 +1,6 @@
 {
   "case_id": "case-0011",
-  "company": "Kyklades Software EPE",
+  "company": "Cyan Software SA",
   "period": "2025-06",
   "payment_date": "2025-06-30",
   "edge_cases": [
@@ -16,10 +16,10 @@
     {
       "source_file": "payroll_register_2025-06.pdf",
       "doc_type": "payroll_register",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-06-30",
-      "recipient_name": "Kyklades Software EPE",
-      "vendor_name": "Kyklades Software EPE",
+      "recipient_name": "Cyan Software SA",
+      "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 17277.02,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
@@ -28,72 +28,72 @@
     {
       "source_file": "payslip_EMP-001_2025-06.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-06-30",
-      "recipient_name": "Kyklades Software EPE",
-      "vendor_name": "Kyklades Software EPE",
+      "recipient_name": "Cyan Software SA",
+      "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 682.86,
-      "employee_name": "Giorgos Dimou",
+      "employee_name": "Sofia Okafor",
       "employee_code": "EMP-001",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-002_2025-06.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-06-30",
-      "recipient_name": "Kyklades Software EPE",
-      "vendor_name": "Kyklades Software EPE",
+      "recipient_name": "Cyan Software SA",
+      "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 1540.57,
-      "employee_name": "Ioanna Alexiou",
+      "employee_name": "Yuki Novak",
       "employee_code": "EMP-002",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-003_2025-06.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-06-30",
-      "recipient_name": "Kyklades Software EPE",
-      "vendor_name": "Kyklades Software EPE",
+      "recipient_name": "Cyan Software SA",
+      "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 2957.1,
-      "employee_name": "Kostas Nikolaou",
+      "employee_name": "Diego Haddad",
       "employee_code": "EMP-003",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-004_2025-06.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-06-30",
-      "recipient_name": "Kyklades Software EPE",
-      "vendor_name": "Kyklades Software EPE",
+      "recipient_name": "Cyan Software SA",
+      "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 1780.03,
-      "employee_name": "Sofia Ioannidis",
+      "employee_name": "James Silva",
       "employee_code": "EMP-004",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-005_2025-06.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-06-30",
-      "recipient_name": "Kyklades Software EPE",
-      "vendor_name": "Kyklades Software EPE",
+      "recipient_name": "Cyan Software SA",
+      "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 3049.13,
-      "employee_name": "Petros Ioannidis",
+      "employee_name": "Lucas Silva",
       "employee_code": "EMP-005",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     }
   ],
   "truth": {
@@ -114,7 +114,7 @@
         "net": 682.86,
         "employer_social_security": 243.21,
         "employer_cost": 1178.64,
-        "name": "Giorgos Dimou"
+        "name": "Sofia Okafor"
       },
       {
         "employee_code": "EMP-002",
@@ -124,7 +124,7 @@
         "net": 1540.57,
         "employer_social_security": 548.7,
         "employer_cost": 2659.07,
-        "name": "Ioanna Alexiou"
+        "name": "Yuki Novak"
       },
       {
         "employee_code": "EMP-003",
@@ -134,7 +134,7 @@
         "net": 2957.1,
         "employer_social_security": 1053.21,
         "employer_cost": 5104.03,
-        "name": "Kostas Nikolaou"
+        "name": "Diego Haddad"
       },
       {
         "employee_code": "EMP-004",
@@ -144,7 +144,7 @@
         "net": 1780.03,
         "employer_social_security": 633.99,
         "employer_cost": 3072.4,
-        "name": "Sofia Ioannidis"
+        "name": "James Silva"
       },
       {
         "employee_code": "EMP-005",
@@ -154,7 +154,7 @@
         "net": 3049.13,
         "employer_social_security": 1085.99,
         "employer_cost": 5262.88,
-        "name": "Petros Ioannidis"
+        "name": "Lucas Silva"
       }
     ]
   },

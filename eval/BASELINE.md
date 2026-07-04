@@ -4,7 +4,7 @@ This is the measurement frame that turns "it works" into a number. It scores the
 **real** Archon pipeline agents — `ClassifierAgent`, `EventLinkerAgent`,
 `ValidatorAgent`, `PnLAgent` (imported from `jobs/extraction/` and
 `endpoints/analysis/`, not re-implemented) — against a labelled synthetic corpus
-of Greek SMB payroll documents.
+of SMB payroll documents.
 
 Reproduce (offline, no API key, only `pydantic`):
 
@@ -160,11 +160,13 @@ silently passes a broken close.
 before/after: R2/R4 move from 0/37 firings to active. Tracked as a follow-up so
 this PR stays a pure measurement layer.
 
-### F2 (calibration, downstream of F1) — the R2 ratio band is too low for Greek payroll
+### F2 (calibration, downstream of F1) — the R2 ratio band is too low for a full-cost payroll
 
 Even once `employer_cost_total`/`net_pay_total` are extracted, R2 checks
-`employer_cost / net ∈ [1.25, 1.45]`. For standard Greek payroll the ratio is
-structurally ~1.73 (employer cost ≈ 1.26 × gross; net ≈ 0.73 × gross), so R2
+`employer_cost / net ∈ [1.25, 1.45]`. In any payroll where the employer's
+social charges and the employee's withholdings are a material fraction of gross,
+the ratio is structurally higher — on this corpus ~1.73 (employer cost ≈ 1.26 ×
+gross; net ≈ 0.73 × gross) — so R2
 would then *fail* a perfectly consistent payroll. The band needs recalibration
 (or, like the eventual fix, inferring the expected ratio from the register).
 Recorded here so the wiring fix doesn't merely move a dormant rule into a
@@ -181,8 +183,8 @@ this confound); it is a linker-keying limitation worth a follow-up.
 ### F4 (note) — classifier keyword matching is ASCII-only
 
 `ClassifierAgent._search_text` strips non-ASCII (`encode("ascii","ignore")`)
-before matching, but several keyword sets are raw Greek — those entries can
-never match. Recovery works through the ASCII/English keywords (`payroll
+before matching, but several keyword sets are raw non-Latin script — those
+entries can never match. Recovery works through the ASCII/English keywords (`payroll
 register`, `social security`, `payslip`, `payroll transfer`, …). The corpus
 text uses those, mirroring how the deployed classifier actually behaves.
 

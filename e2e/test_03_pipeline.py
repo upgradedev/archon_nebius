@@ -112,28 +112,40 @@ def test_executive_summary_written(completed_pipeline):
 # ── The 28% payroll-gap invariant (Archon's core thesis) ──────────────────────
 
 def test_payroll_gap_invariant(completed_pipeline):
-    """Employer cost must exceed the bank-net transfer when a payroll event is
-    detected — the whole point of the EventLinker fusion. We assert direction
-    strictly and the ratio within a generous band to stay robust to LLM jitter.
+    """Employer cost must exceed the bank-net transfer — the point of the
+    EventLinker/PnL fusion.
+
+    No self-skipping-green: we skip ONLY when NO payroll event was detected at
+    all (the invariant does not apply then). For every DETECTED event we assert
+    its full summary shape and that ``net_total`` is present and positive — a
+    missing/zero net on a detected event is a real fusion regression and FAILS.
+
+    The employer-cost>=net direction check is guarded on ``employer_cost_total``
+    being present: the extraction LLM schema does not currently request that
+    field (see jobs/extraction/extractors/*), so on the live path it is
+    legitimately ``None`` and a hard-fail here would red the gate permanently
+    for a reason outside this test's control. Whenever the field IS produced,
+    the inversion invariant is enforced strictly. (This is still strictly
+    stronger than the old code, which silently skipped the whole event when
+    employer_cost_total was absent.)
     """
     events = completed_pipeline["report"]["payrollEvents"]
     if not events:
         pytest.skip("no payroll event detected in this run")
-    checked = 0
     for ev in events:
-        emp = ev.get("employer_cost_total")
+        # Shape + net must always hold on a detected event.
+        for k in ["period", "net_total", "employee_count", "bank_confirmed", "validation_passed"]:
+            assert k in ev, f"payrollEvent missing '{k}': {ev}"
         net = ev.get("net_total")
-        if emp is None or not net:
-            continue
-        checked += 1
-        assert emp >= net, f"employer_cost ({emp}) should be >= bank net ({net})"
-        ratio = emp / net
-        assert 1.0 <= ratio <= 1.8, f"employer/net ratio {ratio:.3f} outside sane band"
-    if checked == 0:
-        # A payroll event was detected but employer_cost wasn't extracted this
-        # run (LLM variance / register not fully fused). The invariant only
-        # applies when both figures exist — assert direction strictly when they do.
-        pytest.skip("no payroll event had both employer_cost_total and net_total")
+        assert isinstance(net, NUMBER) and net > 0, (
+            f"detected payroll event has missing/zero net_total — fusion failed: {ev}"
+        )
+        # Inversion invariant: enforced whenever the (dormant) cost field exists.
+        emp = ev.get("employer_cost_total")
+        if emp is not None:
+            assert emp >= net, f"employer_cost ({emp}) should be >= bank net ({net})"
+            ratio = emp / net
+            assert 1.0 <= ratio <= 1.8, f"employer/net ratio {ratio:.3f} outside sane band"
 
 
 def test_payroll_event_summary_contract(completed_pipeline):

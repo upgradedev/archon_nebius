@@ -41,16 +41,20 @@ EMPLOYEE_SOCIAL_SECURITY_RATE = 0.16   # employee social-security withholding
 TAX_RATE = 0.11                        # PAYE income-tax withholding
 EMPLOYER_SOCIAL_SECURITY_RATE = 0.26   # employer social-security contribution (the hidden cost)
 
+# Locale-neutral, mixed-locale sample entities. List LENGTHS are load-bearing:
+# `rng.choice` consumes a length-dependent amount of the RNG stream, so keeping
+# the counts (12 / 12 / 10) unchanged keeps every downstream numeric draw -- and
+# thus every committed amount and baseline metric -- byte-for-byte identical.
 COMPANIES = [
-    "Aigaio Foods AE", "Pindos Logistics IKE", "Kyklades Software EPE",
-    "Olympus Retail AE", "Thraki Agro IKE", "Ionian Services EPE",
-    "Attiki Build AE", "Kriti Tourism IKE", "Makedonia Metals AE",
-    "Epirus Dairy EPE", "Saronikos Marine IKE", "Dodekanisa Trade AE",
+    "Northwind Foods Ltd", "Pinnacle Logistics GmbH", "Cyan Software SA",
+    "Summit Retail Inc", "Terra Agro BV", "Meridian Services Srl",
+    "Cobalt Build Oy", "Coral Tourism AB", "Ferrum Metals NV",
+    "Valley Dairy SAS", "Harbor Marine Pty", "Delta Trade Sp. z o.o.",
 ]
-FIRST = ["Maria", "Sofia", "Nikos", "Giorgos", "Eleni", "Dimitris",
-         "Katerina", "Petros", "Anna", "Kostas", "Ioanna", "Vasilis"]
-LAST = ["Antoniou", "Samaras", "Papadopoulos", "Georgiou", "Alexiou",
-        "Nikolaou", "Vlachos", "Ioannidis", "Makris", "Dimou"]
+FIRST = ["Maria", "James", "Wei", "Sofia", "Omar", "Anders",
+         "Priya", "Lucas", "Hana", "Diego", "Yuki", "Nina"]
+LAST = ["Andersen", "Smith", "Kim", "Rossi", "Novak",
+        "Haddad", "Nakamura", "Silva", "Meyer", "Okafor"]
 
 
 def _employee(emp_id: str, gross: float) -> dict:
@@ -120,20 +124,20 @@ def build_case(case_id: str, rng: random.Random, edge_cases: list[str] | None = 
         documents.append({
             "source_file": f"bank_confirmation_{period}.pdf",
             "doc_type": "bank_confirmation",
-            "detected_language": "el",
+            "detected_language": "en",
             "issue_date": bank_issue_date,
             "recipient_name": company,
-            "vendor_name": "Trapeza Peiraios AE",
+            "vendor_name": "Zenith Bank",
             "currency": "EUR",
             "total_amount": bank_net,
-            "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
-            "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS",
+            "notes": "Batch payroll transfer confirmation",
+            "raw_text_excerpt": "ZENITH BANK BATCH PAYROLL TRANSFER CONFIRMATION",
         })
     if has_register:
         documents.append({
             "source_file": f"payroll_register_{period}.pdf",
             "doc_type": "payroll_register",
-            "detected_language": "el",
+            "detected_language": "en",
             "issue_date": pay_date,
             "recipient_name": company,
             "vendor_name": company,
@@ -150,7 +154,7 @@ def build_case(case_id: str, rng: random.Random, edge_cases: list[str] | None = 
         documents.append({
             "source_file": f"payslip_{e['employee_code']}_{period}.pdf",
             "doc_type": "payslip",
-            "detected_language": "el",
+            "detected_language": "en",
             "issue_date": pay_date,
             "recipient_name": company,
             "vendor_name": company,
@@ -158,8 +162,8 @@ def build_case(case_id: str, rng: random.Random, edge_cases: list[str] | None = 
             "total_amount": e["net"],          # payslip headline total = net pay
             "employee_name": e["name"],
             "employee_code": e["employee_code"],
-            "notes": "Ekkatharistiko misthodosias (payslip)",
-            "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip",
+            "notes": "Payslip - net pay",
+            "raw_text_excerpt": "PAYSLIP net pay",
         })
 
     # ── domain truth for the four rules (is this payroll actually consistent?) ──
@@ -291,7 +295,7 @@ def _render_pdfs(docs_dir: Path, case: dict) -> None:
         line(2, case["company"], 14, bold=True)
         line(2.9, f"Period: {case['period']}   Issue: {d['issue_date']}")
         if d["doc_type"] == "bank_confirmation":
-            line(4.2, "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS", 12, bold=True)
+            line(4.2, "ZENITH BANK - BATCH PAYROLL TRANSFER", 12, bold=True)
             line(6, f"TOTAL TRANSFER (net): EUR {d['total_amount']:.2f}", 12, bold=True)
         elif d["doc_type"] == "payroll_register":
             line(4.2, "PAYROLL REGISTER (EMPLOYER SOCIAL SECURITY)", 12, bold=True)
@@ -302,7 +306,7 @@ def _render_pdfs(docs_dir: Path, case: dict) -> None:
             line(8.0, f"EMPLOYER COST TOTAL: EUR {truth['employer_cost_total']:.2f}", 11, bold=True)
             line(8.8, f"Employees: {truth['employee_count']}")
         else:  # payslip
-            line(4.2, "EKKATHARISTIKO MISTHODOSIAS", 12, bold=True)
+            line(4.2, "PAYSLIP", 12, bold=True)
             line(5.4, f"Employee: {d.get('employee_name', '')} ({d.get('employee_code', '')})")
             line(6.6, f"NET PAY: EUR {d['total_amount']:.2f}", 12, bold=True)
         c.save()

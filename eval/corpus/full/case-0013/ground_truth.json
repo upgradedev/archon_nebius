@@ -1,6 +1,6 @@
 {
   "case_id": "case-0013",
-  "company": "Makedonia Metals AE",
+  "company": "Ferrum Metals NV",
   "period": "2025-04",
   "payment_date": "2025-04-30",
   "edge_cases": [
@@ -16,10 +16,10 @@
     {
       "source_file": "payroll_register_2025-04.pdf",
       "doc_type": "payroll_register",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-04-30",
-      "recipient_name": "Makedonia Metals AE",
-      "vendor_name": "Makedonia Metals AE",
+      "recipient_name": "Ferrum Metals NV",
+      "vendor_name": "Ferrum Metals NV",
       "currency": "EUR",
       "total_amount": 20317.32,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
@@ -28,72 +28,72 @@
     {
       "source_file": "payslip_EMP-001_2025-04.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-04-30",
-      "recipient_name": "Makedonia Metals AE",
-      "vendor_name": "Makedonia Metals AE",
+      "recipient_name": "Ferrum Metals NV",
+      "vendor_name": "Ferrum Metals NV",
       "currency": "EUR",
       "total_amount": 1505.16,
-      "employee_name": "Vasilis Makris",
+      "employee_name": "Nina Meyer",
       "employee_code": "EMP-001",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-002_2025-04.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-04-30",
-      "recipient_name": "Makedonia Metals AE",
-      "vendor_name": "Makedonia Metals AE",
+      "recipient_name": "Ferrum Metals NV",
+      "vendor_name": "Ferrum Metals NV",
       "currency": "EUR",
       "total_amount": 2856.05,
-      "employee_name": "Anna Alexiou",
+      "employee_name": "Hana Novak",
       "employee_code": "EMP-002",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-003_2025-04.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-04-30",
-      "recipient_name": "Makedonia Metals AE",
-      "vendor_name": "Makedonia Metals AE",
+      "recipient_name": "Ferrum Metals NV",
+      "vendor_name": "Ferrum Metals NV",
       "currency": "EUR",
       "total_amount": 3013.42,
-      "employee_name": "Sofia Alexiou",
+      "employee_name": "James Novak",
       "employee_code": "EMP-003",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-004_2025-04.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-04-30",
-      "recipient_name": "Makedonia Metals AE",
-      "vendor_name": "Makedonia Metals AE",
+      "recipient_name": "Ferrum Metals NV",
+      "vendor_name": "Ferrum Metals NV",
       "currency": "EUR",
       "total_amount": 1888.24,
-      "employee_name": "Nikos Nikolaou",
+      "employee_name": "Wei Haddad",
       "employee_code": "EMP-004",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-005_2025-04.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-04-30",
-      "recipient_name": "Makedonia Metals AE",
-      "vendor_name": "Makedonia Metals AE",
+      "recipient_name": "Ferrum Metals NV",
+      "vendor_name": "Ferrum Metals NV",
       "currency": "EUR",
       "total_amount": 2508.27,
-      "employee_name": "Anna Makris",
+      "employee_name": "Hana Meyer",
       "employee_code": "EMP-005",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     }
   ],
   "truth": {
@@ -114,7 +114,7 @@
         "net": 1505.16,
         "employer_social_security": 536.09,
         "employer_cost": 2597.96,
-        "name": "Vasilis Makris"
+        "name": "Nina Meyer"
       },
       {
         "employee_code": "EMP-002",
@@ -124,7 +124,7 @@
         "net": 2856.05,
         "employer_social_security": 1017.22,
         "employer_cost": 4929.61,
-        "name": "Anna Alexiou"
+        "name": "Hana Novak"
       },
       {
         "employee_code": "EMP-003",
@@ -134,7 +134,7 @@
         "net": 3013.42,
         "employer_social_security": 1073.27,
         "employer_cost": 5201.25,
-        "name": "Sofia Alexiou"
+        "name": "James Novak"
       },
       {
         "employee_code": "EMP-004",
@@ -144,7 +144,7 @@
         "net": 1888.24,
         "employer_social_security": 672.52,
         "employer_cost": 3259.15,
-        "name": "Nikos Nikolaou"
+        "name": "Wei Haddad"
       },
       {
         "employee_code": "EMP-005",
@@ -154,7 +154,7 @@
         "net": 2508.27,
         "employer_social_security": 893.36,
         "employer_cost": 4329.35,
-        "name": "Anna Makris"
+        "name": "Hana Meyer"
       }
     ]
   },

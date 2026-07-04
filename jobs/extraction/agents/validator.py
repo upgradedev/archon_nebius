@@ -76,13 +76,12 @@ def _r1_bank_vs_payslips(event: PayrollEvent, ref: str) -> ValidationResult:
 def _r2_employer_cost_ratio(event: PayrollEvent, ref: str) -> ValidationResult:
     rule = "R2: employer_cost / net_pay in [1.25, 1.45]"
     reg = event.payroll_register
+    # A zero (or missing) net_pay_total is caught here by the falsy check, so R2
+    # is skipped — the ratio is undefined without a positive net. (A dedicated
+    # net==0 warning branch below this guard was unreachable and was removed.)
     if reg is None or not reg.employer_cost_total or not reg.net_pay_total:
         return ValidationResult(rule=rule, passed=True, severity="info",
                                 message="Skipped — payroll register or cost fields absent.",
-                                source_files=_sources(event))
-    if reg.net_pay_total == 0:
-        return ValidationResult(rule=rule, passed=False, severity="warning",
-                                message="Register net_pay_total is zero.",
                                 source_files=_sources(event))
     ratio = reg.employer_cost_total / reg.net_pay_total
     passed = 1.25 <= ratio <= 1.45

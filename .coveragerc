@@ -10,9 +10,6 @@
 # Excluded from the offline gate (NOTE: ini values cannot carry trailing inline
 # comments, so the rationale lives here):
 #   jobs/extraction/server.py    — ADR-002 local-dev FastAPI wrapper only
-#   jobs/extraction/main.py      — batch entrypoint: module-level env reads +
-#                                  extractor instantiation; exercised by the live
-#                                  Exhaustive E2E Pipeline, not offline unit tests
 #   eval/evaluate.py             — eval CLI (executed directly in the smoke-test)
 #   eval/generate_corpus.py      — synthetic-corpus generation tooling
 #   eval/live_extract.py         — live multimodal extraction tool (needs an LLM)
@@ -20,6 +17,12 @@
 # endpoints/analysis (only Dockerfile/main.py/requirements differ).
 
 [run]
+# relative_files keeps stored paths repo-relative (e.g. backend/auth.py) so the
+# Cobertura XML is portable and diff-cover can match them against git's
+# repo-relative diff paths. Without it, multi-root `source` stores per-root
+# filenames (auth.py, agents/validator.py) that diff-cover cannot map back,
+# silently reporting "no lines in diff" — a false-pass gate.
+relative_files = True
 source =
     backend
     jobs/extraction
@@ -30,7 +33,6 @@ omit =
     */tests/*
     */__pycache__/*
     jobs/extraction/server.py
-    jobs/extraction/main.py
     eval/evaluate.py
     eval/generate_corpus.py
     eval/live_extract.py

@@ -1,6 +1,6 @@
 {
   "case_id": "case-0039",
-  "company": "Thraki Agro IKE",
+  "company": "Terra Agro BV",
   "period": "2025-05",
   "payment_date": "2025-05-31",
   "edge_cases": [
@@ -16,10 +16,10 @@
     {
       "source_file": "payroll_register_2025-05.pdf",
       "doc_type": "payroll_register",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-05-31",
-      "recipient_name": "Thraki Agro IKE",
-      "vendor_name": "Thraki Agro IKE",
+      "recipient_name": "Terra Agro BV",
+      "vendor_name": "Terra Agro BV",
       "currency": "EUR",
       "total_amount": 8343.34,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
@@ -28,30 +28,30 @@
     {
       "source_file": "payslip_EMP-001_2025-05.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-05-31",
-      "recipient_name": "Thraki Agro IKE",
-      "vendor_name": "Thraki Agro IKE",
+      "recipient_name": "Terra Agro BV",
+      "vendor_name": "Terra Agro BV",
       "currency": "EUR",
       "total_amount": 2404.09,
-      "employee_name": "Giorgos Georgiou",
+      "employee_name": "Sofia Rossi",
       "employee_code": "EMP-001",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-002_2025-05.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-05-31",
-      "recipient_name": "Thraki Agro IKE",
-      "vendor_name": "Thraki Agro IKE",
+      "recipient_name": "Terra Agro BV",
+      "vendor_name": "Terra Agro BV",
       "currency": "EUR",
       "total_amount": 2429.75,
-      "employee_name": "Petros Ioannidis",
+      "employee_name": "Lucas Silva",
       "employee_code": "EMP-002",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     }
   ],
   "truth": {
@@ -72,7 +72,7 @@
         "net": 2404.09,
         "employer_social_security": 856.25,
         "employer_cost": 4149.52,
-        "name": "Giorgos Georgiou"
+        "name": "Sofia Rossi"
       },
       {
         "employee_code": "EMP-002",
@@ -82,7 +82,7 @@
         "net": 2429.75,
         "employer_social_security": 865.39,
         "employer_cost": 4193.82,
-        "name": "Petros Ioannidis"
+        "name": "Lucas Silva"
       }
     ]
   },

@@ -17,6 +17,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so diff-cover can compute the PR range against the base.
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -28,10 +31,19 @@ jobs:
           pip install -r backend/requirements.txt
           pip install -r jobs/extraction/requirements.txt
           pip install -r endpoints/analysis/requirements.txt
+          pip install diff-cover
 
-      - name: Run coverage gate (fail-under)
+      - name: Fetch base branch (for diff coverage on PRs)
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+
+      - name: Run coverage gate (global + diff)
         env:
           COVERAGE_FAIL_UNDER: "85"
+          # Diff-coverage gate on PRs only (>= 80% of changed lines). Unset on
+          # push/dispatch, so the global gate still runs there.
+          DIFF_COVER_COMPARE_BRANCH: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+          DIFF_COVER_FAIL_UNDER: "80"
         run: bash scripts/coverage.sh
 
       - name: Upload coverage XML

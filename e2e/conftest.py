@@ -59,10 +59,13 @@ def sample_pdfs() -> list[Path]:
 
 @pytest.fixture(scope="session")
 def s3():
-    """Optional boto3 client against localstack for storage-layer assertions.
+    """boto3 client against localstack for storage-layer assertions.
 
-    Returns None if boto3 / localstack isn't reachable, so storage assertions
-    degrade to skips rather than hard-failing the whole suite.
+    In CI (env ``CI=true``, which GitHub Actions always sets) localstack is a
+    guaranteed part of the stack, so an unreachable S3 is a HARD ERROR — a
+    silently-skipped storage assertion is exactly the kind of green-that-proves-
+    nothing this suite exists to prevent. For local ad-hoc runs (no ``CI``), we
+    still degrade to a graceful skip so the suite is usable without localstack.
     """
     try:
         import boto3
@@ -78,7 +81,12 @@ def s3():
         )
         client.list_buckets()
         return client
-    except Exception:
+    except Exception as exc:
+        if os.environ.get("CI", "").lower() == "true":
+            pytest.fail(
+                f"S3/localstack unreachable at {STORAGE_ENDPOINT} in CI, where it "
+                f"is guaranteed to be up — storage assertions must not skip: {exc}"
+            )
         return None
 
 

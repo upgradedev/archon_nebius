@@ -1,6 +1,6 @@
 {
   "case_id": "case-0009",
-  "company": "Thraki Agro IKE",
+  "company": "Terra Agro BV",
   "period": "2026-01",
   "payment_date": "2026-01-31",
   "edge_cases": [],
@@ -14,22 +14,22 @@
     {
       "source_file": "bank_confirmation_2026-01.pdf",
       "doc_type": "bank_confirmation",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-01-31",
-      "recipient_name": "Thraki Agro IKE",
-      "vendor_name": "Trapeza Peiraios AE",
+      "recipient_name": "Terra Agro BV",
+      "vendor_name": "Zenith Bank",
       "currency": "EUR",
       "total_amount": 3650.51,
-      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
-      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+      "notes": "Batch payroll transfer confirmation",
+      "raw_text_excerpt": "ZENITH BANK BATCH PAYROLL TRANSFER CONFIRMATION"
     },
     {
       "source_file": "payroll_register_2026-01.pdf",
       "doc_type": "payroll_register",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-01-31",
-      "recipient_name": "Thraki Agro IKE",
-      "vendor_name": "Thraki Agro IKE",
+      "recipient_name": "Terra Agro BV",
+      "vendor_name": "Terra Agro BV",
       "currency": "EUR",
       "total_amount": 6300.89,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
@@ -38,30 +38,30 @@
     {
       "source_file": "payslip_EMP-001_2026-01.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-01-31",
-      "recipient_name": "Thraki Agro IKE",
-      "vendor_name": "Thraki Agro IKE",
+      "recipient_name": "Terra Agro BV",
+      "vendor_name": "Terra Agro BV",
       "currency": "EUR",
       "total_amount": 1645.03,
-      "employee_name": "Dimitris Dimou",
+      "employee_name": "Anders Okafor",
       "employee_code": "EMP-001",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-002_2026-01.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-01-31",
-      "recipient_name": "Thraki Agro IKE",
-      "vendor_name": "Thraki Agro IKE",
+      "recipient_name": "Terra Agro BV",
+      "vendor_name": "Terra Agro BV",
       "currency": "EUR",
       "total_amount": 2005.48,
-      "employee_name": "Nikos Makris",
+      "employee_name": "Wei Meyer",
       "employee_code": "EMP-002",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     }
   ],
   "truth": {
@@ -82,7 +82,7 @@
         "net": 1645.03,
         "employer_social_security": 585.9,
         "employer_cost": 2839.37,
-        "name": "Dimitris Dimou"
+        "name": "Anders Okafor"
       },
       {
         "employee_code": "EMP-002",
@@ -92,7 +92,7 @@
         "net": 2005.48,
         "employer_social_security": 714.28,
         "employer_cost": 3461.52,
-        "name": "Nikos Makris"
+        "name": "Wei Meyer"
       }
     ]
   },

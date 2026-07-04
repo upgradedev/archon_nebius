@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Button, Input, Divider, message } from 'antd'
 import { GoogleOutlined, MailOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -75,11 +75,14 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [cardOffset, setCardOffset] = useState({ x: 0, y: 0 })
 
-  /* Redirect if already signed in */
-  if (user) {
-    navigate('/', { replace: true })
-    return null
-  }
+  /* Redirect if already signed in. Navigation is a side effect — never call it
+     during render — so it runs in an effect; the component renders nothing while
+     the redirect is in flight. */
+  useEffect(() => {
+    if (user) navigate('/', { replace: true })
+  }, [user, navigate])
+
+  if (user) return null
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const x = (e.clientX / window.innerWidth  - 0.5) * 14
