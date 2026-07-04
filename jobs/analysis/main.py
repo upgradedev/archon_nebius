@@ -60,15 +60,22 @@ log = logging.getLogger("archon.analysis-job")
 BUCKET = os.environ["NEBIUS_BUCKET_NAME"]
 
 
+_S3_CLIENT = None
+
+
 def _s3():
-    return boto3.client(
-        "s3",
-        endpoint_url=os.getenv("STORAGE_ENDPOINT_URL"),
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.getenv("NEBIUS_REGION", "eu-west1"),
-        config=Config(signature_version="s3v4"),
-    )
+    # Reuse one boto3 client across the many list/get/put calls per analysis run.
+    global _S3_CLIENT
+    if _S3_CLIENT is None:
+        _S3_CLIENT = boto3.client(
+            "s3",
+            endpoint_url=os.getenv("STORAGE_ENDPOINT_URL"),
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+            region_name=os.getenv("NEBIUS_REGION", "eu-west1"),
+            config=Config(signature_version="s3v4"),
+        )
+    return _S3_CLIENT
 
 
 def _load_documents(period: str) -> list[ExtractedDoc]:

@@ -29,8 +29,8 @@ from datetime import datetime, timezone
 
 import boto3
 from botocore.config import Config
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Path
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
 
 from agents.classifier import classify
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     storage_endpoint_url: str = ""
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
-    nebius_region: str = "eu-north1"
+    nebius_region: str = "eu-west1"
     database_url: str = ""
 
     class Config:
@@ -91,15 +91,22 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Archon Analysis Endpoint", version="2.1.0", lifespan=lifespan)
 
 
+_S3_CLIENT = None
+
+
 def _s3():
-    return boto3.client(
-        "s3",
-        endpoint_url=settings.storage_endpoint_url or None,
-        aws_access_key_id=settings.aws_access_key_id,
-        aws_secret_access_key=settings.aws_secret_access_key,
-        region_name=settings.nebius_region,
-        config=Config(signature_version="s3v4"),
-    )
+    # Reuse one boto3 client across the many list/get/put calls per analysis run.
+    global _S3_CLIENT
+    if _S3_CLIENT is None:
+        _S3_CLIENT = boto3.client(
+            "s3",
+            endpoint_url=settings.storage_endpoint_url or None,
+            aws_access_key_id=settings.aws_access_key_id,
+            aws_secret_access_key=settings.aws_secret_access_key,
+            region_name=settings.nebius_region,
+            config=Config(signature_version="s3v4"),
+        )
+    return _S3_CLIENT
 
 
 def _load_documents(period: str) -> list[ExtractedDoc]:
@@ -120,8 +127,11 @@ def _load_documents(period: str) -> list[ExtractedDoc]:
     return docs
 
 
+_PERIOD_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
+
+
 class AnalyzeRequest(BaseModel):
-    period: str   # YYYY-MM
+    period: str = Field(pattern=_PERIOD_PATTERN)   # YYYY-MM
 
 
 class AnalyzeResponse(BaseModel):
@@ -190,7 +200,7 @@ def analyze(req: AnalyzeRequest):
 
 
 @app.get("/reports/{period}", response_model=AnalyzeResponse)
-def get_report(period: str):
+def get_report(period: str = Path(pattern=_PERIOD_PATTERN)):
     key = f"reports/{period}/report.json"
     try:
         body = _s3().get_object(Bucket=settings.nebius_bucket_name, Key=key)["Body"].read()

@@ -123,6 +123,9 @@ def test_key_exists_true(mock_s3):
 
 
 def test_key_exists_false(mock_s3):
-    mock_s3.head_object.side_effect = Exception("Not Found")
+    from botocore.exceptions import ClientError
+    mock_s3.head_object.side_effect = ClientError(
+        {"Error": {"Code": "404", "Message": "Not Found"}}, "HeadObject"
+    )
     from services.storage import key_exists
     assert key_exists("missing/key.pdf") is False

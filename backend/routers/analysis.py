@@ -1,9 +1,12 @@
+import logging
+
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, HTTPException, Path
 from pydantic import BaseModel, Field
 
 from services import nebius, storage
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _PERIOD_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
@@ -22,7 +25,11 @@ def trigger_analysis(req: AnalyzeRequest):
         # Every compute preset failed to provision — actionable 503, not a 500.
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to submit analysis job: {exc}") from exc
+        logger.exception("Analysis job submission failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to submit analysis job: {type(exc).__name__}",
+        ) from exc
 
 
 @router.get("/analyze/{job_id}")
@@ -31,7 +38,11 @@ def get_analysis_job(job_id: str):
     try:
         return nebius.get_job_status(job_id)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to get job status: {exc}") from exc
+        logger.exception("Analysis job status fetch failed for %s", job_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get job status: {type(exc).__name__}",
+        ) from exc
 
 
 @router.get("/reports/{period}")
@@ -43,6 +54,11 @@ def get_report(period: str = Path(..., pattern=_PERIOD_PATTERN)):
         code = exc.response["Error"]["Code"]
         if code in ("NoSuchKey", "404"):
             raise HTTPException(status_code=404, detail=f"Report not found for period {period}") from exc
-        raise HTTPException(status_code=502, detail=f"Storage error: {exc}") from exc
+        logger.exception("Storage error fetching report for %s", period)
+        raise HTTPException(status_code=502, detail="Storage error retrieving report") from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch report: {exc}") from exc
+        logger.exception("Report fetch failed for %s", period)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch report: {type(exc).__name__}",
+        ) from exc

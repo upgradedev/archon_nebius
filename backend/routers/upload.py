@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 import unicodedata
@@ -96,7 +97,7 @@ async def upload_documents(
         safe_name = _sanitize_filename(raw_name)
         key = f"raw-docs/{period}/{upload_id}/{safe_name}"
         try:
-            storage.upload_file(key, data, f.content_type or "application/octet-stream")
+            await asyncio.to_thread(storage.upload_file, key, data, f.content_type or "application/octet-stream")
         except Exception as exc:  # surface storage failures clearly, not as a bare 500
             logger.exception("Storage upload failed for key %s", key)
             raise HTTPException(
@@ -113,7 +114,8 @@ async def upload_documents(
 
     # Write manifest so the extraction job knows what to process
     try:
-        storage.put_json(
+        await asyncio.to_thread(
+            storage.put_json,
             f"raw-docs/{period}/{upload_id}/manifest.json",
             {
                 "uploadId": upload_id,

@@ -14,6 +14,7 @@ import base64
 import logging
 import os
 import tempfile
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -80,6 +81,32 @@ EXTRACTION_SERVICE_URL = os.getenv("EXTRACTION_SERVICE_URL", "http://extraction:
 ANALYSIS_SERVICE_URL = os.getenv("ANALYSIS_SERVICE_URL", "http://analysis:8001")
 
 
+_SA_KEY_PATH = None
+_SA_KEY_LOCK = threading.Lock()
+
+
+def _sa_key_path(sa_key_b64: str) -> str:
+    """Return the path to the SA private-key PEM, writing it at most once.
+
+    _make_sdk() is called per job submission and per status poll. The previous
+    implementation wrote a fresh delete=False temp file on every call and never
+    unlinked it, leaking one temp file per poll. We cache a single PEM file for
+    the process lifetime instead (the SDK reads the key lazily from this path,
+    so caching the path is safe and preserves the per-call sync_close() contract).
+    """
+    global _SA_KEY_PATH
+    if _SA_KEY_PATH is None:
+        with _SA_KEY_LOCK:
+            if _SA_KEY_PATH is None:
+                pem = base64.b64decode(sa_key_b64).decode()
+                tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False)
+                tmp.write(pem)
+                tmp.flush()
+                tmp.close()
+                _SA_KEY_PATH = tmp.name
+    return _SA_KEY_PATH
+
+
 def _make_sdk():
     """Return a Nebius SDK instance.
 
@@ -94,14 +121,8 @@ def _make_sdk():
     sa_id = os.getenv("NEBIUS_SA_ID")
 
     if sa_key_b64 and sa_key_id and sa_id:
-        pem = base64.b64decode(sa_key_b64).decode()
-        # Write PEM to a temp file — SDK requires a file path, not a string
-        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False)
-        tmp.write(pem)
-        tmp.flush()
-        tmp.close()
         return SDK(
-            service_account_private_key_file_name=tmp.name,
+            service_account_private_key_file_name=_sa_key_path(sa_key_b64),
             service_account_public_key_id=sa_key_id,
             service_account_id=sa_id,
         )

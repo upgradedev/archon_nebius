@@ -31,12 +31,11 @@ class ExtractRequest(BaseModel):
 
 
 def _run(job_id: str, upload_id: str, period: str) -> None:
-    import os
-    os.environ["UPLOAD_ID"] = upload_id
-    os.environ["PERIOD"] = period
+    # ADR-008: pass job params as function args instead of mutating process-level
+    # os.environ, which races across concurrent threads in this local-dev server.
     try:
         import main as extraction_main
-        extraction_main.main()
+        extraction_main.main(upload_id, period)
         with _lock:
             _jobs[job_id]["status"] = "completed"
             _jobs[job_id]["completed_at"] = datetime.now(timezone.utc).isoformat()

@@ -1,9 +1,12 @@
+import logging
+
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, HTTPException, Path
 from pydantic import BaseModel
 
 from services import storage
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _PERIOD_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
@@ -87,9 +90,14 @@ def get_documents(period: str = Path(..., pattern=_PERIOD_PATTERN)):
     except HTTPException:
         raise
     except ClientError as exc:
-        raise HTTPException(status_code=502, detail=f"Storage error: {exc}") from exc
+        logger.exception("Storage error listing documents for %s", period)
+        raise HTTPException(status_code=502, detail="Storage error listing documents") from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.exception("Document fetch failed for %s", period)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch documents: {type(exc).__name__}",
+        ) from exc
 
 
 class DocumentReviewRequest(BaseModel):
@@ -134,9 +142,14 @@ def update_documents(
             deleted += 1
         return {"period": period, "documents": len(req.documents), "deleted": deleted}
     except ClientError as exc:
-        raise HTTPException(status_code=502, detail=f"Storage error: {exc}") from exc
+        logger.exception("Storage error saving documents for %s", period)
+        raise HTTPException(status_code=502, detail="Storage error saving documents") from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.exception("Document save failed for %s", period)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save documents: {type(exc).__name__}",
+        ) from exc
 
 
 @router.get("/company-profile")
@@ -147,7 +160,11 @@ def get_company_profile():
     except ClientError:
         return {"company_name": "", "company_tax_id": ""}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.exception("Company profile fetch failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch company profile: {type(exc).__name__}",
+        ) from exc
 
 
 @router.put("/company-profile")
@@ -157,4 +174,8 @@ def update_company_profile(profile: CompanyProfile):
         storage.put_json("company/profile.json", profile.model_dump())
         return profile
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.exception("Company profile save failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save company profile: {type(exc).__name__}",
+        ) from exc
