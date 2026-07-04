@@ -39,7 +39,7 @@ const report: FinancialReport = {
   topVendors: [
     { name: 'Amazon Web Services', totalAmount: 7_420, invoiceCount: 1, avgDaysToPay: 14 },
     { name: 'Google Cloud', totalAmount: 4_180, invoiceCount: 1, avgDaysToPay: 21 },
-    { name: 'Attiki Odos', totalAmount: 2_960, invoiceCount: 3, avgDaysToPay: 7 },
+    { name: 'Metro Toll Systems', totalAmount: 2_960, invoiceCount: 3, avgDaysToPay: 7 },
   ],
   keyMetrics: {
     revenueGrowthPct: 6.8,
@@ -88,6 +88,6 @@ export const DEMO_PERIODS: PeriodInfo[] = [
 ]
 
 export const DEMO_PROFILE: CompanyProfile = {
-  company_name: 'Reflective IKE',
+  company_name: 'Northwind Trading Ltd',
   company_tax_id: '800123456',
 }

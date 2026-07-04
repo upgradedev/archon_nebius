@@ -67,7 +67,33 @@ Security & supply chain: every change passes **gitleaks** (secrets), **CodeQL** 
 
 ## Architecture
 
-![Archon Architecture on Nebius Serverless AI](./README-architecture.png)
+```mermaid
+flowchart TB
+    UI["React Frontend<br/>Firebase Hosting (Google CDN)"]
+    BFF["Firebase BFF proxy<br/>(TLS termination)"]
+    API["FastAPI Orchestration<br/>Nebius AI Endpoint (CPU cpu-d3)<br/>/upload · /jobs · /analyze · /reports"]
+
+    subgraph JOBS["Nebius Serverless AI Jobs (CPU cpu-d3, on-demand, self-terminating)"]
+        EXT["Extraction Job — 4 agents<br/>Extractor → Classifier → EventLinker → Validator"]
+        ANA["Analysis Job — 7 agents<br/>Classifier → PnL → CashFlow → Employee → Reconciliation → Validator → Narrator"]
+    end
+
+    STORE["Nebius Object Storage (S3-compatible)<br/>raw-docs / extracted / reports"]
+    DB["Nebius Managed PostgreSQL<br/>6 tables"]
+    INF["Nebius Inference API<br/>Qwen2.5-VL-72B (vision) · Llama-3.3-70B (analysis)"]
+
+    UI --> BFF --> API
+    API -- "write raw docs" --> STORE
+    API -- "submit job (Python SDK)" --> EXT
+    API -- "submit job (Python SDK)" --> ANA
+    EXT -- "vision extraction" --> INF
+    EXT -- "extracted JSON" --> STORE
+    ANA -- "read extracted JSON" --> STORE
+    ANA -- "analysis + narration" --> INF
+    ANA -- "chart-ready metrics + summary" --> API
+    API -- "persist records" --> DB
+    API -- "report + dashboard" --> UI
+```
 
 ### Data Flow
 
