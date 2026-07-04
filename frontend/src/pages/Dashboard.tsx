@@ -21,6 +21,7 @@ import ExecutiveSummary from '../components/ExecutiveSummary'
 import JobStatus from '../components/JobStatus'
 import PayrollGapCard from '../components/PayrollGapCard'
 import ValidationLedger from '../components/ValidationLedger'
+import ErrorBoundary from '../components/ErrorBoundary'
 import { isDemoMode, DEMO_PERIOD } from '../demo/demoMode'
 import type { PeriodInfo, CompanyProfile } from '../types/financial'
 
@@ -32,6 +33,16 @@ function fmtPeriod(p: string): string {
   const [year, month] = p.split('-')
   const d = new Date(+year, +month - 1)
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+// Best-effort HTTP status extraction from a thrown query error, so the report
+// panel can distinguish a genuine 404 (no report yet) from a real 5xx/network
+// failure. Returns undefined for non-HTTP errors.
+function errorStatus(e: unknown): number | undefined {
+  if (e && typeof e === 'object' && 'response' in e) {
+    return (e as { response?: { status?: number } }).response?.status
+  }
+  return undefined
 }
 
 export default function Dashboard() {
@@ -56,7 +67,7 @@ export default function Dashboard() {
     refetchInterval: 30_000,
   })
 
-  const { data: reportData, isLoading: reportLoading, error: reportError } = useQuery({
+  const { data: reportData, isLoading: reportLoading, error: reportError, refetch: refetchReport } = useQuery({
     queryKey: ['report', activePeriod],
     queryFn: () => api.getReport(activePeriod!),
     enabled: !!activePeriod,
@@ -208,9 +219,15 @@ export default function Dashboard() {
               onConfirm={() => deletePeriod.mutate(activePeriod)}
               okText="Delete"
               okButtonProps={{ danger: true }}
+              disabled={!!triggerJobId || deletePeriod.isPending}
             >
-              <Tooltip title="Delete period">
-                <Button icon={<DeleteOutlined />} danger size="small" />
+              <Tooltip title={triggerJobId ? 'Analysis running — cannot delete' : 'Delete period'}>
+                <Button
+                  icon={<DeleteOutlined />}
+                  danger
+                  size="small"
+                  disabled={!!triggerJobId || deletePeriod.isPending}
+                />
               </Tooltip>
             </Popconfirm>
           )}
@@ -247,6 +264,7 @@ export default function Dashboard() {
             <Spin size="large" tip="Loading report…" />
           </div>
         ) : report ? (
+          <ErrorBoundary>
           <Space direction="vertical" size={24} style={{ width: '100%' }}>
             <Row align="middle" justify="space-between">
               <Col>
@@ -269,7 +287,9 @@ export default function Dashboard() {
               </Col>
             </Row>
 
-            <MetricsCards report={report} period={activePeriod} />
+            {report.pnl && report.keyMetrics && (
+              <MetricsCards report={report} period={activePeriod} />
+            )}
 
             {report.payrollGap && (
               <Card
@@ -283,12 +303,16 @@ export default function Dashboard() {
             <Row gutter={[24, 24]}>
               <Col xs={24} lg={16}>
                 <Card title="Revenue vs Expenses vs Net Profit">
-                  <PnLChart data={report.pnl} />
+                  {report.pnl
+                    ? <PnLChart data={report.pnl} />
+                    : <Empty description="No P&L data" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
                 </Card>
               </Col>
               <Col xs={24} lg={8}>
                 <Card title="Expense Breakdown">
-                  <ExpenseBreakdown data={report.expenseBreakdown} />
+                  {report.expenseBreakdown?.length
+                    ? <ExpenseBreakdown data={report.expenseBreakdown} />
+                    : <Empty description="No expense data" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
                 </Card>
               </Col>
             </Row>
@@ -296,7 +320,9 @@ export default function Dashboard() {
             <Row gutter={[24, 24]}>
               <Col xs={24} lg={12}>
                 <Card title="Cash Flow">
-                  <CashFlowChart data={report.cashFlow} />
+                  {report.cashFlow
+                    ? <CashFlowChart data={report.cashFlow} />
+                    : <Empty description="No cash-flow data" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
                 </Card>
               </Col>
               <Col xs={24} lg={12}>
@@ -315,6 +341,7 @@ export default function Dashboard() {
               </Card>
             )}
           </Space>
+          </ErrorBoundary>
         ) : needsAnalysis ? (
           <div style={{ maxWidth: 480, margin: '80px auto' }}>
             {triggerJobId ? (
@@ -328,6 +355,7 @@ export default function Dashboard() {
                   refetchPeriods()
                   queryClient.invalidateQueries({ queryKey: ['report', activePeriod] })
                 }}
+                onDismiss={() => setTriggerJobId(null)}
               />
             ) : (
               <Card>
@@ -343,17 +371,32 @@ export default function Dashboard() {
             )}
           </div>
         ) : reportError ? (
-          <Alert
-            type="warning"
-            message={`No report available for ${fmtPeriod(activePeriod)}`}
-            description="Upload documents and run analysis to generate a report for this period."
-            action={
-              <Button size="small" onClick={() => setUploadOpen(true)}>
-                Upload documents
-              </Button>
-            }
-            style={{ maxWidth: 600, margin: '60px auto' }}
-          />
+          errorStatus(reportError) === 404 ? (
+            <Alert
+              type="warning"
+              message={`No report available for ${fmtPeriod(activePeriod)}`}
+              description="Upload documents and run analysis to generate a report for this period."
+              action={
+                <Button size="small" onClick={() => setUploadOpen(true)}>
+                  Upload documents
+                </Button>
+              }
+              style={{ maxWidth: 600, margin: '60px auto' }}
+            />
+          ) : (
+            <Alert
+              type="error"
+              showIcon
+              message={`Couldn't load the report for ${fmtPeriod(activePeriod)}`}
+              description="The service may be starting up or briefly unavailable. Please try again."
+              action={
+                <Button size="small" icon={<ReloadOutlined />} onClick={() => refetchReport()}>
+                  Retry
+                </Button>
+              }
+              style={{ maxWidth: 600, margin: '60px auto' }}
+            />
+          )
         ) : null}
       </Content>
 
@@ -389,7 +432,7 @@ export default function Dashboard() {
           <Form.Item name="company_name" label="Company Name">
             <Input placeholder="Acme Ltd" />
           </Form.Item>
-          <Form.Item name="company_tax_id" label="Tax ID (ΑΦΜ)">
+          <Form.Item name="company_tax_id" label="Tax ID">
             <Input placeholder="123456789" />
           </Form.Item>
           <Button

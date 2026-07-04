@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Layout, Typography, Upload as AntUpload, Button,
   Steps, Card, Space, Alert, Tag, theme, Row, Col, Avatar, Tooltip,
@@ -107,6 +107,9 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [uploadPct, setUploadPct] = useState(0)
+  // Holds the post-analysis redirect timer so it can be cleared on unmount — the
+  // Dashboard modal unmounts this component the instant analysis completes.
+  const completeTimerRef = useRef<number | null>(null)
 
   // Review step state
   const [reviewRows, setReviewRows] = useState<ReviewRow[]>([])
@@ -119,6 +122,11 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
   useEffect(() => {
     if (fileList.length > 0) setPeriod(detectPeriodFromFiles(fileList))
   }, [fileList])
+
+  // Clear the pending redirect timer if the component unmounts first.
+  useEffect(() => () => {
+    if (completeTimerRef.current !== null) window.clearTimeout(completeTimerRef.current)
+  }, [])
 
   // Last 24 months for the period Select, capped at the current month.
   const PERIOD_OPTIONS = useMemo(() => {
@@ -167,7 +175,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
       ])
       setCompanyProfile(profile)
       // getDocuments returns a FLAT array of extracted documents.
-      const rows: ReviewRow[] = (docs as ExtractedDoc[]).map((doc, i) => ({
+      const rows: ReviewRow[] = docs.map((doc, i) => ({
         ...doc,
         _key: `${i}::${docFileName(doc)}`,
         _include: true,
@@ -212,7 +220,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
   // Analysis complete → hand back to the host (modal) or navigate (standalone).
   const handleAnalysisComplete = () => {
     setStep(4)
-    setTimeout(() => {
+    completeTimerRef.current = window.setTimeout(() => {
       if (onComplete) onComplete(period)
       else navigate(`/dashboard/${period}`)
     }, 1500)
@@ -339,6 +347,8 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
                 fileList={fileList}
                 beforeUpload={() => false}
                 onChange={({ fileList: fl }) => setFileList(fl)}
+                disabled={submitting}
+                showUploadList={{ showRemoveIcon: !submitting }}
                 style={{ marginTop: 8 }}
               >
                 <p className="ant-upload-drag-icon">
@@ -444,6 +454,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
           label="Extraction job"
           runningMessage="Processing documents with vision LLM (Qwen2.5-VL-72B)…"
           onComplete={handleExtractionComplete}
+          onDismiss={() => { setJobId(null); setStep(0) }}
         />
       )}
 
@@ -509,6 +520,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
           runningMessage="Running 7-agent financial analysis pipeline…"
           pollFn={api.getAnalysisJob}
           onComplete={handleAnalysisComplete}
+          onDismiss={() => { setAnalysisJobId(null); setStep(2) }}
         />
       )}
 

@@ -36,16 +36,21 @@ type RawReport = FinancialReport & {
 function normalizeReport(resp: AnalysisResponse): AnalysisResponse {
   const report = resp.report as RawReport
 
+  // Build shallow copies of both the response and its nested report so this
+  // adapter never mutates the react-query-cached object in place (in-place edits
+  // corrupt the cache and defeat referential-equality change detection).
+  const next: RawReport = { ...report }
+
   // payrollEvents[0] → payrollGap. Only when the true employer cost and a
   // positive net figure are both present, else the gap % would be NaN/∞.
-  if (!report.payrollGap && report.payrollEvents?.length) {
-    const ev = report.payrollEvents[0]
+  if (!next.payrollGap && next.payrollEvents?.length) {
+    const ev = next.payrollEvents[0]
     if (
       ev.employer_cost_total != null &&
       ev.net_total != null &&
       ev.net_total > 0
     ) {
-      report.payrollGap = {
+      next.payrollGap = {
         bankTransferNet: ev.net_total,
         trueEmployerCost: ev.employer_cost_total,
         gapPct: (ev.employer_cost_total / ev.net_total - 1) * 100,
@@ -57,8 +62,8 @@ function normalizeReport(resp: AnalysisResponse): AnalysisResponse {
   // validationResults → validations. A rule is `skip` (dormant) when its message
   // is prefixed "Skipped"; otherwise pass/fail follows the boolean. The rule id
   // (R1…R4) is the token before the colon; the remainder is the description.
-  if (!report.validations && report.validationResults?.length) {
-    report.validations = report.validationResults.map((r): ValidationRule => {
+  if (!next.validations && next.validationResults?.length) {
+    next.validations = next.validationResults.map((r): ValidationRule => {
       const [id, ...rest] = r.rule.split(':')
       const state: ValidationState = r.message?.startsWith('Skipped')
         ? 'skip'
@@ -73,12 +78,15 @@ function normalizeReport(resp: AnalysisResponse): AnalysisResponse {
     })
   }
 
-  return resp
+  return { ...resp, report: next }
 }
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
-  timeout: 120_000,
+  // Held just above the ~60s Firebase BFF ceiling so the BFF's own 502/503
+  // (ADR-009 ComputeCapacityUnavailable) surfaces to the response interceptor
+  // below before axios aborts client-side with a generic timeout.
+  timeout: 65_000,
 })
 
 http.interceptors.request.use(async (config) => {
@@ -89,6 +97,21 @@ http.interceptors.request.use(async (config) => {
   }
   return config
 })
+
+// Centralised error copy for backend compute-availability failures. The Firebase
+// BFF returns 502 (endpoint still starting) or 503 (ADR-009: no compute capacity)
+// which otherwise reach the UI as raw "Request failed with status code 503". We
+// rewrite ONLY error.message and leave error.response intact so callers can still
+// branch on error.response?.status (e.g. Dashboard's 404-vs-5xx report handling).
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status
+    if (status === 503) error.message = 'Compute is warming up — please retry in a moment.'
+    else if (status === 502) error.message = 'Service is starting up — please retry shortly.'
+    return Promise.reject(error)
+  },
+)
 
 export const api = {
   upload: async (
@@ -155,9 +178,22 @@ export const api = {
     await http.delete(`/api/jobs/${jobId}`)
   },
 
-  getDocuments: async (period: string): Promise<unknown[]> => {
-    const { data } = await http.get<unknown[]>(`/api/documents/${period}`)
-    return data
+  // Nebius extraction serialises a FLAT ExtractedDoc[]. Older/alternate payloads
+  // (and the Azure port) wrap it as { documents: [...] }. Normalise both shapes at
+  // this boundary and drop non-object entries so consumers receive a clean,
+  // correctly-typed array instead of blind-casting `unknown[] as ExtractedDoc[]`.
+  getDocuments: async (period: string): Promise<ExtractedDoc[]> => {
+    const { data } = await http.get<unknown>(`/api/documents/${period}`)
+    const raw: unknown =
+      Array.isArray(data)
+        ? data
+        : data && typeof data === 'object' &&
+          Array.isArray((data as { documents?: unknown }).documents)
+          ? (data as { documents: unknown[] }).documents
+          : []
+    return (raw as unknown[]).filter(
+      (d): d is ExtractedDoc => !!d && typeof d === 'object',
+    )
   },
 
   getCompanyProfile: async (): Promise<CompanyProfile> => {

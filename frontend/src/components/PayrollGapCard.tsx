@@ -5,7 +5,7 @@ import type { PayrollGap } from '../types/financial'
 const { Text } = Typography
 
 const fmt = (v: number) =>
-  new Intl.NumberFormat('en-EU', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
+  new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
 
 interface Props {
   gap: PayrollGap
