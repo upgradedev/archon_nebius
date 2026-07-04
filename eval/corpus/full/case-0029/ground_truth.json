@@ -1,6 +1,6 @@
 {
   "case_id": "case-0029",
-  "company": "Attiki Build AE",
+  "company": "Cobalt Build Oy",
   "period": "2026-10",
   "payment_date": "2026-10-31",
   "edge_cases": [
@@ -16,42 +16,42 @@
     {
       "source_file": "bank_confirmation_2026-10.pdf",
       "doc_type": "bank_confirmation",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-10-31",
-      "recipient_name": "Attiki Build AE",
-      "vendor_name": "Trapeza Peiraios AE",
+      "recipient_name": "Cobalt Build Oy",
+      "vendor_name": "Zenith Bank",
       "currency": "EUR",
       "total_amount": 3640.84,
-      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
-      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+      "notes": "Batch payroll transfer confirmation",
+      "raw_text_excerpt": "ZENITH BANK BATCH PAYROLL TRANSFER CONFIRMATION"
     },
     {
       "source_file": "payslip_EMP-001_2026-10.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-10-31",
-      "recipient_name": "Attiki Build AE",
-      "vendor_name": "Attiki Build AE",
+      "recipient_name": "Cobalt Build Oy",
+      "vendor_name": "Cobalt Build Oy",
       "currency": "EUR",
       "total_amount": 726.16,
-      "employee_name": "Vasilis Georgiou",
+      "employee_name": "Nina Rossi",
       "employee_code": "EMP-001",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-002_2026-10.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-10-31",
-      "recipient_name": "Attiki Build AE",
-      "vendor_name": "Attiki Build AE",
+      "recipient_name": "Cobalt Build Oy",
+      "vendor_name": "Cobalt Build Oy",
       "currency": "EUR",
       "total_amount": 2914.68,
-      "employee_name": "Nikos Alexiou",
+      "employee_name": "Wei Novak",
       "employee_code": "EMP-002",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     }
   ],
   "truth": {
@@ -72,7 +72,7 @@
         "net": 726.16,
         "employer_social_security": 258.63,
         "employer_cost": 1253.37,
-        "name": "Vasilis Georgiou"
+        "name": "Nina Rossi"
       },
       {
         "employee_code": "EMP-002",
@@ -82,7 +82,7 @@
         "net": 2914.68,
         "employer_social_security": 1038.11,
         "employer_cost": 5030.83,
-        "name": "Nikos Alexiou"
+        "name": "Wei Novak"
       }
     ]
   },

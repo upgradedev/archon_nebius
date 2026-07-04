@@ -1,6 +1,6 @@
 {
   "case_id": "case-0034",
-  "company": "Ionian Services EPE",
+  "company": "Meridian Services Srl",
   "period": "2025-01",
   "payment_date": "2025-01-31",
   "edge_cases": [
@@ -16,10 +16,10 @@
     {
       "source_file": "payroll_register_2025-01.pdf",
       "doc_type": "payroll_register",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-01-31",
-      "recipient_name": "Ionian Services EPE",
-      "vendor_name": "Ionian Services EPE",
+      "recipient_name": "Meridian Services Srl",
+      "vendor_name": "Meridian Services Srl",
       "currency": "EUR",
       "total_amount": 9076.5,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
@@ -28,44 +28,44 @@
     {
       "source_file": "payslip_EMP-001_2025-01.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-01-31",
-      "recipient_name": "Ionian Services EPE",
-      "vendor_name": "Ionian Services EPE",
+      "recipient_name": "Meridian Services Srl",
+      "vendor_name": "Meridian Services Srl",
       "currency": "EUR",
       "total_amount": 1553.77,
-      "employee_name": "Petros Alexiou",
+      "employee_name": "Lucas Novak",
       "employee_code": "EMP-001",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-002_2025-01.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-01-31",
-      "recipient_name": "Ionian Services EPE",
-      "vendor_name": "Ionian Services EPE",
+      "recipient_name": "Meridian Services Srl",
+      "vendor_name": "Meridian Services Srl",
       "currency": "EUR",
       "total_amount": 1850.01,
-      "employee_name": "Giorgos Georgiou",
+      "employee_name": "Sofia Rossi",
       "employee_code": "EMP-002",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-003_2025-01.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-01-31",
-      "recipient_name": "Ionian Services EPE",
-      "vendor_name": "Ionian Services EPE",
+      "recipient_name": "Meridian Services Srl",
+      "vendor_name": "Meridian Services Srl",
       "currency": "EUR",
       "total_amount": 1854.83,
-      "employee_name": "Maria Samaras",
+      "employee_name": "Maria Smith",
       "employee_code": "EMP-003",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     }
   ],
   "truth": {
@@ -86,7 +86,7 @@
         "net": 1553.77,
         "employer_social_security": 553.4,
         "employer_cost": 2681.85,
-        "name": "Petros Alexiou"
+        "name": "Lucas Novak"
       },
       {
         "employee_code": "EMP-002",
@@ -96,7 +96,7 @@
         "net": 1850.01,
         "employer_social_security": 658.91,
         "employer_cost": 3193.17,
-        "name": "Giorgos Georgiou"
+        "name": "Sofia Rossi"
       },
       {
         "employee_code": "EMP-003",
@@ -106,7 +106,7 @@
         "net": 1854.83,
         "employer_social_security": 660.62,
         "employer_cost": 3201.48,
-        "name": "Maria Samaras"
+        "name": "Maria Smith"
       }
     ]
   },

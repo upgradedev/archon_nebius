@@ -1,6 +1,6 @@
 {
   "case_id": "case-0024",
-  "company": "Kyklades Software EPE",
+  "company": "Cyan Software SA",
   "period": "2026-03",
   "payment_date": "2026-03-31",
   "edge_cases": [],
@@ -14,22 +14,22 @@
     {
       "source_file": "bank_confirmation_2026-03.pdf",
       "doc_type": "bank_confirmation",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-03-31",
-      "recipient_name": "Kyklades Software EPE",
-      "vendor_name": "Trapeza Peiraios AE",
+      "recipient_name": "Cyan Software SA",
+      "vendor_name": "Zenith Bank",
       "currency": "EUR",
       "total_amount": 6565.49,
-      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
-      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+      "notes": "Batch payroll transfer confirmation",
+      "raw_text_excerpt": "ZENITH BANK BATCH PAYROLL TRANSFER CONFIRMATION"
     },
     {
       "source_file": "payroll_register_2026-03.pdf",
       "doc_type": "payroll_register",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-03-31",
-      "recipient_name": "Kyklades Software EPE",
-      "vendor_name": "Kyklades Software EPE",
+      "recipient_name": "Cyan Software SA",
+      "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 11332.22,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
@@ -38,58 +38,58 @@
     {
       "source_file": "payslip_EMP-001_2026-03.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-03-31",
-      "recipient_name": "Kyklades Software EPE",
-      "vendor_name": "Kyklades Software EPE",
+      "recipient_name": "Cyan Software SA",
+      "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 1157.5,
-      "employee_name": "Sofia Vlachos",
+      "employee_name": "James Nakamura",
       "employee_code": "EMP-001",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-002_2026-03.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-03-31",
-      "recipient_name": "Kyklades Software EPE",
-      "vendor_name": "Kyklades Software EPE",
+      "recipient_name": "Cyan Software SA",
+      "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 2784.61,
-      "employee_name": "Nikos Georgiou",
+      "employee_name": "Wei Rossi",
       "employee_code": "EMP-002",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-003_2026-03.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-03-31",
-      "recipient_name": "Kyklades Software EPE",
-      "vendor_name": "Kyklades Software EPE",
+      "recipient_name": "Cyan Software SA",
+      "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 1015.36,
-      "employee_name": "Katerina Makris",
+      "employee_name": "Priya Meyer",
       "employee_code": "EMP-003",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-004_2026-03.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-03-31",
-      "recipient_name": "Kyklades Software EPE",
-      "vendor_name": "Kyklades Software EPE",
+      "recipient_name": "Cyan Software SA",
+      "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 1608.02,
-      "employee_name": "Katerina Georgiou",
+      "employee_name": "Priya Rossi",
       "employee_code": "EMP-004",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     }
   ],
   "truth": {
@@ -110,7 +110,7 @@
         "net": 1157.5,
         "employer_social_security": 412.26,
         "employer_cost": 1997.88,
-        "name": "Sofia Vlachos"
+        "name": "James Nakamura"
       },
       {
         "employee_code": "EMP-002",
@@ -120,7 +120,7 @@
         "net": 2784.61,
         "employer_social_security": 991.78,
         "employer_cost": 4806.31,
-        "name": "Nikos Georgiou"
+        "name": "Wei Rossi"
       },
       {
         "employee_code": "EMP-003",
@@ -130,7 +130,7 @@
         "net": 1015.36,
         "employer_social_security": 361.64,
         "employer_cost": 1752.55,
-        "name": "Katerina Makris"
+        "name": "Priya Meyer"
       },
       {
         "employee_code": "EMP-004",
@@ -140,7 +140,7 @@
         "net": 1608.02,
         "employer_social_security": 572.72,
         "employer_cost": 2775.48,
-        "name": "Katerina Georgiou"
+        "name": "Priya Rossi"
       }
     ]
   },

@@ -1,6 +1,6 @@
 {
   "case_id": "case-0001",
-  "company": "Ionian Services EPE",
+  "company": "Meridian Services Srl",
   "period": "2025-07",
   "payment_date": "2025-07-31",
   "edge_cases": [],
@@ -14,22 +14,22 @@
     {
       "source_file": "bank_confirmation_2025-07.pdf",
       "doc_type": "bank_confirmation",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Ionian Services EPE",
-      "vendor_name": "Trapeza Peiraios AE",
+      "recipient_name": "Meridian Services Srl",
+      "vendor_name": "Zenith Bank",
       "currency": "EUR",
       "total_amount": 7933.41,
-      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
-      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+      "notes": "Batch payroll transfer confirmation",
+      "raw_text_excerpt": "ZENITH BANK BATCH PAYROLL TRANSFER CONFIRMATION"
     },
     {
       "source_file": "payroll_register_2025-07.pdf",
       "doc_type": "payroll_register",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Ionian Services EPE",
-      "vendor_name": "Ionian Services EPE",
+      "recipient_name": "Meridian Services Srl",
+      "vendor_name": "Meridian Services Srl",
       "currency": "EUR",
       "total_amount": 13693.29,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
@@ -38,86 +38,86 @@
     {
       "source_file": "payslip_EMP-001_2025-07.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Ionian Services EPE",
-      "vendor_name": "Ionian Services EPE",
+      "recipient_name": "Meridian Services Srl",
+      "vendor_name": "Meridian Services Srl",
       "currency": "EUR",
       "total_amount": 738.59,
-      "employee_name": "Anna Samaras",
+      "employee_name": "Hana Smith",
       "employee_code": "EMP-001",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-002_2025-07.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Ionian Services EPE",
-      "vendor_name": "Ionian Services EPE",
+      "recipient_name": "Meridian Services Srl",
+      "vendor_name": "Meridian Services Srl",
       "currency": "EUR",
       "total_amount": 1514.79,
-      "employee_name": "Maria Makris",
+      "employee_name": "Maria Meyer",
       "employee_code": "EMP-002",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-003_2025-07.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Ionian Services EPE",
-      "vendor_name": "Ionian Services EPE",
+      "recipient_name": "Meridian Services Srl",
+      "vendor_name": "Meridian Services Srl",
       "currency": "EUR",
       "total_amount": 1145.54,
-      "employee_name": "Sofia Vlachos",
+      "employee_name": "James Nakamura",
       "employee_code": "EMP-003",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-004_2025-07.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Ionian Services EPE",
-      "vendor_name": "Ionian Services EPE",
+      "recipient_name": "Meridian Services Srl",
+      "vendor_name": "Meridian Services Srl",
       "currency": "EUR",
       "total_amount": 1643.14,
-      "employee_name": "Giorgos Samaras",
+      "employee_name": "Sofia Smith",
       "employee_code": "EMP-004",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-005_2025-07.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Ionian Services EPE",
-      "vendor_name": "Ionian Services EPE",
+      "recipient_name": "Meridian Services Srl",
+      "vendor_name": "Meridian Services Srl",
       "currency": "EUR",
       "total_amount": 1968.09,
-      "employee_name": "Maria Dimou",
+      "employee_name": "Maria Okafor",
       "employee_code": "EMP-005",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-006_2025-07.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Ionian Services EPE",
-      "vendor_name": "Ionian Services EPE",
+      "recipient_name": "Meridian Services Srl",
+      "vendor_name": "Meridian Services Srl",
       "currency": "EUR",
       "total_amount": 923.26,
-      "employee_name": "Giorgos Dimou",
+      "employee_name": "Sofia Okafor",
       "employee_code": "EMP-006",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     }
   ],
   "truth": {
@@ -138,7 +138,7 @@
         "net": 738.59,
         "employer_social_security": 263.06,
         "employer_cost": 1274.82,
-        "name": "Anna Samaras"
+        "name": "Hana Smith"
       },
       {
         "employee_code": "EMP-002",
@@ -148,7 +148,7 @@
         "net": 1514.79,
         "employer_social_security": 539.52,
         "employer_cost": 2614.58,
-        "name": "Maria Makris"
+        "name": "Maria Meyer"
       },
       {
         "employee_code": "EMP-003",
@@ -158,7 +158,7 @@
         "net": 1145.54,
         "employer_social_security": 408.0,
         "employer_cost": 1977.24,
-        "name": "Sofia Vlachos"
+        "name": "James Nakamura"
       },
       {
         "employee_code": "EMP-004",
@@ -168,7 +168,7 @@
         "net": 1643.14,
         "employer_social_security": 585.23,
         "employer_cost": 2836.11,
-        "name": "Giorgos Samaras"
+        "name": "Sofia Smith"
       },
       {
         "employee_code": "EMP-005",
@@ -178,7 +178,7 @@
         "net": 1968.09,
         "employer_social_security": 700.96,
         "employer_cost": 3396.97,
-        "name": "Maria Dimou"
+        "name": "Maria Okafor"
       },
       {
         "employee_code": "EMP-006",
@@ -188,7 +188,7 @@
         "net": 923.26,
         "employer_social_security": 328.83,
         "employer_cost": 1593.57,
-        "name": "Giorgos Dimou"
+        "name": "Sofia Okafor"
       }
     ]
   },
