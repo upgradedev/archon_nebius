@@ -34,7 +34,7 @@ def test_main_runs_full_agent_pipeline(monkeypatch):
         "raw-docs/2026-01/up-test/s1.pdf",
         "raw-docs/2026-01/up-test/s2.pdf",
     ]
-    monkeypatch.setattr(main, "_list_raw_files", lambda: keys)
+    monkeypatch.setattr(main, "_list_raw_files", lambda upload_id, period: keys)
 
     def fake_extract(key):
         name = key.split("/")[-1]
@@ -81,8 +81,8 @@ def test_main_runs_full_agent_pipeline(monkeypatch):
 def test_main_deserialises_and_skips_malformed(monkeypatch):
     # One good doc + one structurally-broken extraction result (missing required
     # fields) — the broken one is skipped, the pipeline still completes.
-    monkeypatch.setattr(main, "_list_raw_files", lambda: ["raw-docs/2026-01/up-test/a.pdf",
-                                                          "raw-docs/2026-01/up-test/b.pdf"])
+    monkeypatch.setattr(main, "_list_raw_files", lambda upload_id, period: ["raw-docs/2026-01/up-test/a.pdf",
+                                                                            "raw-docs/2026-01/up-test/b.pdf"])
 
     def fake_extract(key):
         if key.endswith("a.pdf"):
@@ -164,7 +164,7 @@ def test_s3_helpers_hit_boto_client(monkeypatch):
     monkeypatch.setattr(main.boto3, "client", lambda *a, **k: _FakeClient())
 
     # _list_raw_files must drop manifest.json.
-    assert main._list_raw_files() == ["raw-docs/2026-01/up-test/a.pdf"]
+    assert main._list_raw_files("up-test", "2026-01") == ["raw-docs/2026-01/up-test/a.pdf"]
 
     main._download("some/key.pdf", Path("dest.pdf"))
     assert calls["download"][1] == "some/key.pdf"
