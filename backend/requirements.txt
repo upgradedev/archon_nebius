@@ -8,7 +8,7 @@ python-multipart==0.0.31  # security: 0.0.20 had multiple DoS CVEs (CVE-2026-244
 python-dotenv==1.2.2  # security: 1.0.1 had CVE-2026-28684
 nebius==0.3.76  # pinned: loose >=0.3.0 silently upgraded the SDK and broke the registry_credentials proto contract (500 on /api/jobs). 0.3.76 is the validated known-good version.
 requests==2.33.0
-PyJWT[cryptography]==2.12.1
+PyJWT[cryptography]==2.13.0  # security: 2.12.1 had PYSEC-2026-175/177/178/179 + GHSA-jq35-7prp-9v3f; 2.13.0 is the fixed release
 # test
 pytest>=8.3.0
 pytest-mock>=3.14.0
