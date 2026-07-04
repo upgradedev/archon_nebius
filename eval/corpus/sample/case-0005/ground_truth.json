@@ -1,6 +1,6 @@
 {
   "case_id": "case-0005",
-  "company": "Saronikos Marine IKE",
+  "company": "Harbor Marine Pty",
   "period": "2025-09",
   "payment_date": "2025-09-30",
   "edge_cases": [
@@ -16,10 +16,10 @@
     {
       "source_file": "payroll_register_2025-09.pdf",
       "doc_type": "payroll_register",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-09-30",
-      "recipient_name": "Saronikos Marine IKE",
-      "vendor_name": "Saronikos Marine IKE",
+      "recipient_name": "Harbor Marine Pty",
+      "vendor_name": "Harbor Marine Pty",
       "currency": "EUR",
       "total_amount": 20556.06,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
@@ -28,72 +28,72 @@
     {
       "source_file": "payslip_EMP-001_2025-09.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-09-30",
-      "recipient_name": "Saronikos Marine IKE",
-      "vendor_name": "Saronikos Marine IKE",
+      "recipient_name": "Harbor Marine Pty",
+      "vendor_name": "Harbor Marine Pty",
       "currency": "EUR",
       "total_amount": 2550.23,
-      "employee_name": "Dimitris Nikolaou",
+      "employee_name": "Anders Haddad",
       "employee_code": "EMP-001",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-002_2025-09.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-09-30",
-      "recipient_name": "Saronikos Marine IKE",
-      "vendor_name": "Saronikos Marine IKE",
+      "recipient_name": "Harbor Marine Pty",
+      "vendor_name": "Harbor Marine Pty",
       "currency": "EUR",
       "total_amount": 2320.84,
-      "employee_name": "Kostas Ioannidis",
+      "employee_name": "Diego Silva",
       "employee_code": "EMP-002",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-003_2025-09.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-09-30",
-      "recipient_name": "Saronikos Marine IKE",
-      "vendor_name": "Saronikos Marine IKE",
+      "recipient_name": "Harbor Marine Pty",
+      "vendor_name": "Harbor Marine Pty",
       "currency": "EUR",
       "total_amount": 2038.64,
-      "employee_name": "Petros Samaras",
+      "employee_name": "Lucas Smith",
       "employee_code": "EMP-003",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-004_2025-09.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-09-30",
-      "recipient_name": "Saronikos Marine IKE",
-      "vendor_name": "Saronikos Marine IKE",
+      "recipient_name": "Harbor Marine Pty",
+      "vendor_name": "Harbor Marine Pty",
       "currency": "EUR",
       "total_amount": 2674.64,
-      "employee_name": "Eleni Ioannidis",
+      "employee_name": "Omar Silva",
       "employee_code": "EMP-004",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-005_2025-09.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-09-30",
-      "recipient_name": "Saronikos Marine IKE",
-      "vendor_name": "Saronikos Marine IKE",
+      "recipient_name": "Harbor Marine Pty",
+      "vendor_name": "Harbor Marine Pty",
       "currency": "EUR",
       "total_amount": 2325.12,
-      "employee_name": "Sofia Antoniou",
+      "employee_name": "James Andersen",
       "employee_code": "EMP-005",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     }
   ],
   "truth": {
@@ -114,7 +114,7 @@
         "net": 2550.23,
         "employer_social_security": 908.3,
         "employer_cost": 4401.77,
-        "name": "Dimitris Nikolaou"
+        "name": "Anders Haddad"
       },
       {
         "employee_code": "EMP-002",
@@ -124,7 +124,7 @@
         "net": 2320.84,
         "employer_social_security": 826.6,
         "employer_cost": 4005.84,
-        "name": "Kostas Ioannidis"
+        "name": "Diego Silva"
       },
       {
         "employee_code": "EMP-003",
@@ -134,7 +134,7 @@
         "net": 2038.64,
         "employer_social_security": 726.09,
         "employer_cost": 3518.74,
-        "name": "Petros Samaras"
+        "name": "Lucas Smith"
       },
       {
         "employee_code": "EMP-004",
@@ -144,7 +144,7 @@
         "net": 2674.64,
         "employer_social_security": 952.61,
         "employer_cost": 4616.5,
-        "name": "Eleni Ioannidis"
+        "name": "Omar Silva"
       },
       {
         "employee_code": "EMP-005",
@@ -154,7 +154,7 @@
         "net": 2325.12,
         "employer_social_security": 828.12,
         "employer_cost": 4013.21,
-        "name": "Sofia Antoniou"
+        "name": "James Andersen"
       }
     ]
   },

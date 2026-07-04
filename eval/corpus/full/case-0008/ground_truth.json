@@ -1,6 +1,6 @@
 {
   "case_id": "case-0008",
-  "company": "Makedonia Metals AE",
+  "company": "Ferrum Metals NV",
   "period": "2026-12",
   "payment_date": "2026-12-31",
   "edge_cases": [
@@ -16,10 +16,10 @@
     {
       "source_file": "payroll_register_2026-12.pdf",
       "doc_type": "payroll_register",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-12-31",
-      "recipient_name": "Makedonia Metals AE",
-      "vendor_name": "Makedonia Metals AE",
+      "recipient_name": "Ferrum Metals NV",
+      "vendor_name": "Ferrum Metals NV",
       "currency": "EUR",
       "total_amount": 13285.19,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
@@ -28,58 +28,58 @@
     {
       "source_file": "payslip_EMP-001_2026-12.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-12-31",
-      "recipient_name": "Makedonia Metals AE",
-      "vendor_name": "Makedonia Metals AE",
+      "recipient_name": "Ferrum Metals NV",
+      "vendor_name": "Ferrum Metals NV",
       "currency": "EUR",
       "total_amount": 3032.9,
-      "employee_name": "Ioanna Vlachos",
+      "employee_name": "Yuki Nakamura",
       "employee_code": "EMP-001",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-002_2026-12.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-12-31",
-      "recipient_name": "Makedonia Metals AE",
-      "vendor_name": "Makedonia Metals AE",
+      "recipient_name": "Ferrum Metals NV",
+      "vendor_name": "Ferrum Metals NV",
       "currency": "EUR",
       "total_amount": 2962.64,
-      "employee_name": "Nikos Samaras",
+      "employee_name": "Wei Smith",
       "employee_code": "EMP-002",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-003_2026-12.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-12-31",
-      "recipient_name": "Makedonia Metals AE",
-      "vendor_name": "Makedonia Metals AE",
+      "recipient_name": "Ferrum Metals NV",
+      "vendor_name": "Ferrum Metals NV",
       "currency": "EUR",
       "total_amount": 1051.44,
-      "employee_name": "Giorgos Georgiou",
+      "employee_name": "Sofia Rossi",
       "employee_code": "EMP-003",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-004_2026-12.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2026-12-31",
-      "recipient_name": "Makedonia Metals AE",
-      "vendor_name": "Makedonia Metals AE",
+      "recipient_name": "Ferrum Metals NV",
+      "vendor_name": "Ferrum Metals NV",
       "currency": "EUR",
       "total_amount": 649.99,
-      "employee_name": "Kostas Papadopoulos",
+      "employee_name": "Diego Kim",
       "employee_code": "EMP-004",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     }
   ],
   "truth": {
@@ -100,7 +100,7 @@
         "net": 3032.9,
         "employer_social_security": 1080.21,
         "employer_cost": 5234.87,
-        "name": "Ioanna Vlachos"
+        "name": "Yuki Nakamura"
       },
       {
         "employee_code": "EMP-002",
@@ -110,7 +110,7 @@
         "net": 2962.64,
         "employer_social_security": 1055.18,
         "employer_cost": 5113.58,
-        "name": "Nikos Samaras"
+        "name": "Wei Smith"
       },
       {
         "employee_code": "EMP-003",
@@ -120,7 +120,7 @@
         "net": 1051.44,
         "employer_social_security": 374.49,
         "employer_cost": 1814.82,
-        "name": "Giorgos Georgiou"
+        "name": "Sofia Rossi"
       },
       {
         "employee_code": "EMP-004",
@@ -130,7 +130,7 @@
         "net": 649.99,
         "employer_social_security": 231.51,
         "employer_cost": 1121.92,
-        "name": "Kostas Papadopoulos"
+        "name": "Diego Kim"
       }
     ]
   },

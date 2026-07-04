@@ -1,6 +1,6 @@
 {
   "case_id": "case-0032",
-  "company": "Dodekanisa Trade AE",
+  "company": "Delta Trade Sp. z o.o.",
   "period": "2025-07",
   "payment_date": "2025-07-31",
   "edge_cases": [],
@@ -14,22 +14,22 @@
     {
       "source_file": "bank_confirmation_2025-07.pdf",
       "doc_type": "bank_confirmation",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Dodekanisa Trade AE",
-      "vendor_name": "Trapeza Peiraios AE",
+      "recipient_name": "Delta Trade Sp. z o.o.",
+      "vendor_name": "Zenith Bank",
       "currency": "EUR",
       "total_amount": 5489.01,
-      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
-      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+      "notes": "Batch payroll transfer confirmation",
+      "raw_text_excerpt": "ZENITH BANK BATCH PAYROLL TRANSFER CONFIRMATION"
     },
     {
       "source_file": "payroll_register_2025-07.pdf",
       "doc_type": "payroll_register",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Dodekanisa Trade AE",
-      "vendor_name": "Dodekanisa Trade AE",
+      "recipient_name": "Delta Trade Sp. z o.o.",
+      "vendor_name": "Delta Trade Sp. z o.o.",
       "currency": "EUR",
       "total_amount": 9474.19,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
@@ -38,44 +38,44 @@
     {
       "source_file": "payslip_EMP-001_2025-07.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Dodekanisa Trade AE",
-      "vendor_name": "Dodekanisa Trade AE",
+      "recipient_name": "Delta Trade Sp. z o.o.",
+      "vendor_name": "Delta Trade Sp. z o.o.",
       "currency": "EUR",
       "total_amount": 3021.69,
-      "employee_name": "Nikos Antoniou",
+      "employee_name": "Wei Andersen",
       "employee_code": "EMP-001",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-002_2025-07.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Dodekanisa Trade AE",
-      "vendor_name": "Dodekanisa Trade AE",
+      "recipient_name": "Delta Trade Sp. z o.o.",
+      "vendor_name": "Delta Trade Sp. z o.o.",
       "currency": "EUR",
       "total_amount": 793.45,
-      "employee_name": "Vasilis Alexiou",
+      "employee_name": "Nina Novak",
       "employee_code": "EMP-002",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-003_2025-07.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-07-31",
-      "recipient_name": "Dodekanisa Trade AE",
-      "vendor_name": "Dodekanisa Trade AE",
+      "recipient_name": "Delta Trade Sp. z o.o.",
+      "vendor_name": "Delta Trade Sp. z o.o.",
       "currency": "EUR",
       "total_amount": 1673.87,
-      "employee_name": "Maria Samaras",
+      "employee_name": "Maria Smith",
       "employee_code": "EMP-003",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     }
   ],
   "truth": {
@@ -96,7 +96,7 @@
         "net": 3021.69,
         "employer_social_security": 1076.22,
         "employer_cost": 5215.52,
-        "name": "Nikos Antoniou"
+        "name": "Wei Andersen"
       },
       {
         "employee_code": "EMP-002",
@@ -106,7 +106,7 @@
         "net": 793.45,
         "employer_social_security": 282.6,
         "employer_cost": 1369.52,
-        "name": "Vasilis Alexiou"
+        "name": "Nina Novak"
       },
       {
         "employee_code": "EMP-003",
@@ -116,7 +116,7 @@
         "net": 1673.87,
         "employer_social_security": 596.17,
         "employer_cost": 2889.15,
-        "name": "Maria Samaras"
+        "name": "Maria Smith"
       }
     ]
   },

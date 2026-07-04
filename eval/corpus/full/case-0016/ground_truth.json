@@ -1,6 +1,6 @@
 {
   "case_id": "case-0016",
-  "company": "Epirus Dairy EPE",
+  "company": "Valley Dairy SAS",
   "period": "2025-08",
   "payment_date": "2025-08-31",
   "edge_cases": [],
@@ -14,22 +14,22 @@
     {
       "source_file": "bank_confirmation_2025-08.pdf",
       "doc_type": "bank_confirmation",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-08-31",
-      "recipient_name": "Epirus Dairy EPE",
-      "vendor_name": "Trapeza Peiraios AE",
+      "recipient_name": "Valley Dairy SAS",
+      "vendor_name": "Zenith Bank",
       "currency": "EUR",
       "total_amount": 12037.4,
-      "notes": "Vevaiosi mazikis pliromis misthodosias (batch payroll transfer)",
-      "raw_text_excerpt": "TRAPEZA PEIRAIOS - BEBAIWSH MAZIKHS PLHRWMHS MISTHODOSIAS"
+      "notes": "Batch payroll transfer confirmation",
+      "raw_text_excerpt": "ZENITH BANK BATCH PAYROLL TRANSFER CONFIRMATION"
     },
     {
       "source_file": "payroll_register_2025-08.pdf",
       "doc_type": "payroll_register",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-08-31",
-      "recipient_name": "Epirus Dairy EPE",
-      "vendor_name": "Epirus Dairy EPE",
+      "recipient_name": "Valley Dairy SAS",
+      "vendor_name": "Valley Dairy SAS",
       "currency": "EUR",
       "total_amount": 20776.88,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
@@ -38,86 +38,86 @@
     {
       "source_file": "payslip_EMP-001_2025-08.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-08-31",
-      "recipient_name": "Epirus Dairy EPE",
-      "vendor_name": "Epirus Dairy EPE",
+      "recipient_name": "Valley Dairy SAS",
+      "vendor_name": "Valley Dairy SAS",
       "currency": "EUR",
       "total_amount": 1461.76,
-      "employee_name": "Ioanna Samaras",
+      "employee_name": "Yuki Smith",
       "employee_code": "EMP-001",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-002_2025-08.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-08-31",
-      "recipient_name": "Epirus Dairy EPE",
-      "vendor_name": "Epirus Dairy EPE",
+      "recipient_name": "Valley Dairy SAS",
+      "vendor_name": "Valley Dairy SAS",
       "currency": "EUR",
       "total_amount": 2661.63,
-      "employee_name": "Sofia Vlachos",
+      "employee_name": "James Nakamura",
       "employee_code": "EMP-002",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-003_2025-08.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-08-31",
-      "recipient_name": "Epirus Dairy EPE",
-      "vendor_name": "Epirus Dairy EPE",
+      "recipient_name": "Valley Dairy SAS",
+      "vendor_name": "Valley Dairy SAS",
       "currency": "EUR",
       "total_amount": 2533.62,
-      "employee_name": "Giorgos Ioannidis",
+      "employee_name": "Sofia Silva",
       "employee_code": "EMP-003",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-004_2025-08.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-08-31",
-      "recipient_name": "Epirus Dairy EPE",
-      "vendor_name": "Epirus Dairy EPE",
+      "recipient_name": "Valley Dairy SAS",
+      "vendor_name": "Valley Dairy SAS",
       "currency": "EUR",
       "total_amount": 2794.58,
-      "employee_name": "Katerina Nikolaou",
+      "employee_name": "Priya Haddad",
       "employee_code": "EMP-004",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-005_2025-08.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-08-31",
-      "recipient_name": "Epirus Dairy EPE",
-      "vendor_name": "Epirus Dairy EPE",
+      "recipient_name": "Valley Dairy SAS",
+      "vendor_name": "Valley Dairy SAS",
       "currency": "EUR",
       "total_amount": 832.64,
-      "employee_name": "Vasilis Vlachos",
+      "employee_name": "Nina Nakamura",
       "employee_code": "EMP-005",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     },
     {
       "source_file": "payslip_EMP-006_2025-08.pdf",
       "doc_type": "payslip",
-      "detected_language": "el",
+      "detected_language": "en",
       "issue_date": "2025-08-31",
-      "recipient_name": "Epirus Dairy EPE",
-      "vendor_name": "Epirus Dairy EPE",
+      "recipient_name": "Valley Dairy SAS",
+      "vendor_name": "Valley Dairy SAS",
       "currency": "EUR",
       "total_amount": 1753.17,
-      "employee_name": "Vasilis Samaras",
+      "employee_name": "Nina Smith",
       "employee_code": "EMP-006",
-      "notes": "Ekkatharistiko misthodosias (payslip)",
-      "raw_text_excerpt": "EKKATHARISTIKO MISTHODOSIAS payslip"
+      "notes": "Payslip - net pay",
+      "raw_text_excerpt": "PAYSLIP net pay"
     }
   ],
   "truth": {
@@ -138,7 +138,7 @@
         "net": 1461.76,
         "employer_social_security": 520.63,
         "employer_cost": 2523.05,
-        "name": "Ioanna Samaras"
+        "name": "Yuki Smith"
       },
       {
         "employee_code": "EMP-002",
@@ -148,7 +148,7 @@
         "net": 2661.63,
         "employer_social_security": 947.98,
         "employer_cost": 4594.05,
-        "name": "Sofia Vlachos"
+        "name": "James Nakamura"
       },
       {
         "employee_code": "EMP-003",
@@ -158,7 +158,7 @@
         "net": 2533.62,
         "employer_social_security": 902.38,
         "employer_cost": 4373.09,
-        "name": "Giorgos Ioannidis"
+        "name": "Sofia Silva"
       },
       {
         "employee_code": "EMP-004",
@@ -168,7 +168,7 @@
         "net": 2794.58,
         "employer_social_security": 995.33,
         "employer_cost": 4823.52,
-        "name": "Katerina Nikolaou"
+        "name": "Priya Haddad"
       },
       {
         "employee_code": "EMP-005",
@@ -178,7 +178,7 @@
         "net": 832.64,
         "employer_social_security": 296.56,
         "employer_cost": 1437.17,
-        "name": "Vasilis Vlachos"
+        "name": "Nina Nakamura"
       },
       {
         "employee_code": "EMP-006",
@@ -188,7 +188,7 @@
         "net": 1753.17,
         "employer_social_security": 624.41,
         "employer_cost": 3026.0,
-        "name": "Vasilis Samaras"
+        "name": "Nina Smith"
       }
     ]
   },
