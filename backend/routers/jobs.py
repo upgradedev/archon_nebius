@@ -1,7 +1,10 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from services import nebius
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _PERIOD_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
@@ -33,7 +36,11 @@ def submit_job(req: JobRequest):
         # instead of a generic 500 or a silent stall.
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.exception("Extraction job submission failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to submit extraction job: {type(exc).__name__}",
+        ) from exc
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)
@@ -51,7 +58,11 @@ def get_job(job_id: str):
             progress=job.get("progress"),
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.exception("Job status fetch failed for %s", job_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get job status: {type(exc).__name__}",
+        ) from exc
 
 
 @router.delete("/jobs/{job_id}", status_code=204)
@@ -59,4 +70,8 @@ def delete_job(job_id: str):
     try:
         nebius.delete_job(job_id)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.exception("Job deletion failed for %s", job_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete job: {type(exc).__name__}",
+        ) from exc

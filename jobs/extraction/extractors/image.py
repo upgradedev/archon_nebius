@@ -9,8 +9,9 @@ import base64
 import os
 from pathlib import Path
 
-from openai import OpenAI
-from tenacity import retry, stop_after_attempt, wait_exponential
+import httpx
+from openai import OpenAI, APIConnectionError, RateLimitError
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 from PIL import Image
 import io
 
@@ -57,13 +58,18 @@ class ImageExtractor(BaseExtractor):
         self.client = OpenAI(
             base_url=os.environ["NEBIUS_INFERENCE_BASE_URL"],
             api_key=os.environ["NEBIUS_INFERENCE_API_KEY"],
+            timeout=30.0,
         )
         self.model = os.getenv("VISION_MODEL", "Qwen/Qwen2.5-VL-72B-Instruct")
 
     def can_handle(self, path: Path) -> bool:
         return path.suffix.lower() in IMAGE_EXTENSIONS
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=10))
+    @retry(
+        retry=retry_if_exception_type((httpx.TimeoutException, RateLimitError, APIConnectionError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(min=2, max=10),
+    )
     def extract(self, path: Path) -> ExtractedDocument:
         img_b64 = _encode_image(path)
         import json

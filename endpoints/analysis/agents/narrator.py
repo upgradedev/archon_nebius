@@ -12,8 +12,10 @@ traceability over the real inputs, not an external corpus.
 """
 
 import os
-from openai import OpenAI
-from tenacity import retry, stop_after_attempt, wait_exponential
+
+import httpx
+from openai import OpenAI, APIConnectionError, RateLimitError
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 from models.financial import FinancialReport
 
 
@@ -21,6 +23,7 @@ def build_summary(report: FinancialReport) -> str:
     client = OpenAI(
         base_url=os.environ["NEBIUS_INFERENCE_BASE_URL"],
         api_key=os.environ["NEBIUS_INFERENCE_API_KEY"],
+        timeout=30.0,
     )
     model = os.getenv("ANALYSIS_MODEL", "meta-llama/Llama-3.3-70B-Instruct")
 
@@ -120,7 +123,11 @@ def _reconciliation_context(report: FinancialReport) -> str:
     return "".join(lines)
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=10))
+@retry(
+    retry=retry_if_exception_type((httpx.TimeoutException, RateLimitError, APIConnectionError)),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=2, max=10),
+)
 def _call_llm(client: OpenAI, model: str, prompt: str) -> str:
     response = client.chat.completions.create(
         model=model,

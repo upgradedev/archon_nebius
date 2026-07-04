@@ -11,6 +11,7 @@ import re
 import json
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 
 
 def _region() -> str:
@@ -31,15 +32,28 @@ def _region() -> str:
     return m.group(1) if m else "eu-west1"
 
 
+# Reuse a single boto3 S3 client across calls instead of building one per
+# operation (each construction re-parses config and opens a connection pool).
+# The client is rebuilt only if the boto3.client factory changes identity, which
+# keeps unit tests that monkeypatch boto3.client per test working while giving
+# production a single long-lived, reused client.
+_S3_CLIENT = None
+_S3_CLIENT_FACTORY = None
+
+
 def _client():
-    return boto3.client(
-        "s3",
-        endpoint_url=os.getenv("STORAGE_ENDPOINT_URL"),
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        region_name=_region(),
-        config=Config(signature_version="s3v4"),
-    )
+    global _S3_CLIENT, _S3_CLIENT_FACTORY
+    if _S3_CLIENT is None or _S3_CLIENT_FACTORY is not boto3.client:
+        _S3_CLIENT = boto3.client(
+            "s3",
+            endpoint_url=os.getenv("STORAGE_ENDPOINT_URL"),
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+            region_name=_region(),
+            config=Config(signature_version="s3v4"),
+        )
+        _S3_CLIENT_FACTORY = boto3.client
+    return _S3_CLIENT
 
 
 BUCKET = os.getenv("NEBIUS_BUCKET_NAME", "archon-docs")
@@ -96,5 +110,8 @@ def key_exists(key: str) -> bool:
     try:
         _client().head_object(Bucket=BUCKET, Key=key)
         return True
-    except Exception:
-        return False
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code", "")
+        if code in ("404", "NoSuchKey", "NotFound"):
+            return False
+        raise

@@ -31,8 +31,6 @@ from extractors.docx import DocxExtractor
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("archon.extraction")
 
-UPLOAD_ID = os.environ["UPLOAD_ID"]
-PERIOD = os.environ["PERIOD"]
 BUCKET = os.environ["NEBIUS_BUCKET_NAME"]
 
 EXTRACTORS = [PdfExtractor(), DocxExtractor(), ImageExtractor()]
@@ -46,13 +44,13 @@ def _s3():
         endpoint_url=os.getenv("STORAGE_ENDPOINT_URL"),
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-        region_name=os.getenv("NEBIUS_REGION", "eu-north1"),
+        region_name=os.getenv("NEBIUS_REGION", "eu-west1"),
         config=Config(signature_version="s3v4"),
     )
 
 
-def _list_raw_files() -> list[str]:
-    prefix = f"raw-docs/{PERIOD}/{UPLOAD_ID}/"
+def _list_raw_files(upload_id: str, period: str) -> list[str]:
+    prefix = f"raw-docs/{period}/{upload_id}/"
     paginator = _s3().get_paginator("list_objects_v2")
     keys = []
     for page in paginator.paginate(Bucket=BUCKET, Prefix=prefix):
@@ -96,11 +94,15 @@ def _extract_file(key: str) -> dict | None:
 
 # ── main pipeline ─────────────────────────────────────────────────────────────
 
-def main():
-    log.info("=== Extraction job start — upload=%s period=%s ===", UPLOAD_ID, PERIOD)
+def main(upload_id: str | None = None, period: str | None = None):
+    # ADR-008: accept params so concurrent local-dev jobs do not race on
+    # process-level env; fall back to env for the production Nebius Job path.
+    upload_id = upload_id or os.environ["UPLOAD_ID"]
+    period = period or os.environ["PERIOD"]
+    log.info("=== Extraction job start — upload=%s period=%s ===", upload_id, period)
 
     # Step 1: extract raw files
-    raw_keys = _list_raw_files()
+    raw_keys = _list_raw_files(upload_id, period)
     log.info("Found %d files to process", len(raw_keys))
     raw_docs = [r for k in raw_keys if (r := _extract_file(k)) is not None]
     log.info("Extracted %d documents", len(raw_docs))
@@ -128,23 +130,23 @@ def main():
     log.info("Validation: %d results, %d errors", len(validation_results), errors)
 
     # Write outputs
-    base = f"extracted/{PERIOD}/{UPLOAD_ID}"
+    base = f"extracted/{period}/{upload_id}"
 
     _put_json(f"{base}/documents.json", {
-        "period": PERIOD,
-        "upload_id": UPLOAD_ID,
+        "period": period,
+        "upload_id": upload_id,
         "documents": [d.model_dump() for d in typed_docs],
     })
 
     _put_json(f"{base}/events.json", {
-        "period": PERIOD,
-        "upload_id": UPLOAD_ID,
+        "period": period,
+        "upload_id": upload_id,
         "events": [e.model_dump() for e in events],
     })
 
     _put_json(f"{base}/validation.json", {
-        "period": PERIOD,
-        "upload_id": UPLOAD_ID,
+        "period": period,
+        "upload_id": upload_id,
         "results": [r.model_dump() for r in validation_results],
         "summary": {
             "total": len(validation_results),

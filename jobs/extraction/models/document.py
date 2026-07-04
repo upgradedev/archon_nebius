@@ -33,22 +33,22 @@ class ExtractedDocument(BaseModel):
     source_file: str
     doc_type: DocType
     detected_language: str          # e.g. "el" for Greek, "en" for English
-    issue_date: str | None          # ISO 8601 date string
-    vendor_name: str | None
-    vendor_tax_id: str | None       # ΑΦΜ for Greek docs
-    recipient_name: str | None
+    issue_date: str | None = None          # ISO 8601 date string
+    vendor_name: str | None = None
+    vendor_tax_id: str | None = None       # ΑΦΜ for Greek docs
+    recipient_name: str | None = None
     currency: str                   # ISO 4217 — normalised to EUR when possible
     original_currency: str | None = None   # as billed (e.g. "USD" for AWS/OpenAI)
     original_amount: float | None = None   # amount in original currency before FX conversion
-    subtotal: float | None
-    vat_amount: float | None
-    vat_rate_pct: float | None
+    subtotal: float | None = None
+    vat_amount: float | None = None
+    vat_rate_pct: float | None = None
     vat_treatment: VatTreatment | None = None  # classification of VAT handling
     total_amount: float             # EUR-normalised total
     line_items: list[LineItem]
-    payment_due_date: str | None
-    invoice_number: str | None
-    notes: str | None
+    payment_due_date: str | None = None
+    invoice_number: str | None = None
+    notes: str | None = None
     raw_text_excerpt: str           # first 500 chars of extracted text for audit
     extraction_model: str
     confidence: float               # 0.0 - 1.0
