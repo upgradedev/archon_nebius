@@ -72,3 +72,6 @@ logs/
 
 # Local-only session artifacts (creds, notes) — never commit
 *.local.md
+
+# Claude Code local worktrees/settings (never commit)
+.claude/
