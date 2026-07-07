@@ -103,6 +103,20 @@ flowchart TB
 4. **Analyze** — a second Nebius AI Job reads all JSONs, runs the 7-stage financial reasoning pipeline, returns chart-ready metrics + executive narrative
 5. **Dashboard** — React renders P&L charts, cash flow waterfall, expense breakdown, and the executive summary card
 
+### How it works — and *why* it's built this way
+
+The design isn't arbitrary; each decision answers a specific problem in SMB finance. If you're building something similar, these are the load-bearing choices.
+
+**Why fuse three documents into one event.** A single payroll run produces a bank confirmation, a payroll register, and individual payslips — and each reports a *different* number. The bank confirmation shows the **net** transfer; the register shows **gross + employer contributions** (the true cost); the payslips sit in between. Reading any one alone is wrong: bank-only understates the real cost of employing a team by roughly **28%**, and that is usually the largest cost centre in the business. So the `EventLinkerAgent` groups the three by company + period into one `PayrollEvent`, and downstream the P&L reads the register's employer cost while cash flow reads the bank transfer — the same event counted once, correctly, from two angles. This is the general shape Archon applies everywhere: *reconcile what left the bank against the documents that explain it, and refuse to report a number the documents don't support.*
+
+**Why a chain of single-responsibility agents** rather than one big prompt. Each agent does one job and is independently testable: `Extractor` (file → structured JSON), `Classifier` (deterministic doc-type refinement, no LLM — keeps model misclassifications out of the accounting layer), `EventLinker` (fusion), `Validator` (named cross-document rules). Small agents mean a failure is localised and every step is assertable in CI — which is why the evaluation harness below can score each agent in isolation.
+
+**Why the numbers are deterministic and the LLM only narrates.** For a financial product, "a language model computed your P&L" is a non-starter. Every figure is pure Python arithmetic (`round(sum(...), 2)`); the LLM is used only where it genuinely helps — reading structure out of messy scans, and writing the executive summary *from already-computed metrics*. If the narration call fails, the report still renders. The validation rules (R1–R4) are named and explainable, so every flag is a claim you can re-check by hand.
+
+**Why CPU serverless, not an always-on GPU.** The workload is bursty — a customer uploads once a month, then nothing for weeks. Archon keeps its containers as cheap CPU instances (a ~$0.04/hr endpoint plus on-demand jobs that self-terminate) and pushes every frontier-model call out to the **Nebius Inference API** over HTTP. The GPU lives in the inference layer, not in Archon's containers, so idle cost is near zero and each job run costs about a cent.
+
+> **Deeper engineering write-up:** the full story — the document-fusion insight, the trust design, the evaluation findings, and the "a serverless job can lie to you" capacity lesson — is in [`demo/blog-post.md`](demo/blog-post.md).
+
 ---
 
 ## Tech Stack
@@ -240,7 +254,7 @@ CORS_ORIGINS=https://archon-pnl.web.app
 
 Four GitHub Actions pipelines guard every change:
 
-- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **142 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
+- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **163 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
 - **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), and a **conditional payroll-cost invariant** (`employer_cost_total ≥ bank net`) that asserts the ~28% workforce-cost gap *when* the register's `employer_cost_total` is populated — today it is skipped in real runs pending that extractor field (see [`eval/BASELINE.md`](eval/BASELINE.md) §3). Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
 - **CodeQL** (`codeql.yml`, every PR + weekly) — SAST over both language families (Python: backend + extraction Job + analysis Endpoint; JavaScript/TypeScript: frontend) with the `security-and-quality` query suite.
 - **Dependency Audit** (`security-audit.yml`, every PR + weekly) — `pip-audit` against all three Python requirement sets and `npm audit` for the frontend; high/critical dependency CVEs fail the build.
