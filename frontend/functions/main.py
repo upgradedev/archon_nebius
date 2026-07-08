@@ -51,10 +51,30 @@ _DROP_RESP_HEADERS = frozenset({
     "content-encoding", "transfer-encoding", "connection", "keep-alive",
 })
 
+# Paths the BFF forwards WITHOUT a bearer token. /api/health is the cold-start
+# liveness probe (#115): the frontend polls it unauthenticated to detect when the
+# Nebius endpoint has finished cold-starting. It MUST reach the backend (which
+# serves /api/health unauthenticated by design) and return the backend's real
+# status — while the endpoint is cold the forwarded request surfaces as 502/503,
+# and it returns 200 the moment the backend is warm. The BFF must NOT synthesize
+# its own 200 here: a synthesized 200 would falsely report "warm" while the
+# endpoint is still cold, defeating the probe. Every other /api/** route still
+# requires a bearer token below.
+_PUBLIC_PATHS = frozenset({"/api/health"})
+
+
+def _is_public(method: str, path: str) -> bool:
+    """A request that the BFF forwards without requiring an Authorization header.
+
+    Tight by design: exact normalized path match + GET only, so it can never
+    open a write route or a sibling path.
+    """
+    return method.upper() == "GET" and path.rstrip("/") in _PUBLIC_PATHS
+
 
 @https_fn.on_request(timeout_sec=120, memory=256, region="us-central1")
 def archon_proxy(req: https_fn.Request) -> https_fn.Response:
-    if not req.headers.get("authorization"):
+    if not req.headers.get("authorization") and not _is_public(req.method, req.path):
         return https_fn.Response(
             response=json.dumps({"detail": "Missing bearer token"}),
             status=401,

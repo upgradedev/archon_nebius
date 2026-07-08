@@ -1,0 +1,7 @@
+# Files not needed at runtime by the Cloud Function. Keeps the deploy upload
+# small and deterministic. Firebase builds its own venv from requirements.txt.
+venv/
+tests/
+__pycache__/
+*.pyc
+.pytest_cache/
