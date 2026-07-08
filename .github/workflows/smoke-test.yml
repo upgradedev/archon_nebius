@@ -77,6 +77,13 @@ jobs:
           pip install -r backend/requirements.txt
           cd backend && python -m pytest tests/ -v --tb=short
 
+      - name: BFF proxy tests (Firebase function — cold-start liveness gate)
+        run: |
+          # Guards the /api/health exemption (#115): the BFF must forward the
+          # unauthenticated liveness probe to the backend, not 401 it. Uses only
+          # httpx (installed above); firebase_functions is stubbed in the test.
+          python -m pytest frontend/functions/tests -q
+
       - name: Evaluation harness — proof of execution + baselines
         run: |
           # offline: scores the real pipeline agents vs ground truth (no network,
