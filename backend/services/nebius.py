@@ -503,12 +503,17 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
                 JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_BASE_URL", value=os.environ["NEBIUS_INFERENCE_BASE_URL"]),
                 JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_API_KEY", value=os.environ["NEBIUS_INFERENCE_API_KEY"]),
                 JobSpec.EnvironmentVariable(name="VISION_MODEL", value=os.getenv("VISION_MODEL", "Qwen/Qwen2.5-VL-72B-Instruct")),
-                # Document-encryption KEK must reach the extraction Job so it can
-                # decrypt envelope-encrypted raw docs. Empty by default (feature
-                # off) — the read path only decrypts objects carrying the magic
-                # header, so passing empty values is a safe no-op.
+                # Document-at-rest encryption (KMS envelope) must reach the
+                # extraction Job so it can decrypt envelope-encrypted raw docs.
+                # The read path only decrypts objects carrying the magic header,
+                # so all-empty values are a safe no-op (feature OFF by default).
+                # The KMS DECRYPT call needs Nebius auth, so the SA credentials
+                # (the same identity that launches this Job) are forwarded too.
                 JobSpec.EnvironmentVariable(name="DOC_ENCRYPTION_ENABLED", value=os.getenv("DOC_ENCRYPTION_ENABLED", "")),
-                JobSpec.EnvironmentVariable(name="DOC_ENCRYPTION_KEK", value=os.getenv("DOC_ENCRYPTION_KEK", "")),
+                JobSpec.EnvironmentVariable(name="DOC_ENCRYPTION_KMS_KEY_ID", value=os.getenv("DOC_ENCRYPTION_KMS_KEY_ID", "")),
+                JobSpec.EnvironmentVariable(name="NEBIUS_SA_KEY_B64", value=os.getenv("NEBIUS_SA_KEY_B64", "")),
+                JobSpec.EnvironmentVariable(name="NEBIUS_SA_KEY_ID", value=os.getenv("NEBIUS_SA_KEY_ID", "")),
+                JobSpec.EnvironmentVariable(name="NEBIUS_SA_ID", value=os.getenv("NEBIUS_SA_ID", "")),
             ],
             timeout=Duration(seconds=7200),  # 2 hours
         )

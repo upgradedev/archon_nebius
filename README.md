@@ -52,7 +52,20 @@ Archon exercises the Nebius platform end-to-end, not a single service:
 
 Security & supply chain: every change passes **gitleaks** (secrets), **CodeQL** (SAST, Python + TypeScript), **pip-audit / npm audit** (dependency CVEs), and a unit → integration → E2E test suite — see [Testing & CI](#testing--ci).
 
-Documents at rest: uploaded raw documents can be **envelope-encrypted** (AES-256-GCM per-object data key, wrapped by a 256-bit KEK) via `services/crypto.py`. The KEK is supplied to the runtime as an env var (`DOC_ENCRYPTION_KEK`, injected from a CI secret); the intended custody target is **Nebius Secrets Manager (MysteryBox)** — the owner provisions that secret to complete the loop. Opt-in behind `DOC_ENCRYPTION_ENABLED` (off by default); the read path is self-describing (decrypts only objects carrying the envelope header) so it is fully backward-compatible with plaintext objects.
+Documents at rest — **Nebius KMS envelope encryption**: uploaded raw documents can be envelope-encrypted via `services/crypto.py`. Each document is AES-256-GCM encrypted locally with a fresh per-object data key (DEK); the DEK is then wrapped by a **Nebius KMS** symmetric key (the KEK) using KMS's server-side `Encrypt`/`Decrypt` — so the master key never leaves the key service and Archon stores only KMS ciphertext of each DEK. KMS symmetric keys are AES-256-GCM with default **3-month automatic rotation**. Only the small DEK crosses the network (one KMS call per document); the document body is encrypted locally, so there is no per-byte network cost. Opt-in behind `DOC_ENCRYPTION_ENABLED` (**off by default** — so reproducing this README needs no KMS access, as KMS is a preview service). The read path is self-describing (magic header `ARCHENV2`; decrypts only objects that carry it), so enabling it is fully backward-compatible with existing plaintext objects.
+
+To enable it (owner action):
+
+```bash
+# 1. Create a KMS symmetric key (AES-256, auto-rotated every 3 months)
+nebius kms symmetric-key create --name archon-doc-key --algorithm aes_256   # → prints the key id
+
+# 2. Grant the deploy service account the KMS encrypter/decrypter role on that key
+# 3. Set the repo variable DOC_ENCRYPTION_KMS_KEY_ID to the key id (an identifier,
+#    NOT key material) and DOC_ENCRYPTION_ENABLED=true, then redeploy.
+```
+
+The backend endpoint (write path) and the extraction Job (read path) both reach KMS with the service-account credentials the pipeline already uses for Nebius AI Jobs.
 
 ---
 
