@@ -65,3 +65,10 @@ class ExtractedDocument(BaseModel):
     statement_balance: float | None = None     # closing balance per statement
     statement_overdue: float | None = None     # overdue amount per statement
     statement_entries: list[dict] | None = None  # raw invoice references from statement
+
+    # Advisory prompt-injection scan over this document's extracted field values.
+    # Populated by the extraction pipeline (injection_scan.scan_document). Shape:
+    # {"detected": bool, "count": int, "matches": [{field, pattern, snippet}]}.
+    # ADVISORY ONLY — surfaces what the extractor's DATA-not-instructions fence
+    # already neutralized; it never changes extraction or validation outcomes.
+    injection_scan: dict | None = None
