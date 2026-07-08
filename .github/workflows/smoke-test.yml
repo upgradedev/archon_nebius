@@ -30,7 +30,7 @@ jobs:
         run: |
           pip install -r backend/requirements.txt
           pip install -r jobs/extraction/requirements.txt
-          pip install -r endpoints/analysis/requirements.txt
+          pip install -r jobs/analysis/requirements-dev.txt
           pip install diff-cover
 
       - name: Fetch base branch (for diff coverage on PRs)

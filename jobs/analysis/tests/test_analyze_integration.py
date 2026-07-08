@@ -1,5 +1,5 @@
 """
-Integration test for the analysis endpoint orchestrator (main.py /analyze).
+Integration test for the analysis endpoint orchestrator (server.py /analyze).
 
 Drives the full 7-agent chain through the FastAPI app with an in-memory fake S3
 (no network) and a stubbed narrator. Verifies the agents are wired in the right
@@ -10,7 +10,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-import main
+import server
 from conftest import make_doc
 
 
@@ -32,7 +32,7 @@ class _FakePaginator:
 
 
 class _FakeS3:
-    """Minimal in-memory S3 supporting the calls main.py makes."""
+    """Minimal in-memory S3 supporting the calls server.py makes."""
 
     def __init__(self, store):
         self.store = store
@@ -53,14 +53,14 @@ class _FakeS3:
 def fake_store(monkeypatch):
     store: dict[str, bytes] = {}
     fake = _FakeS3(store)
-    monkeypatch.setattr(main, "_s3", lambda: fake)
-    monkeypatch.setattr(main, "build_summary", lambda report: "EXEC SUMMARY")
+    monkeypatch.setattr(server, "_s3", lambda: fake)
+    monkeypatch.setattr(server, "build_summary", lambda report: "EXEC SUMMARY")
     return store
 
 
 @pytest.fixture
 def client():
-    return TestClient(main.app)
+    return TestClient(server.app)
 
 
 def _documents_payload():

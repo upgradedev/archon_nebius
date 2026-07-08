@@ -1,20 +1,26 @@
-# Coverage configuration for the Archon Python backend, jobs, endpoints and
-# evaluation harness. Used by scripts/coverage.sh and the CI coverage gate.
+# Coverage configuration for the Archon Python backend, jobs and evaluation
+# harness. Used by scripts/coverage.sh and the CI coverage gate.
 #
 # Each test suite runs in its OWN process (separate pytest invocation) because
 # the extraction pipeline (jobs/extraction) and the analysis pipeline
-# (endpoints/analysis) each ship identically-named top-level `models`/`agents`
+# (jobs/analysis) each ship identically-named top-level `models`/`agents`
 # packages that would collide in a single interpreter. Results are appended to
 # one data file. See scripts/coverage.sh.
 #
 # Excluded from the offline gate (NOTE: ini values cannot carry trailing inline
 # comments, so the rationale lives here):
 #   jobs/extraction/server.py    — ADR-002 local-dev FastAPI wrapper only
+#   jobs/analysis/server.py      — ADR-002 local-dev FastAPI wrapper only. Its
+#                                  /analyze integration test still RUNS and, by
+#                                  executing the real agents, credits their
+#                                  coverage — only the wrapper's own glue lines
+#                                  are excluded (same rule as extraction's).
+#   jobs/analysis/main.py        — production Job entrypoint: a thin I/O shell
+#                                  around the same 7-agent sequence the server
+#                                  runs (that sequence is covered by the suite).
 #   eval/evaluate.py             — eval CLI (executed directly in the smoke-test)
 #   eval/generate_corpus.py      — synthetic-corpus generation tooling
 #   eval/live_extract.py         — live multimodal extraction tool (needs an LLM)
-# jobs/analysis/ is not listed in [run] source at all: it is a near-duplicate of
-# endpoints/analysis (only Dockerfile/main.py/requirements differ).
 
 [run]
 # relative_files keeps stored paths repo-relative (e.g. backend/auth.py) so the
@@ -26,13 +32,15 @@ relative_files = True
 source =
     backend
     jobs/extraction
-    endpoints/analysis
+    jobs/analysis
     eval
 
 omit =
     */tests/*
     */__pycache__/*
     jobs/extraction/server.py
+    jobs/analysis/server.py
+    jobs/analysis/main.py
     eval/evaluate.py
     eval/generate_corpus.py
     eval/live_extract.py

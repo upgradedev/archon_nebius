@@ -8,7 +8,7 @@ import { isDemoMode } from '../demo/demoMode'
 import { DEMO_PERIODS, DEMO_REPORT, DEMO_PROFILE } from '../demo/demoData'
 
 // ── Report normalisation ──────────────────────────────────────────────────────
-// The analysis endpoint (endpoints/analysis) emits `payrollEvents` and
+// The analysis pipeline (jobs/analysis) emits `payrollEvents` and
 // `validationResults`, but the dashboard renders the derived `payrollGap` and
 // `validations` shapes (see PayrollGapCard / ValidationLedger). Without this
 // adapter those cards read `undefined` on a real payload and never render — they

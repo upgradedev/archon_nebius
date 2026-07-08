@@ -1,0 +1,14 @@
+# Local-dev image (ADR-002): serves the analysis pipeline over HTTP for
+# docker-compose. Production uses the Job image built from ./Dockerfile (main.py).
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install --no-cache-dir -r requirements-dev.txt
+
+COPY . .
+
+EXPOSE 8001
+
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001"]

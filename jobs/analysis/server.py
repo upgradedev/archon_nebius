@@ -1,6 +1,12 @@
 """
-Archon — Financial Analysis Endpoint
-Runs as a Nebius Serverless AI Endpoint (always-on).
+Archon — Financial Analysis (local-dev HTTP wrapper).
+
+ADR-002: this FastAPI app is the local-dev / docker-compose form of the analysis
+pipeline. The backend's `local` job runner POSTs to /analyze here instead of
+submitting a Nebius AI Job. The PRODUCTION path runs the very same agents as an
+on-demand Nebius AI Job — see `main.py` (built into the `archon-analysis` Job
+image by `nebius/redeploy.sh`). Both share this directory's `agents/` + `models/`,
+so there is a single source of truth for the pipeline logic.
 
 Pipeline (single-responsibility agents in sequence):
   1. ClassifierAgent       — re-classify doc_type for analysis context

@@ -3,7 +3,7 @@ Load the REAL Archon pipeline agents so the harness scores production code, not
 a re-implementation.
 
 The extraction pipeline (`jobs/extraction`) and the analysis pipeline
-(`endpoints/analysis`) each ship their own top-level `models` package. Importing
+(`jobs/analysis`) each ship their own top-level `models` package. Importing
 both in one process collides on the `models` name, so each pipeline is loaded in
 isolation: insert its root on `sys.path`, purge any prior `models`/agent
 modules, import, then restore.
@@ -24,7 +24,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 EXTRACTION_ROOT = REPO / "jobs" / "extraction"
-ANALYSIS_ROOT = REPO / "endpoints" / "analysis"
+ANALYSIS_ROOT = REPO / "jobs" / "analysis"
 
 _AGENT_FLAT = {"classifier", "event_linker", "validator", "pnl_agent"}
 
