@@ -75,8 +75,9 @@ const report: FinancialReport = {
     'the bank moved EUR 10,700 in net transfers, but Archon\'s Event Linker fused the bank ' +
     'confirmation, payroll register, and payslips into a single event and recovered the true ' +
     'employer cost of EUR 18,400 — about a 72% understatement that a bank-only close would have ' +
-    'booked as the whole payroll line, of which the employer\'s own social-security contribution ' +
-    'is roughly a third. All four cross-document rules passed: R1 (bank net vs payslip sum) and ' +
+    'booked as the whole payroll line; about half of that gap is the employer\'s own ' +
+    'social-security contribution (~35% over the transfer), the rest employee withholdings. ' +
+    'All four cross-document rules passed: R1 (bank net vs payslip sum) and ' +
     'R3 (payment date), plus R2 (employer-cost ratio) and R4 (headcount), which read register ' +
     'fields the extractor now populates. Cash generation stayed healthy at EUR 11,900 net, with ' +
     'a 92.4% collection rate.',
