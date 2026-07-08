@@ -168,8 +168,15 @@ def test_extract_file_swallows_extractor_error(monkeypatch):
 
 # ── S3 helpers (boto3 mocked) ─────────────────────────────────────────────────
 
-def test_s3_helpers_hit_boto_client(monkeypatch):
+def test_s3_helpers_hit_boto_client(monkeypatch, tmp_path):
     calls: dict[str, object] = {}
+
+    class _FakeBody:
+        def __init__(self, data):
+            self._data = data
+
+        def read(self):
+            return self._data
 
     class _FakePaginator:
         def paginate(self, **kw):
@@ -184,8 +191,9 @@ def test_s3_helpers_hit_boto_client(monkeypatch):
             calls["paginator"] = name
             return _FakePaginator()
 
-        def download_file(self, bucket, key, dest):
-            calls["download"] = (bucket, key, dest)
+        def get_object(self, Bucket, Key):
+            calls["get"] = (Bucket, Key)
+            return {"Body": _FakeBody(b"plaintext-doc-bytes")}
 
         def put_object(self, **kw):
             calls["put"] = kw
@@ -195,9 +203,36 @@ def test_s3_helpers_hit_boto_client(monkeypatch):
     # _list_raw_files must drop manifest.json.
     assert main._list_raw_files("up-test", "2026-01") == ["raw-docs/2026-01/up-test/a.pdf"]
 
-    main._download("some/key.pdf", Path("dest.pdf"))
-    assert calls["download"][1] == "some/key.pdf"
+    # _download fetches bytes and (plaintext here) writes them through unchanged.
+    dest = tmp_path / "dest.pdf"
+    main._download("some/key.pdf", dest)
+    assert calls["get"][1] == "some/key.pdf"
+    assert dest.read_bytes() == b"plaintext-doc-bytes"
 
     main._put_json("out/key.json", {"a": 1})
     assert calls["put"]["Key"] == "out/key.json"
     assert calls["put"]["ContentType"] == "application/json"
+
+
+def test_download_decrypts_envelope_transparently(monkeypatch, tmp_path):
+    # An envelope-encrypted raw doc in storage is decrypted on the way to disk,
+    # so the extractor always sees plaintext — end-to-end with encryption on.
+    import base64
+    import crypto
+    kek = base64.b64encode(b"k" * 32).decode()
+    monkeypatch.setenv("DOC_ENCRYPTION_KEK", kek)
+    original = b"%PDF-1.7 secret document bytes"
+    blob = crypto.encrypt(original, kek=base64.b64decode(kek))
+
+    class _Body:
+        def read(self):
+            return blob
+
+    class _Client:
+        def get_object(self, Bucket, Key):
+            return {"Body": _Body()}
+
+    monkeypatch.setattr(main.boto3, "client", lambda *a, **k: _Client())
+    dest = tmp_path / "out.pdf"
+    main._download("raw-docs/2026-01/up/x.pdf", dest)
+    assert dest.read_bytes() == original

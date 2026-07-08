@@ -274,6 +274,11 @@ jobs:
           NEBIUS_STORAGE_SECRET_KEY: ${{ secrets.NEBIUS_STORAGE_SECRET_KEY }}
           NEBIUS_INFERENCE_API_KEY: ${{ secrets.NEBIUS_INFERENCE_API_KEY }}
           DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
+          # Document-at-rest envelope encryption. OFF by default. To enable:
+          # custody a 32-byte base64 KEK in Nebius Secrets Manager (MysteryBox),
+          # set the DOC_ENCRYPTION_KEK repo secret to it, and flip the var to true.
+          DOC_ENCRYPTION_ENABLED: ${{ vars.DOC_ENCRYPTION_ENABLED }}
+          DOC_ENCRYPTION_KEK: ${{ secrets.DOC_ENCRYPTION_KEK }}
         run: |
           nebius ai endpoint create \
             --name archon-backend \
@@ -310,6 +315,8 @@ jobs:
             --env "JOB_PROVISION_PROBE_SECS=45" \
             --env "CORS_ORIGINS=https://archon-pnl.web.app,http://localhost:3000" \
             --env "JOB_RUNNER_BACKEND=nebius" \
+            --env "DOC_ENCRYPTION_ENABLED=$DOC_ENCRYPTION_ENABLED" \
+            --env "DOC_ENCRYPTION_KEK=$DOC_ENCRYPTION_KEK" \
             --env "DUCKDNS_TOKEN=$DUCKDNS_TOKEN" \
             --env "DUCKDNS_SUBDOMAIN=archon-api" \
             --env "CADDY_DOMAIN=archon-api.duckdns.org"

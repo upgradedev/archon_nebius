@@ -503,6 +503,12 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
                 JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_BASE_URL", value=os.environ["NEBIUS_INFERENCE_BASE_URL"]),
                 JobSpec.EnvironmentVariable(name="NEBIUS_INFERENCE_API_KEY", value=os.environ["NEBIUS_INFERENCE_API_KEY"]),
                 JobSpec.EnvironmentVariable(name="VISION_MODEL", value=os.getenv("VISION_MODEL", "Qwen/Qwen2.5-VL-72B-Instruct")),
+                # Document-encryption KEK must reach the extraction Job so it can
+                # decrypt envelope-encrypted raw docs. Empty by default (feature
+                # off) — the read path only decrypts objects carrying the magic
+                # header, so passing empty values is a safe no-op.
+                JobSpec.EnvironmentVariable(name="DOC_ENCRYPTION_ENABLED", value=os.getenv("DOC_ENCRYPTION_ENABLED", "")),
+                JobSpec.EnvironmentVariable(name="DOC_ENCRYPTION_KEK", value=os.getenv("DOC_ENCRYPTION_KEK", "")),
             ],
             timeout=Duration(seconds=7200),  # 2 hours
         )
