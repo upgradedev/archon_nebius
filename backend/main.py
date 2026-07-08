@@ -59,3 +59,13 @@ app.include_router(periods.router, prefix="/api", dependencies=_auth)
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "archon-backend"}
+
+
+# Public liveness probe reachable THROUGH the Firebase BFF (which only rewrites
+# /api/** to the backend). The frontend cold-start recovery polls this to detect
+# when the Nebius endpoint has finished cold-starting: while the endpoint is cold
+# the BFF returns 502/503, and this returns 200 the moment it is warm. Kept
+# unauthenticated (outside the _auth routers) so it is a pure liveness signal.
+@app.get("/api/health")
+def api_health():
+    return {"status": "ok", "service": "archon-backend"}
