@@ -274,11 +274,14 @@ jobs:
           NEBIUS_STORAGE_SECRET_KEY: ${{ secrets.NEBIUS_STORAGE_SECRET_KEY }}
           NEBIUS_INFERENCE_API_KEY: ${{ secrets.NEBIUS_INFERENCE_API_KEY }}
           DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
-          # Document-at-rest envelope encryption. OFF by default. To enable:
-          # custody a 32-byte base64 KEK in Nebius Secrets Manager (MysteryBox),
-          # set the DOC_ENCRYPTION_KEK repo secret to it, and flip the var to true.
+          # Document-at-rest KMS envelope encryption. OFF by default. To enable:
+          # create a Nebius KMS symmetric key (`nebius kms symmetric-key create
+          # --algorithm aes_256`), grant this deploy service account the KMS
+          # encrypter/decrypter role on it, set the DOC_ENCRYPTION_KMS_KEY_ID
+          # repo VARIABLE to its id (an identifier, not key material — the key
+          # never leaves KMS), and flip DOC_ENCRYPTION_ENABLED to true.
           DOC_ENCRYPTION_ENABLED: ${{ vars.DOC_ENCRYPTION_ENABLED }}
-          DOC_ENCRYPTION_KEK: ${{ secrets.DOC_ENCRYPTION_KEK }}
+          DOC_ENCRYPTION_KMS_KEY_ID: ${{ vars.DOC_ENCRYPTION_KMS_KEY_ID }}
         run: |
           nebius ai endpoint create \
             --name archon-backend \
@@ -316,7 +319,7 @@ jobs:
             --env "CORS_ORIGINS=https://archon-pnl.web.app,http://localhost:3000" \
             --env "JOB_RUNNER_BACKEND=nebius" \
             --env "DOC_ENCRYPTION_ENABLED=$DOC_ENCRYPTION_ENABLED" \
-            --env "DOC_ENCRYPTION_KEK=$DOC_ENCRYPTION_KEK" \
+            --env "DOC_ENCRYPTION_KMS_KEY_ID=$DOC_ENCRYPTION_KMS_KEY_ID" \
             --env "DUCKDNS_TOKEN=$DUCKDNS_TOKEN" \
             --env "DUCKDNS_SUBDOMAIN=archon-api" \
             --env "CADDY_DOMAIN=archon-api.duckdns.org"

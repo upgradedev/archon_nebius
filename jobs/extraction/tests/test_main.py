@@ -217,12 +217,16 @@ def test_s3_helpers_hit_boto_client(monkeypatch, tmp_path):
 def test_download_decrypts_envelope_transparently(monkeypatch, tmp_path):
     # An envelope-encrypted raw doc in storage is decrypted on the way to disk,
     # so the extractor always sees plaintext — end-to-end with encryption on.
-    import base64
+    # The KMS unwrap seam is replaced by a local AES-256-GCM fake (no network).
     import crypto
-    kek = base64.b64encode(b"k" * 32).decode()
-    monkeypatch.setenv("DOC_ENCRYPTION_KEK", kek)
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    kek = b"k" * 32
+    nonce = b"\x00" * 12
+    monkeypatch.setenv("DOC_ENCRYPTION_KMS_KEY_ID", "kms-key-test")
+    monkeypatch.setattr(crypto, "_kms_unwrap", lambda w, key_id: AESGCM(kek).decrypt(nonce, w, crypto.MAGIC))
     original = b"%PDF-1.7 secret document bytes"
-    blob = crypto.encrypt(original, kek=base64.b64decode(kek))
+    blob = crypto.encrypt(original, wrap=lambda dek: AESGCM(kek).encrypt(nonce, dek, crypto.MAGIC))
 
     class _Body:
         def read(self):
