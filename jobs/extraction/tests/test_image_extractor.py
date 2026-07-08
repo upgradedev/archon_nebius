@@ -12,7 +12,8 @@ from PIL import Image
 
 from extractors import image
 from extractors.image import (
-    ImageExtractor, _clean_json, _safe_doc_type, _safe_float, _safe_line_items, _encode_image,
+    ImageExtractor, _clean_json, _safe_doc_type, _safe_float, _safe_int,
+    _safe_line_items, _encode_image,
 )
 from models.document import DocType
 
@@ -47,6 +48,16 @@ def test_safe_doc_type_none_and_invalid_default_unknown():
 ])
 def test_safe_float(value, expected):
     assert _safe_float(value) == expected
+
+
+# ── _safe_int (ADR-003: payroll employee_count, never raise) ──────────────────
+
+@pytest.mark.parametrize("value,expected", [
+    (None, None), ("", None), ("abc", None),
+    ("4", 4), (5, 5), ("3.0", 3), (2.9, 2),
+])
+def test_safe_int(value, expected):
+    assert _safe_int(value) == expected
 
 
 # ── _safe_line_items (ADR-003) ────────────────────────────────────────────────
@@ -132,3 +143,25 @@ def test_extract_empty_content_defaults_unknown(tmp_path):
     result = ex.extract(img)
     assert result.doc_type == DocType.UNKNOWN
     assert result.total_amount == 0.0
+
+
+def test_extract_maps_payroll_register_fields(tmp_path):
+    # A payroll_register read populates the fields R2/R4 and the P&L agent need.
+    img = tmp_path / "register.png"
+    Image.new("RGB", (60, 60), "white").save(img)
+    ex = ImageExtractor()
+    ex.client = _fake_client(json.dumps({
+        "doc_type": "payroll_register",
+        "detected_language": "en",
+        "total_amount": "17300.00",
+        "gross_pay_total": "13730.00",
+        "employer_cost_total": "17300.00",
+        "net_pay_total": "10000.00",
+        "employee_count": "4",
+    }))
+    result = ex.extract(img)
+    assert result.doc_type == DocType.PAYROLL_REGISTER
+    assert result.employer_cost_total == 17300.0
+    assert result.net_pay_total == 10000.0
+    assert result.gross_pay_total == 13730.0
+    assert result.employee_count == 4
