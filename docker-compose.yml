@@ -84,11 +84,12 @@ services:
     networks:
       - archon
 
-  # Analysis endpoint (mirrors the Nebius AI Endpoint container locally)
+  # Analysis pipeline — local-dev HTTP wrapper (ADR-002). Production runs the
+  # same agents as an on-demand Nebius AI Job (jobs/analysis/main.py).
   analysis:
     build:
-      context: ./endpoints/analysis
-      dockerfile: Dockerfile
+      context: ./jobs/analysis
+      dockerfile: Dockerfile.local
     ports:
       - "8001:8001"
     env_file:

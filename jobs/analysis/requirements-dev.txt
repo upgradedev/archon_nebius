@@ -1,0 +1,7 @@
+# Local-dev + test extras for the analysis pipeline's FastAPI wrapper (server.py,
+# ADR-002). The production Nebius AI Job (main.py) does NOT need these — they
+# are only for the local docker-compose 'analysis' service and its FastAPI
+# integration test. Kept in sync with jobs/extraction's Dockerfile.local extras.
+-r requirements.txt
+fastapi==0.115.6
+uvicorn[standard]==0.32.1

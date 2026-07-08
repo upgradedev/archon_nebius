@@ -64,8 +64,8 @@ jobs:
       - name: Audit jobs/extraction/requirements.txt
         run: pip-audit -r jobs/extraction/requirements.txt $PIP_AUDIT_IGNORE
 
-      - name: Audit endpoints/analysis/requirements.txt
-        run: pip-audit -r endpoints/analysis/requirements.txt $PIP_AUDIT_IGNORE
+      - name: Audit jobs/analysis/requirements-dev.txt (Job deps + local-dev server extras)
+        run: pip-audit -r jobs/analysis/requirements-dev.txt $PIP_AUDIT_IGNORE
 
   node-audit:
     name: npm audit (frontend)

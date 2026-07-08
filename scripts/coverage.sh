@@ -10,7 +10,7 @@
 #
 # Each suite runs as a SEPARATE pytest process and appends to one data file:
 # the extraction pipeline (jobs/extraction) and the analysis pipeline
-# (endpoints/analysis) ship identically-named top-level `models`/`agents`
+# (jobs/analysis) ship identically-named top-level `models`/`agents`
 # packages that collide if imported in the same interpreter.
 #
 # Usage:
@@ -29,7 +29,7 @@ python -m coverage erase
 SUITES=(
   "backend/tests"
   "jobs/extraction/tests"
-  "endpoints/analysis/tests"
+  "jobs/analysis/tests"
   "eval/tests"
 )
 

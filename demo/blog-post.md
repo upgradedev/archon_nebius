@@ -64,7 +64,7 @@ The React frontend and a thin BFF route sit on Firebase — public hosting, logi
 For a financial product, "a language model computed your P&L" is a non-starter. Archon is built so it never does. Every figure — P&L, expense breakdown, vendor summaries, key metrics — is pure Python arithmetic:
 
 ```python
-# endpoints/analysis/agents/pnl_agent.py
+# jobs/analysis/agents/pnl_agent.py
 """
 PnLAgent — aggregates extracted documents into P&L metrics.
 Single responsibility: pure Python arithmetic over classified documents.

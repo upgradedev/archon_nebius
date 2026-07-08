@@ -3,7 +3,7 @@
 This is the measurement frame that turns "it works" into a number. It scores the
 **real** Archon pipeline agents — `ClassifierAgent`, `EventLinkerAgent`,
 `ValidatorAgent`, `PnLAgent` (imported from `jobs/extraction/` and
-`endpoints/analysis/`, not re-implemented) — against a labelled synthetic corpus
+`jobs/analysis/`, not re-implemented) — against a labelled synthetic corpus
 of SMB payroll documents.
 
 Reproduce (offline, no API key, only `pydantic`):
