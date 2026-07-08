@@ -18,6 +18,7 @@ import CashFlowChart from '../components/CashFlowChart'
 import ExpenseBreakdown from '../components/ExpenseBreakdown'
 import MetricsCards from '../components/MetricsCards'
 import ExecutiveSummary from '../components/ExecutiveSummary'
+import AskPanel from '../components/AskPanel'
 import JobStatus from '../components/JobStatus'
 import PayrollGapCard from '../components/PayrollGapCard'
 import ValidationLedger from '../components/ValidationLedger'
@@ -292,6 +293,20 @@ export default function Dashboard() {
               <MetricsCards report={report} period={activePeriod} />
             )}
 
+            {/* Executive summary is the "30-second" headline for a reader — kept at
+                the TOP, directly under the KPI tiles, paired with the scoped Q&A.
+                Both stack to full width below the lg breakpoint. */}
+            <Row gutter={[24, 24]}>
+              <Col xs={24} lg={15}>
+                <Card title="Executive Summary">
+                  <ExecutiveSummary summary={report.executiveSummary} period={activePeriod} />
+                </Card>
+              </Col>
+              <Col xs={24} lg={9}>
+                <AskPanel report={report} />
+              </Col>
+            </Row>
+
             {report.payrollGap && (
               <Card
                 title="Payroll — bank net vs true employer cost"
@@ -318,20 +333,11 @@ export default function Dashboard() {
               </Col>
             </Row>
 
-            <Row gutter={[24, 24]}>
-              <Col xs={24} lg={12}>
-                <Card title="Cash Flow">
-                  {report.cashFlow
-                    ? <CashFlowChart data={report.cashFlow} />
-                    : <Empty description="No cash-flow data" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
-                </Card>
-              </Col>
-              <Col xs={24} lg={12}>
-                <Card title="Executive Summary">
-                  <ExecutiveSummary summary={report.executiveSummary} period={activePeriod} />
-                </Card>
-              </Col>
-            </Row>
+            <Card title="Cash Flow">
+              {report.cashFlow
+                ? <CashFlowChart data={report.cashFlow} />
+                : <Empty description="No cash-flow data" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+            </Card>
 
             {report.validations && report.validations.length > 0 && (
               <Card
