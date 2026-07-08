@@ -6,9 +6,10 @@ sit in Object Storage as the most sensitive data Archon holds. This module
 encrypts each raw document with a per-object data key, and wraps that data key
 with a long-lived Key-Encryption-Key (KEK) — classic envelope encryption.
 
-Key custody: the KEK is a 256-bit secret custodied in **Nebius Secrets Manager
-(MysteryBox)** and delivered to the runtime as the base64 env var
-``DOC_ENCRYPTION_KEK``. (Nebius does not expose a crypto-KMS with server-side
+Key custody: the KEK is a 256-bit secret delivered to the runtime as the base64
+env var ``DOC_ENCRYPTION_KEK`` (injected from a CI secret). Its intended custody
+target is **Nebius Secrets Manager (MysteryBox)** — the owner provisions that
+secret to complete the loop. (Nebius does not expose a crypto-KMS with server-side
 Encrypt/Decrypt on symmetric keys via the CLI; MysteryBox is a secret store. So
 the wrap/unwrap is done locally with a KEK custodied there — strictly safer for
 the pipeline than a per-object network round-trip to a key service would be.)

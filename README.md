@@ -52,7 +52,7 @@ Archon exercises the Nebius platform end-to-end, not a single service:
 
 Security & supply chain: every change passes **gitleaks** (secrets), **CodeQL** (SAST, Python + TypeScript), **pip-audit / npm audit** (dependency CVEs), and a unit → integration → E2E test suite — see [Testing & CI](#testing--ci).
 
-Documents at rest: uploaded raw documents can be **envelope-encrypted** (AES-256-GCM per-object data key, wrapped by a KEK custodied in **Nebius Secrets Manager / MysteryBox**) via `services/crypto.py`. Opt-in behind `DOC_ENCRYPTION_ENABLED`; the read path is self-describing (decrypts only objects carrying the envelope header) so it is fully backward-compatible with plaintext objects.
+Documents at rest: uploaded raw documents can be **envelope-encrypted** (AES-256-GCM per-object data key, wrapped by a 256-bit KEK) via `services/crypto.py`. The KEK is supplied to the runtime as an env var (`DOC_ENCRYPTION_KEK`, injected from a CI secret); the intended custody target is **Nebius Secrets Manager (MysteryBox)** — the owner provisions that secret to complete the loop. Opt-in behind `DOC_ENCRYPTION_ENABLED` (off by default); the read path is self-describing (decrypts only objects carrying the envelope header) so it is fully backward-compatible with plaintext objects.
 
 ---
 
