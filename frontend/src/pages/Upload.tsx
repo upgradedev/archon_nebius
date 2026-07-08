@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import JobStatus from '../components/JobStatus'
 import { useAuth } from '../contexts/AuthContext'
+import { isDemoMode } from '../demo/demoMode'
 import type { ExtractedDoc, DocType, CompanyProfile } from '../types/financial'
 import { DOC_TYPE_OPTIONS } from '../types/financial'
 
@@ -98,6 +99,10 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
   const { token } = useToken()
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
+  // Demo mode runs a pre-loaded SAMPLE document set through the pipeline UI; the
+  // user's own file is not processed. We surface that plainly on the upload and
+  // review steps so the seeded rows are never mistaken for the user's upload.
+  const demo = isDemoMode()
   const [fileList, setFileList] = useState<UploadFile[]>([])
   const [period, setPeriod] = useState<string>('')
   const [editingPeriod, setEditingPeriod] = useState(false)
@@ -336,6 +341,15 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
         <Card>
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
 
+            {demo && (
+              <Alert
+                type="info"
+                showIcon
+                message="Demo mode — sample run"
+                description="Uploading runs a pre-loaded sample document set through the pipeline UI so you can see the full flow. Your own file isn't processed. Sign in to analyse your own documents."
+              />
+            )}
+
             <div>
               <Text strong>Documents</Text>
               <Text type="secondary" style={{ marginLeft: 8 }}>
@@ -463,6 +477,19 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
         <Card title="Review extracted documents" loading={reviewLoading}>
           {!reviewLoading && (
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
+              {demo && (
+                <Alert
+                  type="info"
+                  showIcon
+                  message={
+                    <Space size={8}>
+                      <Tag color="blue">Sample dataset (demo mode)</Tag>
+                      <span>These rows are a pre-loaded sample — not your uploaded file.</span>
+                    </Space>
+                  }
+                />
+              )}
+
               {companyProfile && !companyProfile.company_name && !companyProfile.company_tax_id && (
                 <Alert
                   type="warning"

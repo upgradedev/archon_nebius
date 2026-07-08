@@ -91,6 +91,11 @@ test.describe('demo mode — full judge journey, zero backend', () => {
     const modal = page.getByRole('dialog')
     await expect(modal.getByText('Drop files here or click to browse')).toBeVisible()
 
+    // Demo mode must state plainly that the upload runs a SAMPLE set (the user's
+    // own file is not processed) — so the seeded rows are never mistaken for it.
+    await expect(modal.getByText('Demo mode — sample run')).toBeVisible()
+    await expect(modal.getByText(/Your own file isn't processed/)).toBeVisible()
+
     // Choose a file (antd Dragger hides an <input type=file>).
     await modal.locator('input[type="file"]').setInputFiles({
       name: '2026-01-payroll-register.pdf',
@@ -102,6 +107,9 @@ test.describe('demo mode — full judge journey, zero backend', () => {
     // Submit → upload progress → extraction completes → Review step.
     await modal.getByRole('button', { name: /Extract & Analyse/ }).click()
     await expect(modal.getByText('Review extracted documents')).toBeVisible({ timeout: 20_000 })
+    // The Review step labels the seeded rows as the sample dataset.
+    await expect(modal.getByText('Sample dataset (demo mode)')).toBeVisible()
+    await expect(modal.getByText(/not your uploaded file/)).toBeVisible()
     // Review table is populated from the seeded document set.
     await expect(modal.getByText('sales-invoice-3001.pdf')).toBeVisible()
 
