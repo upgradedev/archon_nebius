@@ -62,7 +62,12 @@ def _list_raw_files(upload_id: str, period: str) -> list[str]:
 
 
 def _download(key: str, dest: Path) -> None:
-    _s3().download_file(BUCKET, key, str(dest))
+    # Fetch bytes and transparently decrypt if the object is an Archon envelope
+    # (self-describing magic header). Legacy plaintext / flag-off objects pass
+    # straight through, so extraction works whether or not encryption is on.
+    from crypto import maybe_decrypt
+    data = _s3().get_object(Bucket=BUCKET, Key=key)["Body"].read()
+    dest.write_bytes(maybe_decrypt(data))
 
 
 def _put_json(key: str, data: object) -> None:

@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
-from services import storage
+from services import crypto, storage
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -96,8 +96,12 @@ async def upload_documents(
 
         safe_name = _sanitize_filename(raw_name)
         key = f"raw-docs/{period}/{upload_id}/{safe_name}"
+        # Envelope-encrypt the raw document bytes at rest (no-op passthrough
+        # unless DOC_ENCRYPTION_ENABLED + a KEK are set). Only the document body
+        # is encrypted — the manifest below stays plaintext JSON.
+        body = crypto.maybe_encrypt(data)
         try:
-            await asyncio.to_thread(storage.upload_file, key, data, f.content_type or "application/octet-stream")
+            await asyncio.to_thread(storage.upload_file, key, body, f.content_type or "application/octet-stream")
         except Exception as exc:  # surface storage failures clearly, not as a bare 500
             logger.exception("Storage upload failed for key %s", key)
             raise HTTPException(
