@@ -22,6 +22,10 @@
       "vendor_name": "Northwind Foods Ltd",
       "currency": "EUR",
       "total_amount": 24356.81,
+      "gross_pay_total": 19330.8,
+      "employer_cost_total": 24356.81,
+      "net_pay_total": 14111.49,
+      "employee_count": 6,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
       "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },

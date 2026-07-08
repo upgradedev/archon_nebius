@@ -22,6 +22,10 @@
       "vendor_name": "Harbor Marine Pty",
       "currency": "EUR",
       "total_amount": 20556.06,
+      "gross_pay_total": 16314.34,
+      "employer_cost_total": 20556.06,
+      "net_pay_total": 11909.47,
+      "employee_count": 5,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
       "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },

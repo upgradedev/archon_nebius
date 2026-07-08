@@ -43,7 +43,7 @@ def test_main_runs_full_agent_pipeline(monkeypatch):
                             total_amount=10_000, issue_date="2026-01-28").model_dump()
         if "register" in name:
             return make_doc(source_file=name, doc_type=DocType.PAYROLL_REGISTER,
-                            employer_cost_total=12_800, net_pay_total=10_000,
+                            employer_cost_total=17_300, net_pay_total=10_000,
                             employee_count=2).model_dump()
         return make_doc(source_file=name, doc_type=DocType.PAYSLIP,
                         total_amount=5_000).model_dump()

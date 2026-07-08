@@ -1,10 +1,10 @@
 """
 Extraction ValidatorAgent — R1-R4 over PayrollEvent objects.
 
-R2/R4 logic is live; it is dormant in production only because the extractor
-doesn't emit employer_cost_total/net_pay_total/employee_count. These tests drive
-the logic by building events with those fields set — without touching the
-extractor — so the eval dormancy assertion remains valid.
+All four rules are live end-to-end: the extractor now emits
+employer_cost_total / net_pay_total / gross_pay_total / employee_count, so R2
+and R4 fire in production (the eval harness records them as active). These tests
+pin the rule logic directly by building events with those fields set.
 """
 from agents import validator
 from models.document import DocType
@@ -60,14 +60,17 @@ def test_r1_skip_incomplete(doc):
 # ── R2 ────────────────────────────────────────────────────────────────────────
 
 def test_r2_pass(doc):
+    # 17_300 / 10_000 = 1.73 — a legitimate full-cost payroll ratio, inside [1.40, 2.60].
     ev = _event(register=doc(doc_type=DocType.PAYROLL_REGISTER,
-                             employer_cost_total=12_800, net_pay_total=10_000))
+                             employer_cost_total=17_300, net_pay_total=10_000))
     assert _by_rule(validator.run([ev]))["R2"].passed is True
 
 
 def test_r2_fail_warns(doc):
+    # 12_800 / 10_000 = 1.28 — below the band (the structural net-line misread
+    # signature: gross booked as net), so R2 flags it.
     ev = _event(register=doc(doc_type=DocType.PAYROLL_REGISTER,
-                             employer_cost_total=20_000, net_pay_total=10_000))
+                             employer_cost_total=12_800, net_pay_total=10_000))
     r2 = _by_rule(validator.run([ev]))["R2"]
     assert r2.passed is False and r2.severity == "warning"
 

@@ -7,8 +7,16 @@ per rule per event. Results are written to storage alongside extracted docs.
 
 Rules enforced:
   R1  bank.total_amount ≈ sum(payslips.total_amount)  within 2 %
-  R2  register.employer_cost_total / register.net_pay_total in [1.25, 1.45]
-        (employer social-security share is 25-35 % of gross; typical range is 125-145 % of net)
+  R2  register.employer_cost_total / register.net_pay_total in [1.40, 2.60]
+        Derivation from payroll structure (not fitted to any sample):
+          employer_cost = gross + employer social-security (≈20-35 % of gross)
+                        → 1.20-1.35 × gross
+          net           = gross − employee social-security (≈13-17 %) − income tax
+                          (≈5-30 %, bracket-dependent) → 0.55-0.82 × gross
+          ratio         = employer_cost / net ∈ [1.20/0.82, 1.35/0.55] ≈ [1.46, 2.45]
+        Band widened slightly to [1.40, 2.60] for headroom. A structural
+        extraction error — e.g. the gross line misread as net (ratio ≈ 1.26) or
+        the net line double-counted (ratio ≫ 2.6) — falls outside and is flagged.
   R3  bank.issue_date <= last calendar day of the stated period
   R4  register.employee_count == len(payslips)  (when both present)
 """
@@ -74,7 +82,7 @@ def _r1_bank_vs_payslips(event: PayrollEvent, ref: str) -> ValidationResult:
 
 
 def _r2_employer_cost_ratio(event: PayrollEvent, ref: str) -> ValidationResult:
-    rule = "R2: employer_cost / net_pay in [1.25, 1.45]"
+    rule = "R2: employer_cost / net_pay in [1.40, 2.60]"
     reg = event.payroll_register
     # A zero (or missing) net_pay_total is caught here by the falsy check, so R2
     # is skipped — the ratio is undefined without a positive net. (A dedicated
@@ -84,13 +92,13 @@ def _r2_employer_cost_ratio(event: PayrollEvent, ref: str) -> ValidationResult:
                                 message="Skipped — payroll register or cost fields absent.",
                                 source_files=_sources(event))
     ratio = reg.employer_cost_total / reg.net_pay_total
-    passed = 1.25 <= ratio <= 1.45
+    passed = 1.40 <= ratio <= 2.60
     return ValidationResult(
         rule=rule, passed=passed,
         severity="warning" if not passed else "info",
         message=(
             f"employer_cost {reg.employer_cost_total:.2f} / net {reg.net_pay_total:.2f} "
-            f"= {ratio:.3f} (expected 1.25–1.45)"
+            f"= {ratio:.3f} (expected 1.40–2.60)"
         ),
         source_files=_sources(event),
     )

@@ -22,6 +22,7 @@
       "vendor_name": "Zenith Bank",
       "currency": "EUR",
       "total_amount": 4169.36,
+      "net_pay_total": 4169.36,
       "notes": "Batch payroll transfer confirmation",
       "raw_text_excerpt": "ZENITH BANK BATCH PAYROLL TRANSFER CONFIRMATION"
     },
@@ -34,6 +35,10 @@
       "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 6789.08,
+      "gross_pay_total": 5388.16,
+      "employer_cost_total": 6789.08,
+      "net_pay_total": 3933.36,
+      "employee_count": 2,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
       "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },

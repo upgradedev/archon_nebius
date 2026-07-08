@@ -1,11 +1,11 @@
 """
 ValidatorAgent (analysis tier) — cross-document rules R1-R4.
 
-R2 and R4 are DORMANT in production only because the extractor never emits
-employer_cost_total / net_pay_total / employee_count. The rule logic itself is
-live: these tests drive it directly by constructing ExtractedDoc inputs WITH
-those fields populated — they do NOT change the extractor, so the eval-harness
-dormancy assertion stays true.
+All four rules are live end-to-end: the extractor now emits
+employer_cost_total / net_pay_total / gross_pay_total / employee_count, so R2
+and R4 fire in production (the eval harness records them as active). These tests
+pin the rule logic directly by constructing ExtractedDoc inputs with those
+fields populated.
 """
 from agents import validator_agent
 
@@ -54,18 +54,18 @@ def test_r1_skipped_without_bank(doc):
     assert r1.passed is True and "Skipped" in r1.message
 
 
-# ── R2: employer_cost / net_pay in [1.25, 1.45] (live logic, dormant inputs) ──
+# ── R2: employer_cost / net_pay in [1.40, 2.60] (live end-to-end) ─────────────
 
 def test_r2_pass_in_range(doc):
-    docs = [doc(doc_type="payroll_register", employer_cost_total=12_800, net_pay_total=10_000)]
+    docs = [doc(doc_type="payroll_register", employer_cost_total=17_300, net_pay_total=10_000)]
     r2 = _rules(validator_agent.run("2026-01", docs))["R2"]
-    assert r2.passed is True   # 1.28 in [1.25, 1.45]
+    assert r2.passed is True   # 1.73 in [1.40, 2.60] — a real full-cost payroll ratio
 
 
 def test_r2_fail_out_of_range_warns(doc):
-    docs = [doc(doc_type="payroll_register", employer_cost_total=16_000, net_pay_total=10_000)]
+    docs = [doc(doc_type="payroll_register", employer_cost_total=12_800, net_pay_total=10_000)]
     r2 = _rules(validator_agent.run("2026-01", docs))["R2"]
-    assert r2.passed is False and r2.severity == "warning"   # 1.60 > 1.45
+    assert r2.passed is False and r2.severity == "warning"   # 1.28 < 1.40 (gross misread as net)
 
 
 def test_r2_zero_net_is_skipped_not_warned(doc):

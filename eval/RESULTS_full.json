@@ -16,45 +16,9 @@
     },
     "validation": {
       "total": 160,
-      "correct": 155,
-      "accuracy": 0.9688,
-      "divergences": [
-        {
-          "case": "case-0003",
-          "rule": "R4",
-          "expected_pass": false,
-          "actual_pass": true,
-          "detail": "Skipped \u2014 register or payslips absent."
-        },
-        {
-          "case": "case-0017",
-          "rule": "R4",
-          "expected_pass": false,
-          "actual_pass": true,
-          "detail": "Skipped \u2014 register or payslips absent."
-        },
-        {
-          "case": "case-0018",
-          "rule": "R4",
-          "expected_pass": false,
-          "actual_pass": true,
-          "detail": "Skipped \u2014 register or payslips absent."
-        },
-        {
-          "case": "case-0023",
-          "rule": "R4",
-          "expected_pass": false,
-          "actual_pass": true,
-          "detail": "Skipped \u2014 register or payslips absent."
-        },
-        {
-          "case": "case-0035",
-          "rule": "R4",
-          "expected_pass": false,
-          "actual_pass": true,
-          "detail": "Skipped \u2014 register or payslips absent."
-        }
-      ],
+      "correct": 160,
+      "accuracy": 1.0,
+      "divergences": [],
       "rule_activity": {
         "R1": {
           "applicable": 31,
@@ -62,7 +26,7 @@
         },
         "R2": {
           "applicable": 37,
-          "fired": 0
+          "fired": 37
         },
         "R3": {
           "applicable": 31,
@@ -70,7 +34,7 @@
         },
         "R4": {
           "applicable": 37,
-          "fired": 0
+          "fired": 37
         }
       }
     },
@@ -682,9 +646,23 @@
     },
     "validation": {
       "total": 160,
-      "correct": 146,
-      "accuracy": 0.9125,
+      "correct": 107,
+      "accuracy": 0.6687,
       "divergences": [
+        {
+          "case": "case-0001",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 6831.25 / net 5388.16 = 1.268 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0002",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 3527.63 / net 2684.94 = 1.314 (expected 1.40\u20132.60)"
+        },
         {
           "case": "case-0003",
           "rule": "R1",
@@ -694,10 +672,17 @@
         },
         {
           "case": "case-0003",
-          "rule": "R4",
-          "expected_pass": false,
-          "actual_pass": true,
-          "detail": "Skipped \u2014 register or payslips absent."
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 16058.13 / net 12744.55 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0005",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 16305.67 / net 12941.01 = 1.260 (expected 1.40\u20132.60)"
         },
         {
           "case": "case-0006",
@@ -707,11 +692,60 @@
           "detail": "Bank 8794.70 vs payslips 7693.20 (14.3% deviation \u2014 threshold 2%)"
         },
         {
+          "case": "case-0006",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 16094.36 / net 12773.30 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0006",
+          "rule": "R4",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Register reports 6 employees, found 5 payslips"
+        },
+        {
+          "case": "case-0007",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 3390.18 / net 2690.62 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0009",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 6300.89 / net 5000.71 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
           "case": "case-0010",
           "rule": "R1",
           "expected_pass": false,
           "actual_pass": true,
           "detail": "Skipped \u2014 incomplete event (missing bank or payslips)."
+        },
+        {
+          "case": "case-0010",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 15346.53 / net 12179.78 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0010",
+          "rule": "R4",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Register reports 6 employees, found 4 payslips"
+        },
+        {
+          "case": "case-0011",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 17960.41 / net 13711.92 = 1.310 (expected 1.40\u20132.60)"
         },
         {
           "case": "case-0012",
@@ -721,18 +755,81 @@
           "detail": "Bank 2661.37 vs payslips 1716.20 (55.1% deviation \u2014 threshold 2%)"
         },
         {
-          "case": "case-0017",
+          "case": "case-0012",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 4593.60 / net 3645.71 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0012",
           "rule": "R4",
-          "expected_pass": false,
-          "actual_pass": true,
-          "detail": "Skipped \u2014 register or payslips absent."
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Register reports 2 employees, found 1 payslips"
+        },
+        {
+          "case": "case-0013",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 20317.32 / net 16124.86 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0013",
+          "rule": "R4",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Register reports 5 employees, found 4 payslips"
+        },
+        {
+          "case": "case-0014",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 7928.38 / net 6495.73 = 1.221 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0015",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 18371.03 / net 14580.18 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0016",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 20776.88 / net 16489.59 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0016",
+          "rule": "R4",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Register reports 6 employees, found 3 payslips"
+        },
+        {
+          "case": "case-0017",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 5531.30 / net 4494.07 = 1.231 (expected 1.40\u20132.60)"
         },
         {
           "case": "case-0018",
-          "rule": "R4",
-          "expected_pass": false,
-          "actual_pass": true,
-          "detail": "Skipped \u2014 register or payslips absent."
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 6072.36 / net 4908.04 = 1.237 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0019",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 9632.35 / net 7644.72 = 1.260 (expected 1.40\u20132.60)"
         },
         {
           "case": "case-0020",
@@ -742,6 +839,20 @@
           "detail": "Bank 10353.06 vs payslips 8376.15 (23.6% deviation \u2014 threshold 2%)"
         },
         {
+          "case": "case-0020",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 18768.49 / net 14182.29 = 1.323 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0020",
+          "rule": "R4",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Register reports 6 employees, found 5 payslips"
+        },
+        {
           "case": "case-0021",
           "rule": "R1",
           "expected_pass": true,
@@ -749,6 +860,20 @@
           "detail": "Bank 9470.08 vs payslips 6885.59 (37.5% deviation \u2014 threshold 2%)"
         },
         {
+          "case": "case-0021",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 16637.01 / net 12795.18 = 1.300 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0021",
+          "rule": "R4",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Register reports 6 employees, found 4 payslips"
+        },
+        {
           "case": "case-0023",
           "rule": "R1",
           "expected_pass": false,
@@ -757,10 +882,73 @@
         },
         {
           "case": "case-0023",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 8721.22 / net 6921.60 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0024",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 10974.87 / net 8993.82 = 1.220 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0025",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 3951.57 / net 3269.21 = 1.209 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0026",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 16981.02 / net 13477.00 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0026",
           "rule": "R4",
-          "expected_pass": false,
-          "actual_pass": true,
-          "detail": "Skipped \u2014 register or payslips absent."
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Register reports 6 employees, found 4 payslips"
+        },
+        {
+          "case": "case-0027",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 17280.81 / net 13714.93 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0027",
+          "rule": "R4",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Register reports 5 employees, found 3 payslips"
+        },
+        {
+          "case": "case-0028",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 2986.38 / net 2370.14 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0032",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 9474.19 / net 7519.20 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0034",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 8846.68 / net 7203.57 = 1.228 (expected 1.40\u20132.60)"
         },
         {
           "case": "case-0035",
@@ -771,10 +959,38 @@
         },
         {
           "case": "case-0035",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 11157.78 / net 8855.38 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0036",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 10865.91 / net 8623.73 = 1.260 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0036",
           "rule": "R4",
-          "expected_pass": false,
-          "actual_pass": true,
-          "detail": "Skipped \u2014 register or payslips absent."
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Register reports 4 employees, found 3 payslips"
+        },
+        {
+          "case": "case-0037",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 17077.21 / net 14245.62 = 1.199 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0037",
+          "rule": "R4",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "Register reports 5 employees, found 3 payslips"
         },
         {
           "case": "case-0038",
@@ -782,6 +998,27 @@
           "expected_pass": true,
           "actual_pass": false,
           "detail": "Bank 4044.15 vs payslips 4188.09 (3.4% deviation \u2014 threshold 2%)"
+        },
+        {
+          "case": "case-0038",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 7300.80 / net 5790.19 = 1.261 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0039",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 8146.91 / net 6621.70 = 1.230 (expected 1.40\u20132.60)"
+        },
+        {
+          "case": "case-0040",
+          "rule": "R2",
+          "expected_pass": true,
+          "actual_pass": false,
+          "detail": "employer_cost 4914.08 / net 3900.06 = 1.260 (expected 1.40\u20132.60)"
         }
       ],
       "rule_activity": {
@@ -791,7 +1028,7 @@
         },
         "R2": {
           "applicable": 37,
-          "fired": 0
+          "fired": 33
         },
         "R3": {
           "applicable": 31,
@@ -799,7 +1036,7 @@
         },
         "R4": {
           "applicable": 37,
-          "fired": 0
+          "fired": 29
         }
       }
     },

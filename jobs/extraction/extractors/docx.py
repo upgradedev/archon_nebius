@@ -10,7 +10,7 @@ from openai import OpenAI, APIConnectionError, RateLimitError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from .base import BaseExtractor
-from .image import EXTRACTION_PROMPT, _clean_json, _safe_doc_type, _safe_float, _safe_line_items
+from .image import EXTRACTION_PROMPT, _clean_json, _safe_doc_type, _safe_float, _safe_int, _safe_line_items
 from models.document import ExtractedDocument
 
 
@@ -82,6 +82,10 @@ class DocxExtractor(BaseExtractor):
             raw_text_excerpt=text[:500],
             extraction_model=self.model,
             confidence=float(data.get("confidence") or 0.88),
+            employee_count=_safe_int(data.get("employee_count")),
+            gross_pay_total=_safe_float(data.get("gross_pay_total")),
+            employer_cost_total=_safe_float(data.get("employer_cost_total")),
+            net_pay_total=_safe_float(data.get("net_pay_total")),
         )
 
 

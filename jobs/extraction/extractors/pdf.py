@@ -77,7 +77,7 @@ class PdfExtractor(BaseExtractor):
             temperature=0.1,
         )
         raw = response.choices[0].message.content or "{}"
-        from .image import _clean_json, _safe_doc_type, _safe_float, _safe_line_items
+        from .image import _clean_json, _safe_doc_type, _safe_float, _safe_int, _safe_line_items
         data = json.loads(_clean_json(raw))
         return ExtractedDocument(
             source_file=path.name,
@@ -99,6 +99,10 @@ class PdfExtractor(BaseExtractor):
             raw_text_excerpt=text[:500],
             extraction_model=self.model,
             confidence=float(data.get("confidence") or 0.9),
+            employee_count=_safe_int(data.get("employee_count")),
+            gross_pay_total=_safe_float(data.get("gross_pay_total")),
+            employer_cost_total=_safe_float(data.get("employer_cost_total")),
+            net_pay_total=_safe_float(data.get("net_pay_total")),
         )
 
     def _extract_via_vision(self, path: Path) -> ExtractedDocument:
