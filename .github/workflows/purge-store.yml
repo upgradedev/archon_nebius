@@ -1,0 +1,52 @@
+name: Purge Production Store
+
+# Wipes ALL real uploaded data from the Archon production store back to a clean
+# slate (Object Storage data prefixes + the six Postgres data tables), so a
+# signed-in judge sees no other user's PII. See scripts/purge_store.py.
+#
+# Manual-only, and gated: the job hard-fails unless you type confirm=DELETE.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DELETE to confirm irreversible purge of the prod store'
+        required: true
+        default: ''
+
+jobs:
+  purge:
+    name: Purge object storage + database
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # Storage (non-secret) config — matches the deploy workflow.
+      STORAGE_ENDPOINT_URL: https://storage.eu-west1.nebius.cloud
+      NEBIUS_BUCKET_NAME: archon-bucket
+      NEBIUS_REGION: eu-west1
+      # Secrets.
+      NEBIUS_STORAGE_ACCESS_KEY_ID: ${{ secrets.NEBIUS_STORAGE_ACCESS_KEY_ID }}
+      NEBIUS_STORAGE_SECRET_KEY: ${{ secrets.NEBIUS_STORAGE_SECRET_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Confirm gate
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DELETE" ]; then
+            echo "Aborting: confirm input must be exactly 'DELETE' (got '${{ github.event.inputs.confirm }}')." >&2
+            exit 1
+          fi
+          echo "Confirmation accepted."
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install boto3 psycopg2-binary --quiet
+
+      - name: Purge production store
+        run: python scripts/purge_store.py
