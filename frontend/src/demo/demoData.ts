@@ -9,8 +9,11 @@
 import type {
   AnalysisResponse,
   CompanyProfile,
+  ExtractedDoc,
   FinancialReport,
+  Job,
   PeriodInfo,
+  UploadResponse,
 } from '../types/financial'
 import { DEMO_PERIOD } from './demoMode'
 
@@ -97,4 +100,75 @@ export const DEMO_PERIODS: PeriodInfo[] = [
 export const DEMO_PROFILE: CompanyProfile = {
   company_name: 'Northwind Trading Ltd',
   company_tax_id: '800123456',
+}
+
+// ── Extracted document set backing the demo dashboard ─────────────────────────
+// The KPI-tile drill-down (MetricsCards) and the Upload → Review step read the
+// period's extracted documents. In demo mode the api client serves THIS synthetic
+// set with no network call, so every drillable tile opens a populated table and
+// the Review step lists real rows. Figures tie to DEMO_REPORT: sales sum ≈ the
+// €96,400 revenue; the payroll register carries the €18,400 true employer cost /
+// 6 employees; the bank confirmation carries the €10,700 net transfer — the same
+// 3-document fusion the payroll-gap card visualises. Clearly synthetic SMB data.
+export const DEMO_DOCUMENTS: ExtractedDoc[] = [
+  // Sales invoices — sum to €96,400 (the reported revenue).
+  { source_file: `raw-docs/${DEMO_PERIOD}/sales-invoice-3001.pdf`, doc_type: 'sales', vendor_name: 'Northwind Trading Ltd', vendor_tax_id: '800123456', recipient_name: 'Acme Buyer Ltd', invoice_number: 'INV-3001', issue_date: '2026-01-08', total_amount: 34_200, currency: 'EUR', confidence: 0.98 },
+  { source_file: `raw-docs/${DEMO_PERIOD}/sales-invoice-3002.pdf`, doc_type: 'sales', vendor_name: 'Northwind Trading Ltd', vendor_tax_id: '800123456', recipient_name: 'Blue Ridge SA', invoice_number: 'INV-3002', issue_date: '2026-01-15', total_amount: 28_900, currency: 'EUR', confidence: 0.97 },
+  { source_file: `raw-docs/${DEMO_PERIOD}/sales-invoice-3003.pdf`, doc_type: 'sales', vendor_name: 'Northwind Trading Ltd', vendor_tax_id: '800123456', recipient_name: 'Corex Ltd', invoice_number: 'INV-3003', issue_date: '2026-01-22', total_amount: 19_800, currency: 'EUR', confidence: 0.96 },
+  { source_file: `raw-docs/${DEMO_PERIOD}/sales-invoice-3004.pdf`, doc_type: 'sales', vendor_name: 'Northwind Trading Ltd', vendor_tax_id: '800123456', recipient_name: 'Delphi Co', invoice_number: 'INV-3004', issue_date: '2026-01-28', total_amount: 13_500, currency: 'EUR', confidence: 0.95 },
+
+  // Purchase invoices — the top vendors on the expense breakdown.
+  { source_file: `raw-docs/${DEMO_PERIOD}/aws-cloud-invoice.pdf`, doc_type: 'invoice', vendor_name: 'Amazon Web Services', recipient_name: 'Northwind Trading Ltd', invoice_number: 'AWS-8842', issue_date: '2026-01-05', total_amount: 7_420, currency: 'EUR', confidence: 0.94 },
+  { source_file: `raw-docs/${DEMO_PERIOD}/google-cloud-invoice.pdf`, doc_type: 'invoice', vendor_name: 'Google Cloud', recipient_name: 'Northwind Trading Ltd', invoice_number: 'GCP-2231', issue_date: '2026-01-06', total_amount: 4_180, currency: 'EUR', confidence: 0.93 },
+  { source_file: `raw-docs/${DEMO_PERIOD}/professional-services-invoice.pdf`, doc_type: 'invoice', vendor_name: 'Meridian Advisory Partners', recipient_name: 'Northwind Trading Ltd', invoice_number: 'MAP-114', issue_date: '2026-01-18', total_amount: 8_750, currency: 'EUR', confidence: 0.90 },
+
+  // Expense receipts.
+  { source_file: `raw-docs/${DEMO_PERIOD}/rent-utilities-expense.pdf`, doc_type: 'expense', vendor_name: 'City Center Offices', recipient_name: 'Northwind Trading Ltd', invoice_number: 'RENT-2601', issue_date: '2026-01-01', total_amount: 9_600, currency: 'EUR', confidence: 0.92 },
+  { source_file: `raw-docs/${DEMO_PERIOD}/toll-logistics-expense.pdf`, doc_type: 'expense', vendor_name: 'Metro Toll Systems', recipient_name: 'Northwind Trading Ltd', invoice_number: 'TOLL-77', issue_date: '2026-01-12', total_amount: 2_960, currency: 'EUR', confidence: 0.88 },
+
+  // Payroll register — the true employer cost + headcount the Event Linker fuses.
+  { source_file: `raw-docs/${DEMO_PERIOD}/payroll-register-jan.pdf`, doc_type: 'payroll_register', vendor_name: 'Northwind Trading Ltd', invoice_number: 'PR-2026-01', issue_date: '2026-01-25', total_amount: 18_400, employer_cost_total: 18_400, employee_count: 6, currency: 'EUR', confidence: 0.95 },
+
+  // Individual payslips — per-employee detail behind the register.
+  { source_file: `raw-docs/${DEMO_PERIOD}/payslip-employee-01.pdf`, doc_type: 'payslip', vendor_name: 'Northwind Trading Ltd', recipient_name: 'A. Georgiou', invoice_number: 'PSL-01', issue_date: '2026-01-25', total_amount: 1_980, currency: 'EUR', confidence: 0.91 },
+  { source_file: `raw-docs/${DEMO_PERIOD}/payslip-employee-02.pdf`, doc_type: 'payslip', vendor_name: 'Northwind Trading Ltd', recipient_name: 'M. Ioannou', invoice_number: 'PSL-02', issue_date: '2026-01-25', total_amount: 1_760, currency: 'EUR', confidence: 0.91 },
+
+  // Bank confirmation — the net cash that actually left the account (€10,700).
+  { source_file: `raw-docs/${DEMO_PERIOD}/bank-confirmation-jan.pdf`, doc_type: 'bank_confirmation', vendor_name: 'National Bank', recipient_name: 'Northwind Trading Ltd', invoice_number: 'BANK-0125', issue_date: '2026-01-25', total_amount: 10_700, bank_transfer_amount: 10_700, currency: 'EUR', confidence: 0.96 },
+]
+
+// A synthetic completed Job. Demo mode short-circuits every job poll to this so
+// the extraction / analysis JobStatus cards land on "completed" with no compute.
+export function demoJob(
+  jobId: string,
+  period: string,
+  status: Job['status'] = 'completed',
+): Job {
+  const now = new Date().toISOString()
+  return {
+    id: jobId,
+    status,
+    period,
+    documentsCount: DEMO_DOCUMENTS.length,
+    createdAt: now,
+    completedAt: status === 'completed' ? now : undefined,
+    progress: status === 'completed' ? 100 : status === 'running' ? 60 : 10,
+  }
+}
+
+// A synthetic upload response mirroring what the backend returns for the files a
+// judge "uploads" in demo mode. The resolved period is always the seeded period
+// so the flow lands on DEMO_REPORT.
+export function demoUpload(fileNames: string[]): UploadResponse {
+  const now = new Date().toISOString()
+  return {
+    uploadId: 'demo-upload',
+    period: DEMO_PERIOD,
+    files: (fileNames.length ? fileNames : ['demo-document.pdf']).map((name, i) => ({
+      id: `demo-file-${i}`,
+      filename: name,
+      sizeBytes: 1024,
+      uploadedAt: now,
+    })),
+  }
 }

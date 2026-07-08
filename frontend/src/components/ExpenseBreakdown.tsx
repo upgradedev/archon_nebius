@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { ExpenseCategory } from '../types/financial'
+import { tooltipContentStyle, tooltipLabelStyle, tooltipItemStyle } from './chartTheme'
 
 interface Props {
   data: ExpenseCategory[]
@@ -30,6 +31,9 @@ export default function ExpenseBreakdown({ data }: Props) {
           formatter={(v: number) =>
             new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
           }
+          contentStyle={tooltipContentStyle}
+          labelStyle={tooltipLabelStyle}
+          itemStyle={tooltipItemStyle}
         />
         <Legend />
       </PieChart>

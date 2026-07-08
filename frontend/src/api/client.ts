@@ -5,7 +5,14 @@ import type {
   FinancialReport, ValidationRule, ValidationState, ExtractedDoc,
 } from '../types/financial'
 import { isDemoMode } from '../demo/demoMode'
-import { DEMO_PERIODS, DEMO_REPORT, DEMO_PROFILE } from '../demo/demoData'
+import {
+  DEMO_PERIODS, DEMO_REPORT, DEMO_PROFILE, DEMO_DOCUMENTS,
+  demoJob, demoUpload,
+} from '../demo/demoData'
+
+// Small delay so the demo upload shows a realistic, moving progress bar instead
+// of snapping to 100% — a judge "uploads" and watches the pipeline advance.
+const demoSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 // ── Report normalisation ──────────────────────────────────────────────────────
 // The analysis pipeline (jobs/analysis) emits `payrollEvents` and
@@ -121,6 +128,17 @@ export const api = {
     onProgress?: (pct: number) => void,
     fileNames?: string[],
   ): Promise<UploadResponse> => {
+    // Demo mode: simulate the upload client-side with a moving progress bar and
+    // resolve to the seeded period so the flow lands on DEMO_REPORT (no backend,
+    // no auth, no 401). See demoMode.ts.
+    if (isDemoMode()) {
+      const names = fileNames ?? files.map((f) => f.name)
+      for (const pct of [15, 45, 75, 100]) {
+        onProgress?.(pct)
+        await demoSleep(120)
+      }
+      return demoUpload(names)
+    }
     const form = new FormData()
     // Pass explicit filename as third arg to override any OS temp-file name
     files.forEach((f, i) => form.append('files', f, fileNames?.[i] ?? f.name))
@@ -135,23 +153,29 @@ export const api = {
   },
 
   submitJob: async (uploadId: string, period: string): Promise<Job> => {
+    if (isDemoMode()) return demoJob('demo-extraction-job', period)
     const { data } = await http.post<Job>('/api/jobs', { uploadId, period })
     return data
   },
 
   getJob: async (jobId: string): Promise<Job> => {
+    // Demo mode: the extraction job is always immediately complete.
+    if (isDemoMode()) return demoJob(jobId, DEMO_REPORT.report.period)
     const { data } = await http.get<Job>(`/api/jobs/${jobId}`)
     return data
   },
 
   // Submit an on-demand analysis job; returns a Job for polling
   analyze: async (period: string): Promise<Job> => {
+    if (isDemoMode()) return demoJob('demo-analysis-job', period)
     const { data } = await http.post<Job>('/api/analyze', { period })
     return data
   },
 
   // Poll analysis job status
   getAnalysisJob: async (jobId: string): Promise<Job> => {
+    // Demo mode: the analysis job is always immediately complete.
+    if (isDemoMode()) return demoJob(jobId, DEMO_REPORT.report.period)
     const { data } = await http.get<Job>(`/api/analyze/${jobId}`)
     return data
   },
@@ -172,10 +196,12 @@ export const api = {
   },
 
   deletePeriod: async (period: string): Promise<void> => {
+    if (isDemoMode()) return  // no-op — the seeded period is client-side only
     await http.delete(`/api/periods/${period}`)
   },
 
   deleteJob: async (jobId: string): Promise<void> => {
+    if (isDemoMode()) return  // no-op — demo jobs are synthetic
     await http.delete(`/api/jobs/${jobId}`)
   },
 
@@ -184,6 +210,9 @@ export const api = {
   // this boundary and drop non-object entries so consumers receive a clean,
   // correctly-typed array instead of blind-casting `unknown[] as ExtractedDoc[]`.
   getDocuments: async (period: string): Promise<ExtractedDoc[]> => {
+    // Demo mode: serve the seeded extracted-document set so the KPI-tile drill-down
+    // and the Upload → Review step render populated tables with no backend.
+    if (isDemoMode()) return DEMO_DOCUMENTS
     const { data } = await http.get<unknown>(`/api/documents/${period}`)
     const raw: unknown =
       Array.isArray(data)
@@ -204,6 +233,7 @@ export const api = {
   },
 
   updateCompanyProfile: async (profile: CompanyProfile): Promise<CompanyProfile> => {
+    if (isDemoMode()) return profile  // echo — demo profile is client-side only
     const { data } = await http.put<CompanyProfile>('/api/company-profile', profile)
     return data
   },
@@ -216,6 +246,8 @@ export const api = {
     period: string,
     documents: ExtractedDoc[],
   ): Promise<{ period: string; documents: number; deleted: number }> => {
+    // Demo mode: accept the reviewed set client-side (no persistence, no backend).
+    if (isDemoMode()) return { period, documents: documents.length, deleted: 0 }
     const { data } = await http.put(`/api/documents/${period}`, { documents })
     return data
   },

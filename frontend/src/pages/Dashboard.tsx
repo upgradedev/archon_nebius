@@ -227,13 +227,14 @@ export default function Dashboard() {
                   danger
                   size="small"
                   disabled={!!triggerJobId || deletePeriod.isPending}
+                  aria-label="Delete period"
                 />
               </Tooltip>
             </Popconfirm>
           )}
 
           <Tooltip title="Company settings">
-            <Button icon={<SettingOutlined />} size="small" onClick={openSettings} />
+            <Button icon={<SettingOutlined />} size="small" onClick={openSettings} aria-label="Company settings" />
           </Tooltip>
 
           {user?.photoURL && <Avatar src={user.photoURL} size={28} />}
