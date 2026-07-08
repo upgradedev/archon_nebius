@@ -20,6 +20,7 @@
       "vendor_name": "Zenith Bank",
       "currency": "EUR",
       "total_amount": 3650.51,
+      "net_pay_total": 3650.51,
       "notes": "Batch payroll transfer confirmation",
       "raw_text_excerpt": "ZENITH BANK BATCH PAYROLL TRANSFER CONFIRMATION"
     },
@@ -32,6 +33,10 @@
       "vendor_name": "Terra Agro BV",
       "currency": "EUR",
       "total_amount": 6300.89,
+      "gross_pay_total": 5000.71,
+      "employer_cost_total": 6300.89,
+      "net_pay_total": 3650.51,
+      "employee_count": 2,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
       "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },

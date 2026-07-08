@@ -80,7 +80,8 @@ jobs:
       - name: Evaluation harness — proof of execution + baselines
         run: |
           # offline: scores the real pipeline agents vs ground truth (no network,
-          # only pydantic). Asserts the BASELINE.md numbers + R2/R4 dormancy.
+          # only pydantic). Asserts the BASELINE.md numbers + that all four
+          # validation rules (incl. the now-active R2/R4) fire and are correct.
           python -m pytest eval/tests -q
           python eval/evaluate.py eval/corpus/sample
 

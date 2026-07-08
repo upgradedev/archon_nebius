@@ -22,6 +22,10 @@
       "vendor_name": "Terra Agro BV",
       "currency": "EUR",
       "total_amount": 8343.34,
+      "gross_pay_total": 6621.7,
+      "employer_cost_total": 8343.34,
+      "net_pay_total": 4833.84,
+      "employee_count": 2,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
       "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },

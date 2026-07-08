@@ -20,6 +20,7 @@
       "vendor_name": "Zenith Bank",
       "currency": "EUR",
       "total_amount": 6295.32,
+      "net_pay_total": 6295.32,
       "notes": "Batch payroll transfer confirmation",
       "raw_text_excerpt": "ZENITH BANK BATCH PAYROLL TRANSFER CONFIRMATION"
     },
@@ -32,6 +33,10 @@
       "vendor_name": "Cobalt Build Oy",
       "currency": "EUR",
       "total_amount": 10865.91,
+      "gross_pay_total": 8623.73,
+      "employer_cost_total": 10865.91,
+      "net_pay_total": 6295.32,
+      "employee_count": 4,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
       "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },

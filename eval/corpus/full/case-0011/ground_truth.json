@@ -22,6 +22,10 @@
       "vendor_name": "Cyan Software SA",
       "currency": "EUR",
       "total_amount": 17277.02,
+      "gross_pay_total": 13711.92,
+      "employer_cost_total": 17277.02,
+      "net_pay_total": 10009.69,
+      "employee_count": 5,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
       "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },

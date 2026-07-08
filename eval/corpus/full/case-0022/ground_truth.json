@@ -22,6 +22,10 @@
       "vendor_name": "Valley Dairy SAS",
       "currency": "EUR",
       "total_amount": 10965.42,
+      "gross_pay_total": 8702.72,
+      "employer_cost_total": 10965.42,
+      "net_pay_total": 6352.98,
+      "employee_count": 3,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
       "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },

@@ -11,7 +11,7 @@ a safety net in case documents from multiple upload batches are combined.
 
 Rules:
   R1  bank.total ≈ sum(payslips) ±2%
-  R2  employer_cost / net_pay in [1.25, 1.45]
+  R2  employer_cost / net_pay in [1.40, 2.60]  (band derived from payroll structure — see extraction validator.py for the full derivation)
   R3  bank.issue_date <= last day of period
   R4  register.employee_count == len(payslips)
 """
@@ -68,18 +68,18 @@ def _r1(bank: ExtractedDoc | None, payslips: list[ExtractedDoc]) -> ValidationRe
 
 
 def _r2(register: ExtractedDoc | None) -> ValidationResult:
-    rule = "R2: employer_cost / net_pay in [1.25, 1.45]"
+    rule = "R2: employer_cost / net_pay in [1.40, 2.60]"
     # A zero (or missing) net_pay_total is caught here by the falsy check, so R2
     # is skipped — the ratio is undefined without a positive net. (A dedicated
     # net==0 warning branch below this guard was unreachable and was removed.)
     if not register or not register.employer_cost_total or not register.net_pay_total:
         return _skip(rule)
     ratio = register.employer_cost_total / register.net_pay_total
-    passed = 1.25 <= ratio <= 1.45
+    passed = 1.40 <= ratio <= 2.60
     return ValidationResult(
         rule=rule, passed=passed,
         severity="warning" if not passed else "info",
-        message=f"employer_cost/net = {ratio:.3f} (expected 1.25–1.45)",
+        message=f"employer_cost/net = {ratio:.3f} (expected 1.40–2.60)",
         source_files=[register.source_file],
     )
 

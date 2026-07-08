@@ -115,10 +115,13 @@ def build_case(case_id: str, rng: random.Random, edge_cases: list[str] | None = 
         ny, nm = (year + 1, 1) if month == 12 else (year, month + 1)
         bank_issue_date = f"{ny:04d}-{nm:02d}-05"
 
-    # ── documents = perfect extraction under the CURRENT prompt (generic fields)──
-    # The production extractor emits total_amount per doc but NOT the payroll
-    # fields (employer_cost_total / net_pay_total / employee_count). These labels
-    # mirror that reality so the ceiling is the real product's ceiling.
+    # ── documents = perfect extraction under the CURRENT prompt ──────────────────
+    # The production prompt (jobs/extraction/extractors/image.py::EXTRACTION_PROMPT)
+    # now requests the payroll fields (gross_pay_total / employer_cost_total /
+    # net_pay_total / employee_count) on the register + net_pay_total on the bank
+    # confirmation. These labels mirror exactly what a perfect read of that prompt
+    # returns, so the ceiling stays the real product's ceiling — and R2/R4, which
+    # read those fields, are now live rather than dormant.
     documents: list[dict] = []
     if has_bank:
         documents.append({
@@ -130,6 +133,7 @@ def build_case(case_id: str, rng: random.Random, edge_cases: list[str] | None = 
             "vendor_name": "Zenith Bank",
             "currency": "EUR",
             "total_amount": bank_net,
+            "net_pay_total": bank_net,        # the net amount actually transferred
             "notes": "Batch payroll transfer confirmation",
             "raw_text_excerpt": "ZENITH BANK BATCH PAYROLL TRANSFER CONFIRMATION",
         })
@@ -144,9 +148,14 @@ def build_case(case_id: str, rng: random.Random, edge_cases: list[str] | None = 
             "currency": "EUR",
             # Best-case perfect read: the register's headline total is the
             # employer cost (gross + employer social-security). See BASELINE.md
-            # §4 for why this is the *only* economically-correct reading and why
-            # the explicit field (not total_amount) is what the product needs.
+            # §4 for why this is the *only* economically-correct reading. The
+            # explicit payroll fields below are what R2/R4 and the P&L agent read
+            # (the P&L now prefers employer_cost_total over total_amount).
             "total_amount": employer_cost_total,
+            "gross_pay_total": gross_total,
+            "employer_cost_total": employer_cost_total,
+            "net_pay_total": net_total,
+            "employee_count": n_emp,          # register reports the full headcount
             "notes": "Payroll register - employer social-security contributions - total employer cost",
             "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST",
         })
@@ -172,9 +181,10 @@ def build_case(case_id: str, rng: random.Random, edge_cases: list[str] | None = 
     r1 = has_bank and payslips_emitted > 0 and abs(bank_net - slips_net) / slips_net <= 0.02
     if not has_bank or payslips_emitted == 0:
         r1 = True   # rule correctly skips -> treated as pass
-    # R2: employer_cost / net ratio is a legitimate payroll ratio (~1.73).
-    #     Domain truth = consistent (pass). The product's [1.25,1.45] band is a
-    #     known mis-calibration, surfaced by the harness (BASELINE §4).
+    # R2: employer_cost / net ratio is a legitimate payroll ratio (~1.73), which
+    #     sits inside the recalibrated [1.40, 2.60] band. Domain truth =
+    #     consistent (pass). R2 fires on every register now; the degraded
+    #     extractor (a structural net-line misread) is what makes it fail.
     r2 = True
     # R3: payment date on/before period end
     r3 = True
@@ -234,7 +244,7 @@ SAMPLE_PLAN = [
     ("case-0001", []),                    # standard, full close
     ("case-0002", ["bank_mismatch"]),     # R1 fails (bank +6% reconciliation break)
     ("case-0003", ["missing_register"]),  # no register -> R2/R4 legitimately skip
-    ("case-0004", ["missing_payslip"]),   # register N, payslips N-1: R1 catches it, R4 cannot (dormant)
+    ("case-0004", ["missing_payslip"]),   # register N, payslips N-1: R1 and R4 both catch it
     ("case-0005", ["missing_bank"]),      # bank->payslip fallback; R1 skips
     ("case-0006", ["single_employee"]),   # smallest valid close
 ]

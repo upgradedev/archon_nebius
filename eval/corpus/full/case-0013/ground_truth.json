@@ -22,6 +22,10 @@
       "vendor_name": "Ferrum Metals NV",
       "currency": "EUR",
       "total_amount": 20317.32,
+      "gross_pay_total": 16124.86,
+      "employer_cost_total": 20317.32,
+      "net_pay_total": 11771.14,
+      "employee_count": 5,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
       "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },

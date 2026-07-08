@@ -22,6 +22,10 @@
       "vendor_name": "Meridian Services Srl",
       "currency": "EUR",
       "total_amount": 9076.5,
+      "gross_pay_total": 7203.57,
+      "employer_cost_total": 9076.5,
+      "net_pay_total": 5258.61,
+      "employee_count": 3,
       "notes": "Payroll register - employer social-security contributions - total employer cost",
       "raw_text_excerpt": "PAYROLL REGISTER EMPLOYER SOCIAL SECURITY CONTRIBUTIONS TOTAL EMPLOYER COST"
     },

@@ -49,34 +49,48 @@ def test_ceiling_perfect_on_extracted_fields(ceiling):
     assert ceiling["fusion"]["accuracy"] == 1.0   # P&L reports employer cost, not bank net
 
 
-def test_active_rules_fire_and_are_correct(ceiling):
+def test_all_four_rules_fire_and_are_correct(ceiling):
+    # All four rules are wired end-to-end and evaluate on every applicable case.
+    # R2/R4 were dormant until the extractor was taught to populate
+    # employer_cost_total / net_pay_total / gross_pay_total / employee_count
+    # (jobs/extraction/extractors/image.py::EXTRACTION_PROMPT); they now fire.
     act = ceiling["validation"]["rule_activity"]
-    # R1 (bank vs payslips) and R3 (payment date) are wired end-to-end
-    assert act["R1"]["fired"] == act["R1"]["applicable"] > 0
-    assert act["R3"]["fired"] == act["R3"]["applicable"] > 0
+    for rid in ("R1", "R2", "R3", "R4"):
+        assert act[rid]["fired"] == act[rid]["applicable"] > 0, f"{rid} expected active"
 
 
-def test_R2_and_R4_are_dormant(ceiling):
-    # KEYSTONE FINDING: R2 and R4 never fire because the extractor never
-    # populates employer_cost_total / net_pay_total / employee_count
-    # (see jobs/extraction/extractors/image.py::EXTRACTION_PROMPT).
+def test_R2_and_R4_now_active(ceiling):
+    # RESOLVED (was the keystone dormancy bug): with the payroll fields extracted,
+    # R2 (employer-cost ratio) and R4 (headcount) evaluate instead of skipping.
     act = ceiling["validation"]["rule_activity"]
-    assert act["R2"]["applicable"] > 0 and act["R2"]["fired"] == 0, "R2 expected dormant"
-    assert act["R4"]["applicable"] > 0 and act["R4"]["fired"] == 0, "R4 expected dormant"
+    assert act["R2"]["applicable"] > 0 and act["R2"]["fired"] == act["R2"]["applicable"], "R2 expected active"
+    assert act["R4"]["applicable"] > 0 and act["R4"]["fired"] == act["R4"]["applicable"], "R4 expected active"
 
 
-def test_dormant_R4_misses_a_real_defect(ceiling):
-    # the missing-payslip case is a genuine inconsistency; R4 should catch it but
-    # cannot (dormant) -> it surfaces as a validation-outcome divergence
-    divs = {(d["case"], d["rule"]) for d in ceiling["validation"]["divergences"]}
-    assert any(rule == "R4" for _case, rule in divs)
+def test_ceiling_reproduces_domain_truth_on_all_rules(ceiling):
+    # With R2/R4 active, perfect extraction matches domain truth on all four
+    # rules across the corpus -> zero divergences, 100% validation-outcome.
+    # In particular R4 now catches the missing-payslip case it used to miss.
+    assert ceiling["validation"]["divergences"] == []
+    assert ceiling["validation"]["accuracy"] == 1.0
 
 
-def test_active_R1_does_catch_a_real_defect(ceiling):
-    # the same missing-payslip case is caught by R1 (amount mismatch) -> no R1
-    # divergence; proves an active rule earns its place
+def test_active_R1_and_R4_both_catch_the_missing_payslip_defect(ceiling):
+    # the missing-payslip case (register reports N, only N-1 payslips) is a
+    # genuine inconsistency. R1 (amount mismatch) always caught it; R4 (headcount)
+    # now catches it too -> neither produces a divergence against domain truth.
     divs = {(d["case"], d["rule"]) for d in ceiling["validation"]["divergences"]}
     assert not any(rule == "R1" for _case, rule in divs)
+    assert not any(rule == "R4" for _case, rule in divs)
+
+
+def test_degraded_R2_catches_structural_extraction_error(degraded):
+    # R2 earns its place: a structural net-line misread on the register (the
+    # degraded extractor sets net_pay_total = gross) pushes employer_cost/net
+    # below the [1.40, 2.60] band, so R2 fires and flags the corrupted
+    # extraction -> an R2 divergence the perfect extractor never produces.
+    divs = {(d["case"], d["rule"]) for d in degraded["validation"]["divergences"]}
+    assert any(rule == "R2" for _case, rule in divs), "R2 should catch the structural net-line misread"
 
 
 def test_metrics_discriminate(ceiling, degraded):

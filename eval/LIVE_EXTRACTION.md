@@ -39,10 +39,13 @@ ceiling — so the live number is directly comparable to the 100% ceiling.
   scanned images) to exercise the Qwen2.5-VL vision path.
 - **Fusion** to drop faster than field accuracy — per-field errors compound
   through the employer-cost sums (see `BASELINE.md` §2 sensitivity).
-- **R2 / R4 still dormant** until the extraction prompt is extended to emit the
-  payroll fields (`BASELINE.md` §3, finding F1) — live extraction alone does not
-  populate `employer_cost_total` / `net_pay_total` / `employee_count`, because
-  the prompt never asks for them.
+- **R2 / R4 to fire, and their accuracy to depend on the live read** of the
+  payroll fields. The prompt now asks the model for `employer_cost_total` /
+  `net_pay_total` / `gross_pay_total` / `employee_count` (`BASELINE.md` §3,
+  findings F1/F2 — resolved), so R2/R4 are active offline. Live extraction is
+  where the *accuracy* of those fields is measured: if the model misreads the
+  net line, R2 will (correctly) flag it, exactly as the degraded extractor
+  demonstrates.
 
 ## Cost
 

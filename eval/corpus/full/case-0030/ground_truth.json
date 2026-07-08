@@ -22,6 +22,7 @@
       "vendor_name": "Zenith Bank",
       "currency": "EUR",
       "total_amount": 4769.57,
+      "net_pay_total": 4769.57,
       "notes": "Batch payroll transfer confirmation",
       "raw_text_excerpt": "ZENITH BANK BATCH PAYROLL TRANSFER CONFIRMATION"
     },

@@ -46,8 +46,22 @@ Choose doc_type from EXACTLY one of these values:
   "payment_due_date": "YYYY-MM-DD or null",
   "invoice_number": "string or null",
   "notes": "string or null",
+  "employee_count": null,
+  "gross_pay_total": null,
+  "employer_cost_total": null,
+  "net_pay_total": null,
   "confidence": 0.9
 }
+
+PAYROLL FIELDS — populate ONLY for payroll documents, else leave null:
+  - payroll_register: set "gross_pay_total" (total gross wages),
+    "employer_cost_total" (gross + the employer's social-security contribution —
+    the true cost to employ the team, larger than the net transfer),
+    "net_pay_total" (total net pay), and "employee_count" (number of employees on
+    the register). Read each from its own labelled line; never copy one line into
+    another.
+  - bank_confirmation: set "net_pay_total" (the net amount actually transferred).
+  - payslip: leave the payroll totals null (a payslip is a single employee's net).
 
 IMPORTANT: Return ONLY the raw JSON object. No markdown fences, no extra text.
 """
@@ -121,6 +135,10 @@ class ImageExtractor(BaseExtractor):
             raw_text_excerpt="[image document]",
             extraction_model=self.model,
             confidence=float(data.get("confidence") or 0.85),
+            employee_count=_safe_int(data.get("employee_count")),
+            gross_pay_total=_safe_float(data.get("gross_pay_total")),
+            employer_cost_total=_safe_float(data.get("employer_cost_total")),
+            net_pay_total=_safe_float(data.get("net_pay_total")),
         )
 
 
@@ -146,6 +164,16 @@ def _safe_float(value) -> float | None:
         return None
     try:
         return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_int(value) -> int | None:
+    """Return int or None — never raise on null/empty/non-numeric LLM output."""
+    if value is None:
+        return None
+    try:
+        return int(float(value))
     except (TypeError, ValueError):
         return None
 
