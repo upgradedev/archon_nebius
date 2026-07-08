@@ -40,6 +40,9 @@ test.describe('demo mode — full judge journey, zero backend', () => {
     const violations = installApiGuard(page)
     await page.goto('/?demo=1')
 
+    // An honest "this is a sample" banner is shown in demo mode.
+    await expect(page.getByText(/Demo mode — this is a sample dashboard/)).toBeVisible()
+
     // Payroll-gap card — the core insight, with both denominators.
     await expect(page.getByText('Bank transfer (net)', { exact: true })).toBeVisible()
     await expect(page.getByText('True employer cost', { exact: true })).toBeVisible()

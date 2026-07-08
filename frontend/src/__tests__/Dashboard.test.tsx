@@ -86,7 +86,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   )
 }
 
-describe('Dashboard — empty state', () => {
+describe('Dashboard — signed-in empty store (sample-data fallback)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.getPeriods.mockResolvedValue([])
@@ -98,14 +98,16 @@ describe('Dashboard — empty state', () => {
     await waitFor(() => expect(screen.getByText('Archon')).toBeTruthy())
   })
 
-  it('shows two Upload buttons in empty state (header + empty-state CTA)', async () => {
-    // When no periods exist the Dashboard renders both the header Upload button
-    // and an empty-state "Upload documents" CTA — assert at least two are present.
+  it('shows the sample-data fallback (banner + sample dashboard), not an empty state', async () => {
+    // A signed-in user with an empty store falls back to the shared sample dataset
+    // (with an honest banner) instead of a blank dashboard.
     render(<Dashboard />, { wrapper: Wrapper })
-    await waitFor(() => {
-      const btns = screen.getAllByRole('button', { name: /upload/i })
-      expect(btns.length).toBeGreaterThanOrEqual(2)
-    })
+    await waitFor(() =>
+      expect(screen.getByText(/Demo dataset — this is a shared sample/i)).toBeTruthy(),
+    )
+    // The sample dashboard renders (Ask Archon panel) — NOT the empty-state CTA.
+    expect(screen.getByText('Ask Archon')).toBeTruthy()
+    expect(screen.queryByText('No period selected')).toBeNull()
   })
 
   it('shows Upload button in header', async () => {

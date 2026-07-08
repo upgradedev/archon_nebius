@@ -122,3 +122,28 @@ test('b→d. Full flow: upload → Review guard → dashboard KPIs + drill-down 
     await expect(page.getByText('bank-confirmation-jan.pdf', { exact: true })).toBeVisible()
   })
 })
+
+test('e. Signed-in + empty store falls back to the shared sample dataset with a banner', async ({
+  authedPage: page,
+}) => {
+  // The authed fixture starts with an EMPTY store (getPeriods → [] until an
+  // analysis has run). A signed-in visitor must therefore land on the shared
+  // sample dataset — NOT a blank dashboard — with an honest banner. This is the
+  // signed-in empty-store fallback (distinct from ?demo=1). The fixture mocks
+  // /api, so the point here is the RENDER: sample data + banner, no empty state.
+  await expect(
+    page.getByText(/Demo dataset — this is a shared sample/),
+  ).toBeVisible()
+
+  // The Northwind sample renders (payroll gap + KPIs + Ask panel), not empty state.
+  await expect(page.getByText('+72%')).toBeVisible()
+  await expect(page.getByText('Ask Archon')).toBeVisible()
+  await expect(page.getByText('No period selected')).toHaveCount(0)
+
+  // The tile drill-down is populated from the injected sample document set (a
+  // distinctive sample filename, proving the fallback documents are used).
+  await page.getByRole('button', { name: 'Revenue — open detail' }).click()
+  const drill = page.getByRole('dialog')
+  await expect(drill.getByText('Revenue — supporting documents')).toBeVisible()
+  await expect(drill.getByText('sales-invoice-3001.pdf')).toBeVisible()
+})
