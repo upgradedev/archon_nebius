@@ -11,7 +11,7 @@ stage:
 Unlike `scripts/test-pipeline.sh` (a thin smoke test that prints JSON), this
 suite makes **assertions** — including Archon's core invariant: a detected
 payroll event's `employer_cost_total` must exceed the bank-net transfer (the
-~28% gap the EventLinker fuses).
+~72% gap the EventLinker fuses).
 
 ## Layout
 
@@ -19,7 +19,7 @@ payroll event's `employer_cost_total` must exceed the bank-net transfer (the
 |---|---|
 | `test_01_health.py` | stack up; OpenAPI contract present |
 | `test_02_upload_validation.py` | input guardrails (period, file type, count, traversal) — deterministic, no LLM |
-| `test_03_pipeline.py` | full pipeline (shared session run) + deep report assertions + the 28% payroll-gap invariant |
+| `test_03_pipeline.py` | full pipeline (shared session run) + deep report assertions + the payroll-gap invariant |
 | `test_04_periods_reports.py` | dashboard endpoints + period delete/lifecycle (runs last) |
 
 The expensive upload→extract→analyze run happens **once** per session

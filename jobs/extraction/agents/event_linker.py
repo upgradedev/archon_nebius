@@ -5,8 +5,9 @@ Single responsibility: identify that a bank confirmation, a payroll register,
 and one or more payslips are all describing the *same* payroll event (same
 company, same period, overlapping amounts) and package them together.
 
-This solves the core insight: the bank confirmation alone understates the
-true employer payroll cost by ~28% (net only vs gross + employer social-security contributions).
+This solves the core insight: the bank confirmation alone understates the true
+employer payroll cost by ~72% (its net transfer vs gross + employer
+social-security; the employer's own contribution alone is ~35% over the net).
 Only by linking all three doc subtypes can we compute the real P&L impact.
 """
 
@@ -20,9 +21,6 @@ from models.document import ExtractedDocument, DocType
 from models.event import PayrollEvent
 
 log = logging.getLogger("archon.event_linker")
-
-# Documents within this amount tolerance (fraction) are considered the same event.
-AMOUNT_TOLERANCE = 0.05  # 5 %
 
 
 def run(docs: list[ExtractedDocument]) -> list[PayrollEvent]:

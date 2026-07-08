@@ -1,6 +1,6 @@
 """
 EventLinkerAgent — groups the three payroll subtypes into one PayrollEvent per
-company+period. This is the fusion step that makes the 28% wedge visible.
+company+period. This is the fusion step that makes the ~72% workforce-cost gap visible.
 """
 from agents import event_linker
 from models.document import DocType

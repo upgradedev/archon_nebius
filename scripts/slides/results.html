@@ -43,14 +43,14 @@
         <tr><td class="metric">Classification accuracy</td><td class="num ceil">100.00%</td><td class="num deg">74.29%</td></tr>
         <tr><td class="metric">Field accuracy</td><td class="num ceil">100.00%</td><td class="num deg">77.62%</td></tr>
         <tr><td class="metric">Fusion figure (employer cost)</td><td class="num ceil">100.00%</td><td class="num deg">54.05%</td></tr>
-        <tr><td class="metric">Validation outcome (R1–R4)</td><td class="num ceil">96.88%</td><td class="num deg">91.25%</td></tr>
+        <tr><td class="metric">Validation outcome (R1–R4)</td><td class="num ceil">100.00%</td><td class="num deg">66.87%</td></tr>
       </tbody>
     </table>
 
     <div class="callouts">
       <div class="callout keystone">
-        <div class="h">⚠ Keystone finding</div>
-        <div class="d">Validation rules R2 &amp; R4 are dormant — they fire 0 / 37 times, because the fields they read are never extracted. A number, not a hunch.</div>
+        <div class="h">✓ Keystone finding, fixed</div>
+        <div class="d">R2 &amp; R4 were dormant — 0 / 37 firings, because their register fields were never extracted. We wired the fields; the same harness now measures 37 / 37. Before and after, a number not a hunch.</div>
       </div>
       <div class="callout recovered">
         <div class="big">€133,382</div>

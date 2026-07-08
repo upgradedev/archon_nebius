@@ -7,16 +7,18 @@ const { Text } = Typography
 const STATE: Record<ValidationState, { color: string; label: string; icon: React.ReactNode }> = {
   pass: { color: 'success', label: 'PASS', icon: <CheckCircleOutlined /> },
   fail: { color: 'error', label: 'FAIL', icon: <CloseCircleOutlined /> },
-  skip: { color: 'warning', label: 'DORMANT', icon: <MinusCircleOutlined /> },
+  skip: { color: 'warning', label: 'SKIPPED', icon: <MinusCircleOutlined /> },
 }
 
 interface Props {
   rules: ValidationRule[]
 }
 
-// The R1–R4 cross-document validation ledger. DORMANT (skip) rules never fire
-// because the register fields they read are never extracted — the harness's
-// keystone finding, surfaced here instead of silently passing a broken close.
+// The R1–R4 cross-document validation ledger. All four rules fire end-to-end;
+// R2/R4 read the register's employer-cost / headcount fields the extractor now
+// populates (they were the harness's keystone dormancy finding, now fixed). A
+// rule shows SKIPPED only when its inputs are absent (e.g. no register that
+// period) — never because a field is permanently un-extracted.
 export default function ValidationLedger({ rules }: Props) {
   return (
     <Space direction="vertical" size={8} style={{ width: '100%' }}>
@@ -41,8 +43,9 @@ export default function ValidationLedger({ rules }: Props) {
         }}
       />
       <Text type="secondary" style={{ fontSize: 12 }}>
-        R2 &amp; R4 are dormant — the register fields they depend on are never extracted.
-        The evaluation harness measures this, rather than assuming the checks fire.
+        All four rules fire end-to-end — R2 &amp; R4 read the register&apos;s employer-cost and
+        headcount fields the extractor populates. The evaluation harness proves this by measuring
+        each rule&apos;s activity, rather than assuming the checks fire.
       </Text>
     </Space>
   )

@@ -114,7 +114,7 @@ def test_r3_skipped_short_period(doc):
     assert "Skipped" in r3.message
 
 
-# ── R4: register.employee_count == len(payslips) (live logic, dormant inputs) ─
+# ── R4: register.employee_count == len(payslips) (live end-to-end) ────────────
 
 def test_r4_pass_count_matches(doc):
     docs = [

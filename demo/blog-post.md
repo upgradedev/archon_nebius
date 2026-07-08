@@ -22,7 +22,7 @@ The clearest example of "the documents disagree" is a single payroll event, whic
 | Payslip | Gross − employee contributions − tax | €1,430 net / €2,000 gross |
 | Payroll register | Gross **+ employer** contributions | €2,446 true cost |
 
-The business actually spends about **€2,446** to employ that person, but the bank debit only shows **€1,430**. Software that reads only the bank statement silently under-reports workforce cost — for a typical payroll month the blended gap between "what left the bank" and "true employer cost" lands near **28%**, and payroll is the single largest cost centre for most SMBs.
+The business actually spends about **€2,446** to employ that person, but the bank debit only shows **€1,430**. Software that reads only the bank statement silently under-reports workforce cost — here the true employer cost is about **72% above** what left the bank (the employer's own social-security contribution alone is ~35% of the transfer; the rest is the tax and social security withheld from the employee), and payroll is the single largest cost centre for most SMBs.
 
 No single document can be trusted alone. The fix is to *fuse* the three into one event and read the right figure for the right question. That is a dedicated agent:
 
@@ -84,7 +84,7 @@ The cross-document checks are equally auditable. `ValidatorAgent` runs four name
 
 ## Measuring it — and an honest caveat
 
-A claim like "we surface the 28% gap" is worth nothing without a number behind it, so the repo ships an **evaluation harness** (`eval/`) that scores the *real* pipeline agents against a labelled synthetic corpus. It runs offline, no API key, only `pydantic`:
+A claim like "we surface the ~72% gap" is worth nothing without a number behind it, so the repo ships an **evaluation harness** (`eval/`) that scores the *real* pipeline agents against a labelled synthetic corpus. It runs offline, no API key, only `pydantic`:
 
 ```bash
 python eval/generate_corpus.py && python eval/evaluate.py

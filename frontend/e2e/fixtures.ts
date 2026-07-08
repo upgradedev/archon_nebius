@@ -108,22 +108,22 @@ export const REPORT = {
     },
     executiveSummary:
       'January closed with revenue of EUR 96,400 and a net profit of EUR 24,550 — a 25.5% ' +
-      'operating margin. The defining correction is payroll: the bank moved EUR 14,350 in net ' +
-      'transfers, but the Event Linker recovered the true employer cost of EUR 18,400 — a 28% ' +
-      'understatement a bank-only close would have missed.\n\n' +
+      'operating margin. The defining correction is payroll: the bank moved EUR 10,700 in net ' +
+      'transfers, but the Event Linker recovered the true employer cost of EUR 18,400 — about a ' +
+      '72% understatement a bank-only close would have missed.\n\n' +
       // The grounded narrator ends with a "Sources:" line whose citations are
       // separated by " · " (parseSummary splits on the middle dot into tags).
       'Sources: payroll-register-jan.pdf · sales-invoice-001.pdf · bank-confirmation-jan.pdf',
     generatedAt: `${TEST_PERIOD}-31T09:12:00Z`,
     // Raw shapes the client adapter converts into payrollGap + validations.
     payrollEvents: [
-      { net_total: 14_350, employer_cost_total: 18_400, employee_count: 6 },
+      { net_total: 10_700, employer_cost_total: 18_400, employee_count: 6 },
     ],
     validationResults: [
       { rule: 'R1: Bank net ≈ Σ payslip nets (±2%)', passed: true, message: 'OK' },
-      { rule: 'R2: Employer-cost ÷ net ratio in band', passed: false, message: 'Skipped — field not extracted' },
+      { rule: 'R2: Employer-cost ÷ net ratio in band', passed: true, message: 'employer_cost/net = 1.72 (expected 1.40–2.60)' },
       { rule: 'R3: Payment date ≤ end of pay period', passed: true, message: 'OK' },
-      { rule: 'R4: Register headcount == payslip count', passed: false, message: 'Skipped — field not extracted' },
+      { rule: 'R4: Register headcount == payslip count', passed: true, message: 'Register reports 6 employees, found 6 payslips' },
     ],
   },
 }
