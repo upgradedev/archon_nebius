@@ -24,6 +24,7 @@ import PayrollGapCard from '../components/PayrollGapCard'
 import ValidationLedger from '../components/ValidationLedger'
 import ErrorBoundary from '../components/ErrorBoundary'
 import { isDemoMode, DEMO_PERIOD } from '../demo/demoMode'
+import { DEMO_REPORT, DEMO_PERIODS, DEMO_PROFILE, DEMO_DOCUMENTS } from '../demo/demoData'
 import type { PeriodInfo, CompanyProfile } from '../types/financial'
 
 const { Header, Content } = Layout
@@ -62,7 +63,7 @@ export default function Dashboard() {
   // Inline analysis trigger (dashboard "Run Analysis" for an extracted-only period)
   const [triggerJobId, setTriggerJobId] = useState<string | null>(null)
 
-  const { data: periods = [], refetch: refetchPeriods } = useQuery({
+  const { data: periods = [], refetch: refetchPeriods, isLoading: periodsLoading } = useQuery({
     queryKey: ['periods'],
     queryFn: api.getPeriods,
     refetchInterval: 30_000,
@@ -131,11 +132,37 @@ export default function Dashboard() {
     }
   }
 
-  const activePeriodInfo: PeriodInfo | undefined = periods.find(p => p.period === activePeriod)
-  const report = reportData?.report
+  const demo = isDemoMode()
+
+  // ── Sample-data fallback ──────────────────────────────────────────────────────
+  // A SIGNED-IN visitor whose store is empty (no periods) would otherwise land on
+  // a blank dashboard — a poor first impression, especially after a store purge.
+  // In that case we render the SAME shared sample dataset the ?demo=1 path uses,
+  // with a clear banner. Distinct from demo mode (which is always-on via the URL):
+  // this triggers ONLY on an empty real store for an authenticated user and drops
+  // the instant they select or upload a real period. Pure client-side — nothing is
+  // written to the backend.
+  const sampleFallback =
+    !demo && !!user && !periodsLoading && periods.length === 0 && !activePeriod
+
+  // `useSample` = the dashboard is showing the shared sample dataset (either path).
+  const useSample = demo || sampleFallback
+
+  // Effective render values. Demo keeps its existing data flow (fixtures arrive via
+  // the api client); the fallback injects the fixtures here since its api calls
+  // return the real — empty — store.
+  const effectivePeriod = activePeriod ?? (sampleFallback ? DEMO_PERIOD : null)
+  const effectivePeriods = sampleFallback ? DEMO_PERIODS : periods
+  const report = reportData?.report ?? (sampleFallback ? DEMO_REPORT.report : undefined)
+  const reportGeneratedAt =
+    reportData?.generatedAt ?? (sampleFallback ? DEMO_REPORT.generatedAt : undefined)
+  const effectiveProfile = sampleFallback ? DEMO_PROFILE : profile
+
+  const activePeriodInfo: PeriodInfo | undefined =
+    effectivePeriods.find(p => p.period === effectivePeriod)
   const needsAnalysis = activePeriodInfo?.hasExtraction && !activePeriodInfo?.hasReport
 
-  const periodTabs = periods.map(p => ({
+  const periodTabs = effectivePeriods.map(p => ({
     key: p.period,
     label: (
       <Space size={6}>
@@ -172,10 +199,12 @@ export default function Dashboard() {
 
         {/* Period tabs */}
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          {periods.length > 0 ? (
+          {effectivePeriods.length > 0 ? (
             <Tabs
-              activeKey={activePeriod ?? undefined}
-              onChange={setActivePeriod}
+              activeKey={effectivePeriod ?? undefined}
+              // In the sample fallback the single tab is the seeded sample — selecting
+              // it must not kick off a real report fetch, so the change is a no-op there.
+              onChange={(k) => { if (!sampleFallback) setActivePeriod(k) }}
               items={periodTabs}
               style={{ marginBottom: 0 }}
               tabBarStyle={{ marginBottom: 0, border: 'none' }}
@@ -247,7 +276,27 @@ export default function Dashboard() {
 
       {/* ── Main content ── */}
       <Content style={{ maxWidth: 1400, margin: '0 auto', padding: '28px 24px', width: '100%' }}>
-        {!activePeriod ? (
+        {/* Honest banner whenever the dashboard is showing the shared sample data
+            — either the ?demo=1 tour or the signed-in empty-store fallback. */}
+        {useSample && (
+          <Alert
+            type="info"
+            banner
+            showIcon
+            message={
+              sampleFallback
+                ? 'Demo dataset — this is a shared sample. Upload your own documents to analyse them.'
+                : 'Demo mode — this is a sample dashboard. Sign in to analyse your own documents.'
+            }
+            style={{ marginBottom: 20 }}
+          />
+        )}
+        {!effectivePeriod ? (
+          periodsLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 80 }}>
+              <Spin size="large" />
+            </div>
+          ) : (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={
@@ -261,6 +310,7 @@ export default function Dashboard() {
             }
             style={{ marginTop: 80 }}
           />
+          )
         ) : reportLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 80 }}>
             <Spin size="large" tip="Loading report…" />
@@ -271,11 +321,11 @@ export default function Dashboard() {
             <Row align="middle" justify="space-between">
               <Col>
                 <Title level={4} style={{ margin: 0 }}>
-                  {profile?.company_name || 'Financial Report'} — {fmtPeriod(activePeriod)}
+                  {effectiveProfile?.company_name || 'Financial Report'} — {fmtPeriod(effectivePeriod!)}
                 </Title>
-                {reportData?.generatedAt && (
+                {reportGeneratedAt && (
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    Generated {new Date(reportData.generatedAt).toLocaleString()}
+                    Generated {new Date(reportGeneratedAt).toLocaleString()}
                   </Text>
                 )}
               </Col>
@@ -290,7 +340,11 @@ export default function Dashboard() {
             </Row>
 
             {report.pnl && report.keyMetrics && (
-              <MetricsCards report={report} period={activePeriod} />
+              <MetricsCards
+                report={report}
+                period={effectivePeriod!}
+                documents={sampleFallback ? DEMO_DOCUMENTS : undefined}
+              />
             )}
 
             {/* Executive summary is the "30-second" headline for a reader — kept at
@@ -299,7 +353,7 @@ export default function Dashboard() {
             <Row gutter={[24, 24]}>
               <Col xs={24} lg={15}>
                 <Card title="Executive Summary">
-                  <ExecutiveSummary summary={report.executiveSummary} period={activePeriod} />
+                  <ExecutiveSummary summary={report.executiveSummary} period={effectivePeriod!} />
                 </Card>
               </Col>
               <Col xs={24} lg={9}>
@@ -368,7 +422,7 @@ export default function Dashboard() {
               <Card>
                 <Space direction="vertical" size={16} style={{ width: '100%', textAlign: 'center' }}>
                   <CheckCircleOutlined style={{ fontSize: 40, color: token.colorSuccess }} />
-                  <Title level={5}>Extraction complete for {fmtPeriod(activePeriod)}</Title>
+                  <Title level={5}>Extraction complete for {fmtPeriod(effectivePeriod!)}</Title>
                   <Text type="secondary">Documents have been processed. Run the analysis pipeline to generate your P&amp;L report.</Text>
                   <Button type="primary" icon={<RocketOutlined />} onClick={triggerAnalysis}>
                     Run Analysis
@@ -381,7 +435,7 @@ export default function Dashboard() {
           errorStatus(reportError) === 404 ? (
             <Alert
               type="warning"
-              message={`No report available for ${fmtPeriod(activePeriod)}`}
+              message={`No report available for ${fmtPeriod(effectivePeriod!)}`}
               description="Upload documents and run analysis to generate a report for this period."
               action={
                 <Button size="small" onClick={() => setUploadOpen(true)}>
@@ -394,7 +448,7 @@ export default function Dashboard() {
             <Alert
               type="error"
               showIcon
-              message={`Couldn't load the report for ${fmtPeriod(activePeriod)}`}
+              message={`Couldn't load the report for ${fmtPeriod(effectivePeriod!)}`}
               description="The service may be starting up or briefly unavailable. Please try again."
               action={
                 <Button size="small" icon={<ReloadOutlined />} onClick={() => refetchReport()}>

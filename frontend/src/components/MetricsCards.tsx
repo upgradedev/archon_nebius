@@ -13,6 +13,10 @@ const { Text } = Typography
 interface Props {
   report: FinancialReport
   period: string
+  // When provided, the tile drill-down uses these documents directly instead of
+  // fetching them — used by the signed-in empty-store sample fallback so no
+  // /api/documents call is made for the seeded dataset.
+  documents?: ExtractedDoc[]
 }
 
 const fmt = (v: number) =>
@@ -103,7 +107,7 @@ const DOC_COLUMNS = [
 // Tiles that drill into their supporting documents. Purely-informational tiles
 // (Revenue Growth) have no doc-type mapping and stay non-interactive — they still
 // carry a definition tooltip.
-export default function MetricsCards({ report, period }: Props) {
+export default function MetricsCards({ report, period, documents }: Props) {
   const { keyMetrics: metrics, pnl } = report
   const growthPositive = metrics.revenueGrowthPct >= 0
   const [activeTile, setActiveTile] = useState<string | null>(null)
@@ -114,14 +118,16 @@ export default function MetricsCards({ report, period }: Props) {
   // FLAT ExtractedDoc[] (not Azure's { documents }). In demo mode api.getDocuments
   // serves the seeded document set client-side (no backend), so the drill-down is
   // populated for a judge exactly as it is against a real report.
-  const { data: docsRaw = [], isLoading: docsLoading } = useQuery({
+  const { data: docsRaw = [], isLoading: docsFetching } = useQuery({
     queryKey: ['documents', period],
     queryFn: () => api.getDocuments(period),
-    enabled: !!activeTile && !!period,
+    enabled: !!activeTile && !!period && documents === undefined,
     retry: false,
   })
-  // getDocuments() already returns a typed, shape-normalised ExtractedDoc[].
-  const allDocs = docsRaw
+  // Prefer an injected document set (sample fallback); otherwise use the fetched,
+  // shape-normalised ExtractedDoc[]. Loading only applies to the fetch path.
+  const allDocs = documents ?? docsRaw
+  const docsLoading = documents === undefined && docsFetching
   const tileDocs = activeTile
     ? allDocs.filter(d => TILE_DOC_TYPES[activeTile]?.includes(d.doc_type))
     : []
