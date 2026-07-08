@@ -3,6 +3,7 @@ import {
   Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
 import type { CashFlow } from '../types/financial'
+import { tooltipContentStyle, tooltipLabelStyle, tooltipItemStyle, tooltipCursor } from './chartTheme'
 
 interface Props {
   data: CashFlow
@@ -25,7 +26,13 @@ export default function CashFlowChart({ data }: Props) {
         <CartesianGrid strokeDasharray="3 3" stroke="#333" />
         <XAxis dataKey="name" stroke="#888" />
         <YAxis tickFormatter={v => `€${(v / 1000).toFixed(0)}k`} stroke="#888" />
-        <Tooltip formatter={(v: number) => fmt(v)} />
+        <Tooltip
+          formatter={(v: number) => fmt(v)}
+          contentStyle={tooltipContentStyle}
+          labelStyle={tooltipLabelStyle}
+          itemStyle={tooltipItemStyle}
+          cursor={tooltipCursor}
+        />
         <Legend />
         <ReferenceLine y={0} stroke="#666" />
         <Bar

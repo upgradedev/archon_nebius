@@ -7,7 +7,6 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import type { FinancialReport, ExtractedDoc } from '../types/financial'
 import { api } from '../api/client'
-import { isDemoMode } from '../demo/demoMode'
 
 const { Text } = Typography
 
@@ -112,12 +111,13 @@ export default function MetricsCards({ report, period }: Props) {
   const isDrillable = (label: string): boolean => label in TILE_DOC_TYPES
 
   // Fetch the period's extracted documents once a tile is open. Nebius returns a
-  // FLAT ExtractedDoc[] (not Azure's { documents }). Skipped in demo mode, which
-  // has no backend — the modal then shows the contextual empty state.
+  // FLAT ExtractedDoc[] (not Azure's { documents }). In demo mode api.getDocuments
+  // serves the seeded document set client-side (no backend), so the drill-down is
+  // populated for a judge exactly as it is against a real report.
   const { data: docsRaw = [], isLoading: docsLoading } = useQuery({
     queryKey: ['documents', period],
     queryFn: () => api.getDocuments(period),
-    enabled: !!activeTile && !!period && !isDemoMode(),
+    enabled: !!activeTile && !!period,
     retry: false,
   })
   // getDocuments() already returns a typed, shape-normalised ExtractedDoc[].
