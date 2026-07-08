@@ -120,6 +120,26 @@ def main(upload_id: str | None = None, period: str | None = None):
     typed_docs = classifier.run(typed_docs)
     log.info("Classification complete")
 
+    # Step 2b: advisory prompt-injection scan over each document's extracted
+    # fields. Pure/deterministic, no LLM. The extractors' DATA-not-instructions
+    # fence already neutralized any injected directive; this only SURFACES what
+    # was captured-as-data so the validation output can show it. Never rejects.
+    from injection_scan import scan_document
+    injection_flagged = 0
+    injection_hits = 0
+    for d in typed_docs:
+        result = scan_document(d.model_dump())
+        d.injection_scan = result.as_dict()
+        if result.detected:
+            injection_flagged += 1
+            injection_hits += result.count
+            log.warning(
+                "Prompt-injection patterns in %s: %d hit(s) — captured as data, not followed",
+                d.source_file, result.count,
+            )
+    log.info("Injection scan: %d/%d documents flagged (%d hits)",
+             injection_flagged, len(typed_docs), injection_hits)
+
     # Step 3: link payroll events
     events = event_linker.run(typed_docs)
     log.info("Linked %d payroll events", len(events))
@@ -153,6 +173,17 @@ def main(upload_id: str | None = None, period: str | None = None):
             "passed": sum(1 for r in validation_results if r.passed),
             "errors": errors,
             "warnings": sum(1 for r in validation_results if not r.passed and r.severity == "warning"),
+        },
+        # Advisory prompt-injection visibility — aggregate + per-document detail.
+        # documents_flagged/total_hits summarise; documents lists each source file
+        # with its scan so the dashboard/report can badge "prompt-injection scanned".
+        "injection_scan": {
+            "documents_flagged": injection_flagged,
+            "total_hits": injection_hits,
+            "documents": [
+                {"source_file": d.source_file, **(d.injection_scan or {})}
+                for d in typed_docs
+            ],
         },
     })
 
