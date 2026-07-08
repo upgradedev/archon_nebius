@@ -23,6 +23,7 @@ import JobStatus from '../components/JobStatus'
 import PayrollGapCard from '../components/PayrollGapCard'
 import ValidationLedger from '../components/ValidationLedger'
 import ErrorBoundary from '../components/ErrorBoundary'
+import ColdStartOverlay from '../components/ColdStartOverlay'
 import { isDemoMode, DEMO_PERIOD } from '../demo/demoMode'
 import { DEMO_REPORT, DEMO_PERIODS, DEMO_PROFILE, DEMO_DOCUMENTS } from '../demo/demoData'
 import type { PeriodInfo, CompanyProfile } from '../types/financial'
@@ -444,6 +445,18 @@ export default function Dashboard() {
               }
               style={{ maxWidth: 600, margin: '60px auto' }}
             />
+          ) : errorStatus(reportError) === 502 || errorStatus(reportError) === 503 ? (
+            // Cold start: DON'T dump to a red error screen. Show a calm "warming up"
+            // state — the ColdStartOverlay is already auto-retrying /api/health and
+            // will refetch this report automatically once the endpoint is warm.
+            <Alert
+              type="info"
+              showIcon
+              icon={<Spin />}
+              message="Nebius endpoint is starting up"
+              description="This can take ~5 minutes on first use. The report will load automatically once it's warm — no need to retry."
+              style={{ maxWidth: 600, margin: '60px auto' }}
+            />
           ) : (
             <Alert
               type="error"
@@ -460,6 +473,10 @@ export default function Dashboard() {
           )
         ) : null}
       </Content>
+
+      {/* Cold-start recovery — a fixed, non-blocking banner that auto-retries the
+          Nebius endpoint until warm. Never blanks the view. */}
+      <ColdStartOverlay />
 
       {/* ── Upload Modal ──
           Hosts the SINGLE shared upload flow (<UploadPage>, also the standalone

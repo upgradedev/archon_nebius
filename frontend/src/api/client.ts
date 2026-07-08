@@ -5,6 +5,7 @@ import type {
   FinancialReport, ValidationRule, ValidationState, ExtractedDoc,
 } from '../types/financial'
 import { isDemoMode } from '../demo/demoMode'
+import { emitColdStart } from './coldStart'
 import {
   DEMO_PERIODS, DEMO_REPORT, DEMO_PROFILE, DEMO_DOCUMENTS,
   demoJob, demoUpload,
@@ -106,17 +107,26 @@ http.interceptors.request.use(async (config) => {
   return config
 })
 
-// Centralised error copy for backend compute-availability failures. The Firebase
-// BFF returns 502 (endpoint still starting) or 503 (ADR-009: no compute capacity)
-// which otherwise reach the UI as raw "Request failed with status code 503". We
-// rewrite ONLY error.message and leave error.response intact so callers can still
-// branch on error.response?.status (e.g. Dashboard's 404-vs-5xx report handling).
+// Centralised handling for Nebius endpoint cold-start failures. The Nebius CPU
+// Serverless Endpoint scales to zero when idle and cold-starts in ~5 minutes; a
+// request during that window times out at the Firebase BFF (~60s) and surfaces as
+// a 502 (endpoint still starting) or 503 (ADR-009: no compute capacity). We (a)
+// rewrite ONLY error.message to a Nebius-specific "warming up" copy and leave
+// error.response intact so callers can still branch on error.response?.status
+// (e.g. Dashboard's 404-vs-5xx report handling), and (b) emit a cold-start signal
+// so <ColdStartOverlay> can drive a non-destructive auto-retry instead of
+// stranding the user on an error screen to retry by hand.
 http.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status
-    if (status === 503) error.message = 'Compute is warming up — please retry in a moment.'
-    else if (status === 502) error.message = 'Service is starting up — please retry shortly.'
+    if (status === 503) {
+      error.message = 'Nebius compute is warming up — please wait…'
+      emitColdStart()
+    } else if (status === 502) {
+      error.message = 'Nebius service is starting up — warming up, please wait…'
+      emitColdStart()
+    }
     return Promise.reject(error)
   },
 )
@@ -178,6 +188,20 @@ export const api = {
     if (isDemoMode()) return demoJob(jobId, DEMO_REPORT.report.period)
     const { data } = await http.get<Job>(`/api/analyze/${jobId}`)
     return data
+  },
+
+  // Liveness probe for the cold-start recovery. Returns true once the endpoint
+  // answers 2xx (warm). A 502/503 while cold resolves to `false` (validateStatus
+  // accepts every status) rather than throwing, so the poller can back off and
+  // re-probe without the interceptor rewriting the error or re-emitting a signal.
+  // Demo / sample-fallback are backend-free, so it reports healthy immediately.
+  getHealth: async (): Promise<boolean> => {
+    if (isDemoMode()) return true
+    const res = await http.get('/api/health', {
+      timeout: 20_000,
+      validateStatus: () => true,
+    })
+    return res.status >= 200 && res.status < 300
   },
 
   // Read completed report from Object Storage. In demo mode (see demoMode.ts)
