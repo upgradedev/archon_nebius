@@ -2,7 +2,7 @@
 13|24|Archon consolidates every source into one financial picture — and flags what is missing
 24|36|One worked example — the workforce: a payroll event leaves three documents
 36|48|Bank confirmation  ·  payroll register  ·  payslips  →  one fused event
-48|60|~28% gap in the sample — and that is only the employer's side
+48|60|~72% gap in the sample — true employer cost vs the bank transfer
 60|72|Walk the bank transfer up to the true cost of employment
 72|84|+~35% employer social-security  ·  +~36% employee withholdings
 84|96|Workforce cost understated ~71%  —  EUR 133,382 across the corpus
@@ -13,12 +13,12 @@
 150|164|Scores the REAL agents (imported, not re-implemented) on 40 synthetic cases
 164|180|Figure truth scored separately from validation truth
 180|194|Perfect extraction: 100% classification, field & fusion — cost to the cent
-194|208|Validation outcome 96.88% — the gap points at a real defect
+194|208|Validation outcome 100% — after the harness caught a real defect
 208|222|Degrade the extractor: fusion collapses faster than fields
 222|234|Completeness engine: cross-document checks reconcile independent sources
 234|248|R1 bank≈payslips — same class that flags a payment with no matching invoice
-248|264|Keystone: rules 2 & 4 never fire — their fields are never extracted
+248|264|Keystone: rules 2 & 4 were dormant 0/37 — wired the fields — now 37/37
 264|278|Reproducible from the README alone — offline, only pydantic
 278|290|~6 s on a laptop CPU  ·  EUR 0  ·  deterministic (seed 7)
-290|300|89.8% test coverage, gated in CI at 85%
+290|300|Over 90% test coverage, gated in CI at 85%
 300|314|The new era of financial intelligence — archon-pnl.web.app

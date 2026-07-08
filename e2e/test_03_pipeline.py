@@ -4,7 +4,7 @@ All tests share the session-scoped `completed_pipeline` fixture, which runs
 upload -> extract -> analyze ONCE against the live stack (real Nebius models).
 Structural/contract assertions are strict; LLM-content assertions are
 directional (robust to minor model variance) but still meaningful — above all
-the 28% payroll-gap invariant that is Archon's reason to exist.
+the payroll-gap invariant that is Archon's reason to exist.
 """
 import pytest
 
@@ -109,7 +109,7 @@ def test_executive_summary_written(completed_pipeline):
     assert isinstance(summary, str) and len(summary.strip()) >= 40, "executive summary too short/empty"
 
 
-# ── The 28% payroll-gap invariant (Archon's core thesis) ──────────────────────
+# ── The payroll-gap invariant (Archon's core thesis) ──────────────────────
 
 def test_payroll_gap_invariant(completed_pipeline):
     """Employer cost must exceed the bank-net transfer — the point of the
@@ -121,13 +121,13 @@ def test_payroll_gap_invariant(completed_pipeline):
     missing/zero net on a detected event is a real fusion regression and FAILS.
 
     The employer-cost>=net direction check is guarded on ``employer_cost_total``
-    being present: the extraction LLM schema does not currently request that
-    field (see jobs/extraction/extractors/*), so on the live path it is
-    legitimately ``None`` and a hard-fail here would red the gate permanently
-    for a reason outside this test's control. Whenever the field IS produced,
-    the inversion invariant is enforced strictly. (This is still strictly
-    stronger than the old code, which silently skipped the whole event when
-    employer_cost_total was absent.)
+    being present: the extraction prompt now REQUESTS that field (see
+    jobs/extraction/extractors/image.py::EXTRACTION_PROMPT), but the live LLM may
+    still fail to read it off a messy scan, in which case it is ``None`` and a
+    hard-fail here would red the gate for a reason outside this test's control.
+    Whenever the field IS produced, the inversion invariant is enforced strictly.
+    (This is still strictly stronger than the old code, which silently skipped the
+    whole event when employer_cost_total was absent.)
     """
     events = completed_pipeline["report"]["payrollEvents"]
     if not events:
@@ -140,7 +140,7 @@ def test_payroll_gap_invariant(completed_pipeline):
         assert isinstance(net, NUMBER) and net > 0, (
             f"detected payroll event has missing/zero net_total — fusion failed: {ev}"
         )
-        # Inversion invariant: enforced whenever the (dormant) cost field exists.
+        # Inversion invariant: enforced whenever the extracted cost field exists.
         emp = ev.get("employer_cost_total")
         if emp is not None:
             assert emp >= net, f"employer_cost ({emp}) should be >= bank net ({net})"

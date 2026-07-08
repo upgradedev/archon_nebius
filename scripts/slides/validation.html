@@ -49,11 +49,11 @@
         <div class="state">ACTIVE</div>
         <div class="fires">fires 31 / 31</div>
       </div>
-      <div class="rule dormant">
+      <div class="rule active">
         <div class="id">R2</div>
         <div class="chk">Employer-cost ÷ net ratio inside the expected band</div>
-        <div class="state">DORMANT</div>
-        <div class="fires">fires 0 / 37</div>
+        <div class="state">ACTIVE</div>
+        <div class="fires">fires 37 / 37</div>
       </div>
       <div class="rule active">
         <div class="id">R3</div>
@@ -61,11 +61,11 @@
         <div class="state">ACTIVE</div>
         <div class="fires">fires 31 / 31</div>
       </div>
-      <div class="rule dormant">
+      <div class="rule active">
         <div class="id">R4</div>
         <div class="chk">Register headcount == number of payslips</div>
-        <div class="state">DORMANT</div>
-        <div class="fires">fires 0 / 37</div>
+        <div class="state">ACTIVE</div>
+        <div class="fires">fires 37 / 37</div>
       </div>
     </div>
 
@@ -74,12 +74,12 @@
         <div class="h">✓ Stress test — register says N, only N−1 payslips on file</div>
         <div class="d">R1 catches it: the bank net no longer matches the sum of payslip nets — a real-figure mismatch the active rule sees.</div>
       </div>
-      <div class="scard miss">
-        <div class="h">✗ R4 cannot — it is dormant</div>
-        <div class="d">R4 reads register.employee_count, which no extractor populates, so it skips and silently passes a broken close. One active rule earns its place; one dormant rule does not.</div>
+      <div class="scard catch">
+        <div class="h">✓ R4 catches it too — now active</div>
+        <div class="d">R4 reads register.employee_count, which the extractor now populates, so the headcount mismatch is flagged instead of silently passing a broken close. Both rules earn their place.</div>
       </div>
     </div>
-    <div class="footer">R2 &amp; R4 read register fields the extraction prompt never requests — they are read in four places, written in none. The fix is one prompt change plus a field mapping.</div>
+    <div class="footer">R2 &amp; R4 read register fields the extraction prompt now requests and maps — they were read in four places, written in none (0 / 37 firings); one prompt change plus a field mapping took them to 37 / 37, measured by the same harness.</div>
   </div>
 </body>
 </html>

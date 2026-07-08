@@ -6,7 +6,7 @@ the bank net, and that the three payroll subtypes are never double-counted.
 from agents import pnl_agent
 
 
-# ── _compute_expenses / build_pnl: the 28% payroll wedge ──────────────────────
+# ── _compute_expenses / build_pnl: the employer-cost fusion (~72% gap over bank) ──────────────────────
 
 def test_register_employer_cost_is_authoritative(doc):
     # bank net 10_000, but register says employer cost is 12_800 (gross + employer social-security).

@@ -25,7 +25,7 @@ interface RawPayrollEvent {
 interface RawValidationResult {
   rule: string       // e.g. "R1: bank.total ≈ sum(payslips) ±2%"
   passed: boolean
-  message: string    // "Skipped — …" marks a dormant (skipped) rule
+  message: string    // "Skipped — …" marks a rule whose inputs were absent this period
 }
 
 type RawReport = FinancialReport & {
@@ -59,8 +59,9 @@ function normalizeReport(resp: AnalysisResponse): AnalysisResponse {
     }
   }
 
-  // validationResults → validations. A rule is `skip` (dormant) when its message
-  // is prefixed "Skipped"; otherwise pass/fail follows the boolean. The rule id
+  // validationResults → validations. A rule is `skip` when its message is
+  // prefixed "Skipped" (its inputs were absent this period — e.g. no register);
+  // otherwise pass/fail follows the boolean. The rule id
   // (R1…R4) is the token before the colon; the remainder is the description.
   if (!next.validations && next.validationResults?.length) {
     next.validations = next.validationResults.map((r): ValidationRule => {

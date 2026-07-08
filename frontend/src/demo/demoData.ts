@@ -1,7 +1,10 @@
 // Seeded sample report for demo mode (see demoMode.ts). Figures are illustrative
 // but internally consistent and aligned with the demo narration / slides:
-//   bank transfer (net) ~EUR 14,350 · true employer cost ~EUR 18,400 · +28% wedge
-//   R1 & R3 pass · R2 & R4 dormant (skip) — the keystone validation finding
+//   bank transfer (net) ~EUR 10,700 · true employer cost ~EUR 18,400
+//   → +72% understatement over the bank figure (the employer's own social-security
+//     contribution is ~35% of it; employee withholdings the rest)
+//   R1–R4 all pass — R2/R4 now ACTIVE (the register's employer-cost / headcount
+//     fields are extracted; this was the harness's keystone finding, now fixed)
 // No real customer data — synthetic SMB figures for a single month.
 import type {
   AnalysisResponse,
@@ -51,29 +54,32 @@ const report: FinancialReport = {
   },
   // The core insight: the bank transfer understates true payroll cost.
   payrollGap: {
-    bankTransferNet: 14_350,
+    bankTransferNet: 10_700,
     trueEmployerCost: 18_400,
-    gapPct: 28.2,
+    gapPct: 72.0,
     employeeCount: 6,
   },
-  // Cross-document validation ledger for this period. R2 & R4 are dormant — the
-  // register fields they read are never extracted (the harness's keystone finding).
+  // Cross-document validation ledger for this period. All four rules fire and
+  // pass — R2/R4 now read the register's employer-cost / headcount fields the
+  // extractor populates (they were the harness's keystone dormancy finding, now
+  // fixed). R2/R4 still legitimately SKIP when a register is absent — not here.
   validations: [
     { id: 'R1', check: 'Bank net ≈ Σ payslip nets (±2%)', state: 'pass' },
-    { id: 'R2', check: 'Employer-cost ÷ net ratio in band', state: 'skip' },
+    { id: 'R2', check: 'Employer-cost ÷ net ratio in band', state: 'pass' },
     { id: 'R3', check: 'Payment date ≤ end of pay period', state: 'pass' },
-    { id: 'R4', check: 'Register headcount == payslip count', state: 'skip' },
+    { id: 'R4', check: 'Register headcount == payslip count', state: 'pass' },
   ],
   executiveSummary:
     'January closed with revenue of EUR 96,400 and a net profit of EUR 24,550 — a 25.5% ' +
     'operating margin, up 6.8% on the prior month. The month\'s defining correction is payroll: ' +
-    'the bank moved EUR 14,350 in net transfers, but Archon\'s Event Linker fused the bank ' +
+    'the bank moved EUR 10,700 in net transfers, but Archon\'s Event Linker fused the bank ' +
     'confirmation, payroll register, and payslips into a single event and recovered the true ' +
-    'employer cost of EUR 18,400 — a 28% understatement that a bank-only close would have ' +
-    'booked as the whole payroll line. Cross-document validation R1 (bank net vs payslip sum) ' +
-    'and R3 (payment date) passed; R2 and R4 remained dormant because the register fields they ' +
-    'depend on were not extracted — a real gap the evaluation harness measures rather than ' +
-    'assumes. Cash generation stayed healthy at EUR 11,900 net, with a 92.4% collection rate.',
+    'employer cost of EUR 18,400 — about a 72% understatement that a bank-only close would have ' +
+    'booked as the whole payroll line, of which the employer\'s own social-security contribution ' +
+    'is roughly a third. All four cross-document rules passed: R1 (bank net vs payslip sum) and ' +
+    'R3 (payment date), plus R2 (employer-cost ratio) and R4 (headcount), which read register ' +
+    'fields the extractor now populates. Cash generation stayed healthy at EUR 11,900 net, with ' +
+    'a 92.4% collection rate.',
   generatedAt: `${DEMO_PERIOD}-31T09:12:00Z`,
 }
 

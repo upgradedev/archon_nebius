@@ -61,7 +61,7 @@ Security & supply chain: every change passes **gitleaks** (secrets), **CodeQL** 
 - **Public repo:** https://github.com/upgradedev/archon_nebius
 - **Nebius services used:** AI Endpoint, AI Jobs, Inference API, Object Storage, Managed PostgreSQL, Container Registry
 - **Local run:** `docker compose up --build`
-- **Core invariant (worked example):** linked payroll events use the full employer cost, not the bank-net transfer — one instance of Archon reconciling a source against its supporting documents, here surfacing the roughly 28% hidden workforce-cost gap.
+- **Core invariant (worked example):** linked payroll events use the full employer cost, not the bank-net transfer — one instance of Archon reconciling a source against its supporting documents, here surfacing the workforce-cost gap the bank transfer hides (measured at **~72% over the net transfer**, of which the employer's own social-security contribution is **~35%** — see [`eval/BASELINE.md`](eval/BASELINE.md)).
 
 ---
 
@@ -107,7 +107,7 @@ flowchart TB
 
 The design isn't arbitrary; each decision answers a specific problem in SMB finance. If you're building something similar, these are the load-bearing choices.
 
-**Why fuse three documents into one event.** A single payroll run produces a bank confirmation, a payroll register, and individual payslips — and each reports a *different* number. The bank confirmation shows the **net** transfer; the register shows **gross + employer contributions** (the true cost); the payslips sit in between. Reading any one alone is wrong: bank-only understates the real cost of employing a team by roughly **28%**, and that is usually the largest cost centre in the business. So the `EventLinkerAgent` groups the three by company + period into one `PayrollEvent`, and downstream the P&L reads the register's employer cost while cash flow reads the bank transfer — the same event counted once, correctly, from two angles. This is the general shape Archon applies everywhere: *reconcile what left the bank against the documents that explain it, and refuse to report a number the documents don't support.*
+**Why fuse three documents into one event.** A single payroll run produces a bank confirmation, a payroll register, and individual payslips — and each reports a *different* number. The bank confirmation shows the **net** transfer; the register shows **gross + employer contributions** (the true cost); the payslips sit in between. Reading any one alone is wrong: bank-only understates the real cost of employing a team by roughly **72%** over the net transfer (the employer's own social-security contribution alone is ~35%), and that is usually the largest cost centre in the business. So the `EventLinkerAgent` groups the three by company + period into one `PayrollEvent`, and downstream the P&L reads the register's employer cost while cash flow reads the bank transfer — the same event counted once, correctly, from two angles. This is the general shape Archon applies everywhere: *reconcile what left the bank against the documents that explain it, and refuse to report a number the documents don't support.*
 
 **Why a chain of single-responsibility agents** rather than one big prompt. Each agent does one job and is independently testable: `Extractor` (file → structured JSON), `Classifier` (deterministic doc-type refinement, no LLM — keeps model misclassifications out of the accounting layer), `EventLinker` (fusion), `Validator` (named cross-document rules). Small agents mean a failure is localised and every step is assertable in CI — which is why the evaluation harness below can score each agent in isolation.
 
@@ -255,7 +255,7 @@ CORS_ORIGINS=https://archon-pnl.web.app
 Four GitHub Actions pipelines guard every change:
 
 - **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **163 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
-- **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), and a **conditional payroll-cost invariant** (`employer_cost_total ≥ bank net`) that asserts the ~28% workforce-cost gap *when* the register's `employer_cost_total` is populated — today it is skipped in real runs pending that extractor field (see [`eval/BASELINE.md`](eval/BASELINE.md) §3). Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
+- **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), and a **conditional payroll-cost invariant** (`employer_cost_total ≥ bank net`) asserted for every detected payroll event whose register `employer_cost_total` was extracted. The extraction prompt now requests that field (see [`eval/BASELINE.md`](eval/BASELINE.md) §3), so the invariant is enforced whenever the live extraction returns it, and skips only for an event where it is absent. Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
 - **CodeQL** (`codeql.yml`, every PR + weekly) — SAST over both language families (Python: backend + extraction Job + analysis Endpoint; JavaScript/TypeScript: frontend) with the `security-and-quality` query suite.
 - **Dependency Audit** (`security-audit.yml`, every PR + weekly) — `pip-audit` against all three Python requirement sets and `npm audit` for the frontend; high/critical dependency CVEs fail the build.
 
@@ -333,7 +333,7 @@ real Qwen2.5-VL extractor on Nebius ([`eval/LIVE_EXTRACTION.md`](eval/LIVE_EXTRA
 | Classification accuracy | **100.00%** | 74.29% |
 | Field accuracy | **100.00%** | 77.62% |
 | Fusion figure accuracy (employer cost via `PnLAgent`) | **100.00%** | 54.05% |
-| Validation-outcome accuracy (R1–R4) | **96.88%** | 91.25% |
+| Validation-outcome accuracy (R1–R4) | **100.00%** | 66.87% |
 
 - **Positive result:** under perfect extraction the `PnLAgent` reports the
   *employer cost* (gross + employer social-security contributions), not the bank
@@ -341,9 +341,12 @@ real Qwen2.5-VL extractor on Nebius ([`eval/LIVE_EXTRACTION.md`](eval/LIVE_EXTRA
   **naive bank-only floor understates workforce cost by EUR 133,381 (~72% over the
   bank figure)** on the corpus.
 - **Keystone finding (the harness earns its place):** validation rules **R2 and
-  R4 are DORMANT — they fire 0/37 times** because no extractor populates the
-  `employer_cost_total` / `net_pay_total` / `employee_count` fields they read
-  (the extraction prompt never requests them). R1 and R3 are active and correct.
+  R4 were DORMANT — they fired 0/37 times** because no extractor populated the
+  `employer_cost_total` / `net_pay_total` / `employee_count` fields they read.
+  The extractor now requests and maps those fields, so **R2 and R4 fire 37/37**
+  and validation-outcome at the ceiling rises to **100%**. The harness measured
+  both the before (0/37) and the after (37/37) — the fix is proven, not asserted.
+  All four rules are active and correct.
   See [`eval/BASELINE.md`](eval/BASELINE.md) §3 for the file:line evidence and the
   one-prompt-change fix.
 
@@ -393,8 +396,8 @@ A `POST /analyze` call returns a structured `FinancialReport` JSON. Abbreviated 
     "gross_margin_pct": 35.7,
     "operating_margin_pct": 28.4,
     "payroll_cost_total": 18400.00,
-    "payroll_cost_bank_net": 14350.00,
-    "payroll_gap_pct": 28.2
+    "payroll_cost_bank_net": 10700.00,
+    "payroll_gap_pct": 72.0
   },
   "cash_flow": {
     "operating": 15200.00,
@@ -405,7 +408,7 @@ A `POST /analyze` call returns a structured `FinancialReport` JSON. Abbreviated 
   "employees": [
     { "name": "J. Andersen", "gross_salary": 2400.00, "employer_cost": 2976.00 }
   ],
-  "executive_summary": "January 2026 shows a healthy 28.4% operating margin. Payroll represents the largest cost centre at €18,400 — 28% above what the bank transfer alone would suggest, reflecting employer social-security contributions. Cash position improved by €11,800...",
+  "executive_summary": "January 2026 shows a healthy 28.4% operating margin. Payroll represents the largest cost centre at €18,400 — about 72% above the €10,700 the bank transfer alone would suggest, reflecting employer social-security contributions and employee withholdings the transfer nets out. Cash position improved by €11,800...",
   "validation": { "rules_passed": 4, "rules_failed": 0 }
 }
 ```
