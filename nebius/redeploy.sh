@@ -141,6 +141,9 @@ nebius ai endpoint create \
   --env "ANALYSIS_JOB_PRESET=${ANALYSIS_JOB_PRESET:-4vcpu-16gb}" \
   --env "CORS_ORIGINS=${CORS_ORIGINS:-https://archon-pnl.web.app,http://localhost:3000}" \
   --env "JOB_RUNNER_BACKEND=nebius" \
+  --env "DOC_ENCRYPTION_ENABLED=${DOC_ENCRYPTION_ENABLED:-false}" \
+  --env "DOC_ENCRYPTION_KMS_KEY_ID=${DOC_ENCRYPTION_KMS_KEY_ID:-}" \
+  --env "NEBIUS_PROJECT_ID_LADDER=${NEBIUS_PROJECT_ID_LADDER:-}" \
   --env "DUCKDNS_TOKEN=${DUCKDNS_TOKEN:-}" \
   --env "DUCKDNS_SUBDOMAIN=archon-api" \
   --env "CADDY_DOMAIN=archon-api.duckdns.org"

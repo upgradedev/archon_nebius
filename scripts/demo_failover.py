@@ -68,18 +68,29 @@ def _make_job(job_id: str, status):
 
 
 def _build_service():
-    """A JobServiceClient stand-in that simulates the two-rung scenario."""
+    """A JobServiceClient stand-in that simulates the project + preset failover scenario."""
     service = MagicMock()
-    # create() returns job-1 (rung 1) then job-2 (rung 2).
+    # 4 create attempts:
+    # 1. project-1 preset-1 -> job-1-1 (stalls)
+    # 2. project-1 preset-2 -> job-1-2 (stalls)
+    # 3. project-2 preset-1 -> job-2-1 (stalls)
+    # 4. project-2 preset-2 -> job-2-2 (succeeds)
     service.create.side_effect = [
-        _wrap(_make_job("job-rung1", _make_status(state=3, instances=1, started=True))),
-        _wrap(_make_job("job-rung2", _make_status(state=3, instances=1, started=True))),
+        _wrap(_make_job("job-1-1", _make_status(state=3, instances=1, started=True))),
+        _wrap(_make_job("job-1-2", _make_status(state=3, instances=1, started=True))),
+        _wrap(_make_job("job-2-1", _make_status(state=3, instances=1, started=True))),
+        _wrap(_make_job("job-2-2", _make_status(state=3, instances=1, started=True))),
     ]
-    # get(): rung-1 accept-then-stall (PROVISIONING=1, 0 instances, never started);
-    #        rung-2 RUNNING (state=3) with a live instance.
-    stalled = _make_job("job-rung1", _make_status(state=1, instances=0, started=False))
-    running = _make_job("job-rung2", _make_status(state=3, instances=1, started=True))
-    service.get.side_effect = [_wrap(stalled), _wrap(running)]
+    stalled1 = _make_job("job-1-1", _make_status(state=1, instances=0, started=False))
+    stalled2 = _make_job("job-1-2", _make_status(state=1, instances=0, started=False))
+    stalled3 = _make_job("job-2-1", _make_status(state=1, instances=0, started=False))
+    running = _make_job("job-2-2", _make_status(state=3, instances=1, started=True))
+    service.get.side_effect = [
+        _wrap(stalled1),
+        _wrap(stalled2),
+        _wrap(stalled3),
+        _wrap(running)
+    ]
     service.delete.return_value = _wrap(MagicMock())
     return service
 
@@ -88,6 +99,7 @@ def run_demo() -> dict:
     """Execute the failover against the real orchestrator. Returns a summary dict."""
     # Zero-length probe window so the accept-then-stall deadline fires instantly.
     os.environ["NEBIUS_PROJECT_ID"] = "project-demo"
+    os.environ["NEBIUS_PROJECT_ID_LADDER"] = "project-1,project-2"
     os.environ["NEBIUS_SUBNET_ID"] = "subnet-demo"
     os.environ["JOB_PRESET_LADDER"] = LADDER
     os.environ["JOB_PROVISION_PROBE_SECS"] = "0"
@@ -101,13 +113,16 @@ def run_demo() -> dict:
     print("=" * 72)
     print("Accept-then-Stall Capacity Probe + Failover Ladder — offline demo")
     print("=" * 72)
+    projects = svc._project_ladder()
     ladder = svc._preset_ladder("cpu-d3", "4vcpu-16gb")
-    print(f"JOB_PRESET_LADDER = {LADDER}")
-    print(f"Resolved ladder   = {ladder}")
-    print(f"Probe window      = {svc._provision_probe_secs()}s "
+    print(f"NEBIUS_PROJECT_ID_LADDER = project-1,project-2")
+    print(f"Resolved projects        = {projects}")
+    print(f"JOB_PRESET_LADDER        = {LADDER}")
+    print(f"Resolved presets         = {ladder}")
+    print(f"Probe window             = {svc._provision_probe_secs()}s "
           f"(0 => accept-then-stall deadline fires immediately)")
     print("-" * 72)
-    print("BEFORE: submitting on rung 1 (the zero-capacity preset)...\n")
+    print("BEFORE: submitting on project-1 preset 1...\n")
 
     with ExitStack() as stack:
         stack.enter_context(patch.object(svc, "_make_sdk", return_value=sdk))
@@ -134,8 +149,8 @@ def run_demo() -> dict:
     print(f"  final job status                : {result['status']}")
     print("=" * 72)
 
-    failed_over = service.create.call_count == 2 and result["id"] == "job-rung2"
-    print("RESULT:", "FAILOVER SUCCEEDED (rung 1 stalled -> rung 2 running)."
+    failed_over = service.create.call_count == 4 and result["id"] == "job-2-2"
+    print("RESULT:", "FAILOVER SUCCEEDED (project-1 presets stalled -> project-2 preset-2 running)."
           if failed_over else "UNEXPECTED — demo did not fail over as designed.")
 
     return {

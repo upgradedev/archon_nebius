@@ -21,7 +21,7 @@ if str(_SCRIPTS) not in sys.path:
 # os.getenv), which bypasses monkeypatch's own restore. Snapshot + restore them
 # so the demo cannot leak env state into any later test regardless of order.
 _DEMO_ENV_VARS = (
-    "NEBIUS_PROJECT_ID", "NEBIUS_SUBNET_ID", "JOB_PRESET_LADDER",
+    "NEBIUS_PROJECT_ID", "NEBIUS_PROJECT_ID_LADDER", "NEBIUS_SUBNET_ID", "JOB_PRESET_LADDER",
     "JOB_PROVISION_PROBE_SECS", "JOB_PROVISION_POLL_SECS",
 )
 
@@ -47,11 +47,11 @@ def test_demo_failover_runs_and_fails_over(capsys):
 
     summary = demo_failover.run_demo()
 
-    # Real orchestrator behaviour: rung 1 stalled -> deleted -> rung 2 ran.
+    # Real orchestrator behaviour: project-1 presets stalled -> deleted -> project-2 preset-2 ran.
     assert summary["failed_over"] is True
-    assert summary["create_calls"] == 2          # both rungs attempted
-    assert summary["delete_calls"] == 1          # stalled scaffolding cleaned up
-    assert summary["final_job_id"] == "job-rung2"
+    assert summary["create_calls"] == 4          # 4 combinations attempted
+    assert summary["delete_calls"] == 3          # 3 stalled scaffoldings cleaned up
+    assert summary["final_job_id"] == "job-2-2"
     assert summary["result"]["status"] == "pending"
 
     # The human-facing before/after narration is actually printed.

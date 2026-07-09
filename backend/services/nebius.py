@@ -230,7 +230,20 @@ def _parse_ladder_env() -> list[tuple[str, str]]:
             entries.append((platform, preset))
         else:
             logger.warning("Ignoring malformed JOB_PRESET_LADDER entry %r (empty platform or preset)", part)
+            continue
     return entries
+
+
+def _project_ladder() -> list[str]:
+    """Parse NEBIUS_PROJECT_ID_LADDER (comma-separated list of project IDs) defensively.
+
+    If empty or unset, falls back to [os.environ["NEBIUS_PROJECT_ID"]].
+    """
+    raw = os.getenv("NEBIUS_PROJECT_ID_LADDER", "").strip()
+    if not raw:
+        default_id = os.getenv("NEBIUS_PROJECT_ID", "").strip()
+        return [default_id] if default_id else []
+    return [p.strip() for p in raw.split(",") if p.strip()]
 
 
 def _preset_ladder(default_platform: str, default_preset: str) -> list[tuple[str, str]]:
@@ -364,7 +377,7 @@ def _safe_delete_job(service, job_id: str) -> None:
 
 
 def _submit_job_with_failover(name_prefix, period, default_platform, default_preset, build_spec) -> dict:
-    """Submit a Nebius AI Job, failing over across the preset ladder on
+    """Submit a Nebius AI Job, failing over across projects and compute preset ladders on
     never-provisioned outcomes only.
 
     build_spec(platform, preset) -> JobSpec. Each ladder entry is tried AT MOST
@@ -376,70 +389,77 @@ def _submit_job_with_failover(name_prefix, period, default_platform, default_pre
     from nebius.api.nebius.ai.v1 import JobServiceClient, CreateJobRequest
     from nebius.api.nebius.common.v1 import ResourceMetadata
 
-    ladder = _preset_ladder(default_platform, default_preset)
-    _delete_nebius_error_jobs(period, name_prefix)
+    projects = _project_ladder()
+    presets = _preset_ladder(default_platform, default_preset)
 
     attempts: list[str] = []
-    for idx, (platform, preset) in enumerate(ladder, start=1):
-        job_name = f"{name_prefix}-{period}-{uuid.uuid4().hex[:6]}"
-        logger.info("Submitting %s on platform=%s preset=%s (ladder %d/%d)", job_name, platform, preset, idx, len(ladder))
-        sdk = _make_sdk()
-        try:
-            service = JobServiceClient(sdk)
+
+    for project_id in projects:
+        _delete_nebius_error_jobs(period, name_prefix, project_id)
+
+        for idx, (platform, preset) in enumerate(presets, start=1):
+            job_name = f"{name_prefix}-{period}-{uuid.uuid4().hex[:6]}"
+            logger.info("Submitting %s in project=%s on platform=%s preset=%s (preset %d/%d)",
+                        job_name, project_id, platform, preset, idx, len(presets))
+            sdk = _make_sdk()
             try:
-                # service.create(...).wait() resolves the create operation and
-                # returns an Operation (NOT the Job proto). The created job's id is
-                # on Operation.resource_id — Operation has no .metadata.
-                operation = service.create(
-                    CreateJobRequest(
-                        metadata=ResourceMetadata(
-                            parent_id=os.environ["NEBIUS_PROJECT_ID"],
-                            name=job_name,
+                service = JobServiceClient(sdk)
+                try:
+                    # service.create(...).wait() resolves the create operation and
+                    # returns an Operation (NOT the Job proto). The created job's id is
+                    # on Operation.resource_id — Operation has no .metadata.
+                    operation = service.create(
+                        CreateJobRequest(
+                            metadata=ResourceMetadata(
+                                parent_id=project_id,
+                                name=job_name,
+                            ),
+                            spec=build_spec(platform, preset),
                         ),
-                        spec=build_spec(platform, preset),
-                    ),
-                ).wait()
-            except Exception as exc:
-                if _is_provisioning_error(exc):
-                    logger.warning(
-                        "Preset %s:%s rejected at submission (provisioning/quota): %s — trying next preset",
-                        platform, preset, exc,
+                    ).wait()
+                except Exception as exc:
+                    if _is_provisioning_error(exc):
+                        logger.warning(
+                            "Project %s, preset %s:%s rejected at submission (provisioning/quota): %s — trying next configuration",
+                            project_id, platform, preset, exc,
+                        )
+                        attempts.append(f"{project_id}:{platform}:{preset} submit-rejected ({exc})")
+                        continue
+                    logger.exception("Failed to submit %s on %s:%s in project %s", job_name, platform, preset, project_id)
+                    raise
+
+                job_id = operation.resource_id
+                outcome = _await_provisioning(service, job_id)
+
+                if outcome == _PROVISIONED:
+                    logger.info("Job %s provisioned on %s:%s in project=%s (id=%s)", job_name, platform, preset, project_id, job_id)
+                    return {
+                        "id": job_id,
+                        "status": "pending",
+                        "period": period,
+                        "documentsCount": 0,
+                        "createdAt": datetime.now(timezone.utc).isoformat(),
+                        "nebius_job_name": job_name,
+                    }
+
+                if outcome == _APP_FAILURE:
+                    msg = _job_failure_message(service, job_id)
+                    logger.error(
+                        "Job %s failed AFTER provisioning on %s:%s in project=%s — application error, NOT failing over: %s",
+                        job_name, platform, preset, project_id, msg,
                     )
-                    attempts.append(f"{platform}:{preset} submit-rejected ({exc})")
-                    continue
-                logger.exception("Failed to submit %s on %s:%s (non-provisioning error)", job_name, platform, preset)
-                raise
+                    raise RuntimeError(f"Job {job_name} failed after provisioning on {platform}:{preset} in project {project_id}: {msg}")
 
-            job_id = operation.resource_id
-            outcome = _await_provisioning(service, job_id)
+                # _NEVER_PROVISIONED — clean up scaffolding, then try the next configuration.
+                logger.warning("Job %s never provisioned on %s:%s in project=%s — cleaning up and trying next configuration", job_name, platform, preset, project_id)
+                attempts.append(f"{project_id}:{platform}:{preset} never-provisioned")
+                _safe_delete_job(service, job_id)
+            finally:
+                sdk.sync_close()
 
-            if outcome == _PROVISIONED:
-                logger.info("Job %s provisioned on %s:%s (id=%s)", job_name, platform, preset, job_id)
-                return {
-                    "id": job_id,
-                    "status": "pending",
-                    "period": period,
-                    "documentsCount": 0,
-                    "createdAt": datetime.now(timezone.utc).isoformat(),
-                    "nebius_job_name": job_name,
-                }
-
-            if outcome == _APP_FAILURE:
-                msg = _job_failure_message(service, job_id)
-                logger.error(
-                    "Job %s failed AFTER provisioning on %s:%s — application error, NOT failing over: %s",
-                    job_name, platform, preset, msg,
-                )
-                raise RuntimeError(f"Job {job_name} failed after provisioning on {platform}:{preset}: {msg}")
-
-            # _NEVER_PROVISIONED — clean up scaffolding, then try the next preset.
-            logger.warning("Job %s never provisioned on %s:%s — cleaning up and trying next preset", job_name, platform, preset)
-            attempts.append(f"{platform}:{preset} never-provisioned")
-            _safe_delete_job(service, job_id)
-        finally:
-            sdk.sync_close()
-
-    raise ComputeCapacityUnavailable(name_prefix, ladder, attempts)
+    # Reconstruct the representation of what was tried for the exception message
+    ladder_repr = [(p, pr) for p in projects for (pl, pr) in presets]
+    raise ComputeCapacityUnavailable(name_prefix, ladder_repr, attempts)
 
 
 def check_nebius_permissions() -> dict:
@@ -527,15 +547,20 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
     )
 
 
-def _delete_nebius_error_jobs(period: str, prefix: str) -> None:
+def _delete_nebius_error_jobs(period: str, prefix: str, project_id: str = None) -> None:
     """List all jobs whose name starts with prefix-period and delete ERROR/FAILED ones."""
     from nebius.api.nebius.ai.v1 import JobServiceClient, ListJobsRequest, DeleteJobRequest
+
+    if project_id is None:
+        project_id = os.environ.get("NEBIUS_PROJECT_ID", "")
+    if not project_id:
+        return
 
     sdk = _make_sdk()
     try:
         service = JobServiceClient(sdk)
         result = service.list(
-            ListJobsRequest(parent_id=os.environ["NEBIUS_PROJECT_ID"])
+            ListJobsRequest(parent_id=project_id)
         ).wait()
         name_prefix = f"{prefix}-{period}-"
         for job in result.items:
@@ -546,13 +571,13 @@ def _delete_nebius_error_jobs(period: str, prefix: str) -> None:
             # States 7=FAILED, 8=CANCELLED, 9=ERROR
             if state in (7, 8, 9):
                 job_id = job.metadata.id
-                logger.info("Deleting stale %s job %s (state=%s)", prefix, job_id, state)
+                logger.info("Deleting stale %s job %s (state=%s) in project=%s", prefix, job_id, state, project_id)
                 try:
                     service.delete(DeleteJobRequest(id=job_id)).wait()
                 except Exception:
                     logger.warning("Could not delete job %s — skipping", job_id)
     except Exception:
-        logger.warning("Could not sweep stale jobs for period %s — continuing", period)
+        logger.warning("Could not sweep stale jobs for period %s in project=%s — continuing", period, project_id)
     finally:
         sdk.sync_close()
 

@@ -496,6 +496,7 @@ def test_is_provisioning_error_matches_quota_and_precondition():
 
 def _failover_env(monkeypatch, image_key="EXTRACTION_JOB_IMAGE"):
     monkeypatch.setenv("NEBIUS_PROJECT_ID", "project-test")
+    monkeypatch.delenv("NEBIUS_PROJECT_ID_LADDER", raising=False)
     monkeypatch.setenv("NEBIUS_SUBNET_ID", "subnet-test")
     monkeypatch.setenv(image_key, "cr.test/img:latest")
     monkeypatch.setenv("NEBIUS_INFERENCE_BASE_URL", "https://api.test")
