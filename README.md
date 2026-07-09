@@ -278,6 +278,8 @@ Four GitHub Actions pipelines guard every change:
 
 Together the four form a layered security posture: **secrets** (gitleaks) · **source** (CodeQL) · **dependencies** (pip-audit / npm audit) · **behaviour** (unit → integration → E2E).
 
+Beyond the gating pipelines, an **opt-in load test** (`load/health-load.js`, k6) exercises the serving layer under a ramp of concurrent virtual users against the public `/api/health` liveness probe, holding p95 latency < 500 ms and error rate < 1%. It is **manual-only** — the `Load Test (k6)` workflow (`load-test.yml`) is `workflow_dispatch`-triggered, so it never blocks a PR. Run it locally with `k6 run load/health-load.js` — see [`load/README.md`](load/README.md).
+
 ---
 
 ## Resilient job provisioning (graceful compute failover)
