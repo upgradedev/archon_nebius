@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Card, Progress, Space, Typography, Alert, Tag, Button } from 'antd'
 import { LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
@@ -40,6 +40,24 @@ export default function JobStatus({
     },
   })
 
+  const [elapsed, setElapsed] = useState(0)
+
+  // Reset elapsed when job ID changes
+  useEffect(() => {
+    setElapsed(0)
+  }, [jobId])
+
+  // Count seconds while job is active (pending or running)
+  useEffect(() => {
+    if (!job || job.status === 'completed' || job.status === 'failed') {
+      return
+    }
+    const timer = setInterval(() => {
+      setElapsed(prev => prev + 1)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [jobId, job?.status])
+
   // Fire onComplete exactly once, even though the query keeps a `completed` job
   // cached across re-renders (the effect re-runs whenever onComplete's identity
   // changes). Without the ref an unstable onComplete would re-trigger the parent's
@@ -65,13 +83,33 @@ export default function JobStatus({
     job.status === 'failed'    ? <CloseCircleOutlined style={{ color: '#ff4d4f' }} /> :
     <LoadingOutlined spin />
 
+  const getTimerTag = () => {
+    if (job.status === 'completed' || job.status === 'failed') return null
+
+    let style: React.CSSProperties = {}
+    if (elapsed >= 30 && elapsed < 60) {
+      style = { backgroundColor: '#fffb8f', color: '#000000', borderColor: '#ffe58f' }
+    } else if (elapsed >= 60) {
+      style = { backgroundColor: '#ffd591', color: '#000000', borderColor: '#ffc069' }
+    } else {
+      style = { backgroundColor: '#f5f5f5', color: 'rgba(0,0,0,0.85)', borderColor: '#d9d9d9' }
+    }
+
+    return (
+      <Tag style={style}>
+        Automated Deploy: {elapsed}s
+      </Tag>
+    )
+  }
+
   return (
     <Card>
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <Space>
+        <Space wrap>
           {icon}
           <Text strong>{label}</Text>
           <Tag color={STATUS_COLOR[job.status]}>{job.status.toUpperCase()}</Tag>
+          {getTimerTag()}
         </Space>
 
         <Progress
