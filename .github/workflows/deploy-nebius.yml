@@ -9,6 +9,11 @@ on:
     branches:
       - master
   workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'Nebius Project ID to deploy to'
+        required: false
+        default: ''
 
 jobs:
   deploy:
@@ -19,7 +24,7 @@ jobs:
     env:
       REGISTRY: cr.eu-west1.nebius.cloud
       REGISTRY_PROJECT: e01f86ag28zc4gcrvk
-      NEBIUS_PROJECT_ID: ${{ vars.NEBIUS_PROJECT_ID }}
+      NEBIUS_PROJECT_ID: ${{ github.event.inputs.project_id || vars.NEBIUS_PROJECT_ID }}
 
     steps:
       - uses: actions/checkout@v4
@@ -306,6 +311,12 @@ jobs:
           DOC_ENCRYPTION_KMS_KEY_ID: ${{ vars.DOC_ENCRYPTION_KMS_KEY_ID }}
           NEBIUS_PROJECT_ID_LADDER: ${{ vars.NEBIUS_PROJECT_ID_LADDER }}
         run: |
+          SUBNET_ID="vpcsubnet-e01x810n0mmhj19k9b"
+          if [ "$NEBIUS_PROJECT_ID" = "project-e00cncsmpr00e8p6knyvdq" ]; then
+            SUBNET_ID="vpcsubnet-e00sn2btkrs87k2re4"
+          fi
+          echo "Selected Subnet ID: $SUBNET_ID"
+
           nebius ai endpoint create \
             --name archon-backend \
             --parent-id "$NEBIUS_PROJECT_ID" \
@@ -315,13 +326,13 @@ jobs:
             --container-port 443 \
             --platform cpu-d3 \
             --preset 4vcpu-16gb \
-            --subnet-id vpcsubnet-e01x810n0mmhj19k9b \
+            --subnet-id "$SUBNET_ID" \
             --public \
             --env "NEBIUS_SA_KEY_B64=$NEBIUS_SA_KEY_B64" \
             --env "NEBIUS_SA_KEY_ID=$NEBIUS_SA_KEY_ID" \
             --env "NEBIUS_SA_ID=$NEBIUS_SA_ID" \
             --env "NEBIUS_PROJECT_ID=$NEBIUS_PROJECT_ID" \
-            --env "NEBIUS_SUBNET_ID=vpcsubnet-e01x810n0mmhj19k9b" \
+            --env "NEBIUS_SUBNET_ID=$SUBNET_ID" \
             --env "NEBIUS_BUCKET_NAME=archon-bucket" \
             --env "NEBIUS_REGION=eu-west1" \
             --env "STORAGE_ENDPOINT_URL=https://storage.eu-west1.nebius.cloud" \
@@ -347,6 +358,7 @@ jobs:
             --env "DUCKDNS_TOKEN=$DUCKDNS_TOKEN" \
             --env "DUCKDNS_SUBDOMAIN=archon-api" \
             --env "CADDY_DOMAIN=archon-api.duckdns.org"
+
 
       - name: Verify Object Storage round-trip (real region/creds)
         # Catches storage misconfig (e.g. the eu-north1-vs-eu-west1 SigV4 mismatch
