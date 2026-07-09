@@ -247,7 +247,7 @@ jobs:
               sdk.sync_close()
           PYEOF
 
-       - name: Delete existing backend endpoint if present
+      - name: Delete existing backend endpoint if present
         run: |
           EXISTING=$(nebius ai endpoint list \
             --parent-id "$NEBIUS_PROJECT_ID" \
