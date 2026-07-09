@@ -247,7 +247,7 @@ jobs:
               sdk.sync_close()
           PYEOF
 
-      - name: Delete existing backend endpoint if present
+       - name: Delete existing backend endpoint if present
         run: |
           EXISTING=$(nebius ai endpoint list \
             --parent-id "$NEBIUS_PROJECT_ID" \
@@ -263,7 +263,26 @@ jobs:
           if [ -n "$EXISTING" ]; then
             echo "Deleting existing endpoint $EXISTING"
             nebius ai endpoint delete --id "$EXISTING"
-            sleep 15
+            echo "Waiting for endpoint deletion to complete..."
+            for i in $(seq 1 30); do
+              STILL_EXIST=$(nebius ai endpoint list \
+                --parent-id "$NEBIUS_PROJECT_ID" \
+                --format json 2>/dev/null | \
+                python3 -c "
+              import sys, json
+              data = json.load(sys.stdin)
+              for ep in data.get('items', []):
+                  if ep.get('metadata', {}).get('name') == 'archon-backend':
+                      print(ep['metadata']['id'])
+                      break
+              " 2>/dev/null || echo "")
+              if [ -z "$STILL_EXIST" ]; then
+                echo "Endpoint deleted successfully from Nebius."
+                break
+              fi
+              echo "  Still deleting... (attempt $i/30)"
+              sleep 10
+            done
           else
             echo "No existing backend endpoint to delete"
           fi
