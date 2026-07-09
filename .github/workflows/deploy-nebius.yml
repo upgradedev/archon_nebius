@@ -145,7 +145,7 @@ jobs:
         env:
           NEBIUS_IAM_TOKEN_SECRET: ${{ secrets.NEBIUS_IAM_TOKEN }}
         run: |
-          TOKEN="${NEBIUS_IAM_TOKEN_SECRET:-$NEBIUS_DEPLOY_IAM_TOKEN}"
+          TOKEN="${NEBIUS_DEPLOY_IAM_TOKEN:-${NEBIUS_FRESH_IAM_TOKEN:-$NEBIUS_IAM_TOKEN_SECRET}}"
           if [ -z "$TOKEN" ]; then
             echo "A deploy-capable Nebius token is required for endpoint create/delete permissions." >&2
             exit 1
