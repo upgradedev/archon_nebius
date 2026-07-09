@@ -10,6 +10,7 @@ nebius==0.3.92  # pinned: pin exactly (loose >=0.3.0 once silently upgraded the 
 requests==2.33.0
 PyJWT[cryptography]==2.13.0  # security: 2.12.1 had PYSEC-2026-175/177/178/179 + GHSA-jq35-7prp-9v3f; 2.13.0 is the fixed release
 cryptography==49.0.0  # AES-256-GCM envelope encryption of uploaded documents at rest (services/crypto.py)
+psycopg2-binary==2.9.10
 # test
 pytest>=8.3.0
 pytest-mock>=3.14.0

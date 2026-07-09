@@ -19,15 +19,38 @@ class CompanyProfile(BaseModel):
 
 @router.get("/periods")
 def list_periods():
-    """List periods derived from uploaded raw-docs, with extraction/report status."""
+    """List periods derived from uploaded raw-docs or DB documents, with extraction/report status."""
+    # 1. Fetch report keys from S3 to determine hasReport status
+    report_keys = storage.list_keys("reports/")
+    report_periods = {
+        k.split("/")[1]
+        for k in report_keys
+        if k.endswith("report.json") and len(k.split("/")) >= 3
+    }
+
+    # 2. Try to fetch periods from the PostgreSQL database
+    db_periods = set()
+    db_failed = False
+    try:
+        from db.client import get_db_connection
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT DISTINCT period FROM documents")
+                db_periods = {row[0] for row in cur.fetchall()}
+        finally:
+            conn.close()
+    except Exception as exc:
+        logger.warning("Could not list periods from PostgreSQL: %s — falling back to S3 bucket", exc)
+        db_failed = True
+
+    # 3. Scan S3 bucket as fallback or to discover raw-docs upload periods
     raw_keys = storage.list_keys("raw-docs/")
     extracted_keys = storage.list_keys("extracted/")
-    report_keys = storage.list_keys("reports/")
 
     def _period_set(keys: list[str], prefix: str) -> set[str]:
         periods: set[str] = set()
         for key in keys:
-            # key = "{prefix}/{period}/..."
             rest = key[len(prefix):]
             segment = rest.split("/")[0]
             if segment:
@@ -36,18 +59,19 @@ def list_periods():
 
     raw_periods = _period_set(raw_keys, "raw-docs/")
     extracted_periods = _period_set(extracted_keys, "extracted/")
-    report_periods = {
-        k.split("/")[1]
-        for k in report_keys
-        if k.endswith("report.json") and len(k.split("/")) >= 3
-    }
 
-    all_periods = sorted(raw_periods | extracted_periods | report_periods, reverse=True)
+    # 4. Merge
+    if db_failed:
+        active_extracted = extracted_periods
+    else:
+        active_extracted = db_periods
+
+    all_periods = sorted(raw_periods | active_extracted | report_periods, reverse=True)
     return [
         {
             "period": p,
             "hasReport": p in report_periods,
-            "hasExtraction": p in extracted_periods,
+            "hasExtraction": p in active_extracted,
         }
         for p in all_periods
     ]
@@ -55,7 +79,25 @@ def list_periods():
 
 @router.delete("/periods/{period}")
 def delete_period(period: str = Path(..., pattern=_PERIOD_PATTERN)):
-    """Delete all Object Storage data for a period."""
+    """Delete all database and Object Storage data for a period."""
+    # 1. Delete from PostgreSQL database
+    try:
+        from db.client import get_db_connection
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM documents WHERE period = %s", (period,))
+                cur.execute("DELETE FROM employee_payroll WHERE period = %s", (period,))
+                cur.execute("DELETE FROM payroll_events WHERE period = %s", (period,))
+                cur.execute("DELETE FROM validation_results WHERE period = %s", (period,))
+            conn.commit()
+            logger.info("Deleted period %s data from PostgreSQL", period)
+        finally:
+            conn.close()
+    except Exception as exc:
+        logger.warning("Could not delete period %s from PostgreSQL: %s", period, exc)
+
+    # 2. Delete from Object Storage
     count = storage.delete_prefix(f"raw-docs/{period}/")
     count += storage.delete_prefix(f"extracted/{period}/")
     count += storage.delete_prefix(f"reports/{period}/")
@@ -64,14 +106,54 @@ def delete_period(period: str = Path(..., pattern=_PERIOD_PATTERN)):
 
 @router.get("/documents/{period}")
 def get_documents(period: str = Path(..., pattern=_PERIOD_PATTERN)):
-    """Return all extracted documents for a period, as a flat list.
+    """Return all extracted documents for a period, as a flat list."""
+    # 1. Try PostgreSQL database first
+    try:
+        from db.client import get_db_connection
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT 
+                        source_file, doc_type, detected_lang, issue_date,
+                        vendor_name, vendor_tax_id, recipient_name, currency,
+                        subtotal, vat_amount, vat_rate_pct, total_amount,
+                        invoice_number, confidence, upload_id
+                    FROM documents 
+                    WHERE period = %s
+                    """,
+                    (period,)
+                )
+                rows = cur.fetchall()
+                if rows:
+                    logger.info("Found %d documents for period %s in PostgreSQL", len(rows), period)
+                    docs = []
+                    for row in rows:
+                        docs.append({
+                            "source_file": row[0],
+                            "doc_type": row[1],
+                            "detected_language": row[2] or "en",
+                            "issue_date": str(row[3]) if row[3] else None,
+                            "vendor_name": row[4],
+                            "vendor_tax_id": row[5],
+                            "recipient_name": row[6],
+                            "currency": row[7],
+                            "subtotal": float(row[8]) if row[8] is not None else None,
+                            "vat_amount": float(row[9]) if row[9] is not None else None,
+                            "vat_rate_pct": float(row[10]) if row[10] is not None else None,
+                            "total_amount": float(row[11]) if row[11] is not None else 0.0,
+                            "invoice_number": row[12],
+                            "confidence": float(row[13]) if row[13] is not None else 1.0,
+                            "upload_id": row[14]
+                        })
+                    return docs
+        finally:
+            conn.close()
+    except Exception as exc:
+        logger.warning("Could not query documents for %s from PostgreSQL: %s — trying S3", period, exc)
 
-    Extraction writes one file per upload batch at
-    ``extracted/{period}/{upload_id}/documents.json`` (shape:
-    ``{period, upload_id, documents: [...]}``). We aggregate across all batches
-    — mirroring the analysis loader — and return the merged ``documents`` list,
-    which is what the frontend (and the analysis pipeline) expect.
-    """
+    # 2. Fallback to S3 Object Storage
     try:
         keys = storage.list_keys(f"extracted/{period}/")
         doc_keys = sorted(k for k in keys if k.endswith("documents.json"))
@@ -112,19 +194,66 @@ def update_documents(
     req: DocumentReviewRequest,
     period: str = Path(..., pattern=_PERIOD_PATTERN),
 ):
-    """Persist the user-reviewed document set for a period.
+    """Persist the user-reviewed document set for a period to DB and S3."""
+    # 1. Persist to PostgreSQL database
+    db_saved = False
+    try:
+        from db.client import get_db_connection
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                # Delete existing documents for the period
+                cur.execute("DELETE FROM documents WHERE period = %s", (period,))
+                
+                # Insert the new reviewed documents
+                for doc in req.documents:
+                    # Sanitize dates / numbers
+                    issue_date = doc.get("issue_date")
+                    if not issue_date or issue_date == "—":
+                        issue_date = None
+                    
+                    cur.execute(
+                        """
+                        INSERT INTO documents (
+                            upload_id, period, source_file, doc_type, detected_lang,
+                            issue_date, vendor_name, vendor_tax_id, recipient_name,
+                            currency, subtotal, vat_amount, vat_rate_pct, total_amount,
+                            invoice_number, confidence
+                        ) VALUES (
+                            %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s,
+                            %s, %s
+                        )
+                        """,
+                        (
+                            doc.get("upload_id") or "reviewed",
+                            period,
+                            doc.get("source_file") or doc.get("filename") or "file",
+                            doc.get("doc_type", "unknown"),
+                            doc.get("detected_language") or doc.get("detected_lang") or "en",
+                            issue_date,
+                            doc.get("vendor_name"),
+                            doc.get("vendor_tax_id"),
+                            doc.get("recipient_name"),
+                            doc.get("currency") or "EUR",
+                            doc.get("subtotal"),
+                            doc.get("vat_amount"),
+                            doc.get("vat_rate_pct"),
+                            doc.get("total_amount") or 0.0,
+                            doc.get("invoice_number"),
+                            doc.get("confidence") if doc.get("confidence") is not None else 1.0
+                        )
+                    )
+                conn.commit()
+                db_saved = True
+                logger.info("Saved %d reviewed documents to PostgreSQL for period %s", len(req.documents), period)
+        finally:
+            conn.close()
+    except Exception as exc:
+        logger.warning("Could not save reviewed documents for %s to PostgreSQL: %s", period, exc)
 
-    Writes the approved list to ``extracted/{period}/reviewed/documents.json``
-    (dict-shaped ``{period, upload_id, documents}`` so the analysis loader's
-    ``payload["documents"]`` finds it) and removes the prior per-upload
-    ``documents.json`` blobs so the analysis job consumes only the reviewed set —
-    the loader globs every ``*/documents.json`` under the period with no dedup, so
-    leaving the originals in place would double-count.
-
-    Order is write-first, delete-second (excluding the reviewed key itself). This
-    keeps a re-review idempotent and avoids a window where the period has no
-    documents.
-    """
+    # 2. Persist to Object Storage
     reviewed_key = f"extracted/{period}/reviewed/documents.json"
     try:
         originals = [

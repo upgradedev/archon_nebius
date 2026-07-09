@@ -273,7 +273,7 @@ def _is_provisioning_error(exc: Exception) -> bool:
 
 def _provision_probe_secs() -> float:
     """How long to probe a submitted job for a fast provisioning failure."""
-    return float(os.getenv("JOB_PROVISION_PROBE_SECS", "30"))
+    return float(os.getenv("JOB_PROVISION_PROBE_SECS", "60"))
 
 
 def _provision_poll_secs() -> float:

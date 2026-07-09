@@ -282,6 +282,7 @@ jobs:
           # never leaves KMS), and flip DOC_ENCRYPTION_ENABLED to true.
           DOC_ENCRYPTION_ENABLED: ${{ vars.DOC_ENCRYPTION_ENABLED }}
           DOC_ENCRYPTION_KMS_KEY_ID: ${{ vars.DOC_ENCRYPTION_KMS_KEY_ID }}
+          NEBIUS_PROJECT_ID_LADDER: ${{ vars.NEBIUS_PROJECT_ID_LADDER }}
         run: |
           nebius ai endpoint create \
             --name archon-backend \
@@ -320,6 +321,7 @@ jobs:
             --env "JOB_RUNNER_BACKEND=nebius" \
             --env "DOC_ENCRYPTION_ENABLED=$DOC_ENCRYPTION_ENABLED" \
             --env "DOC_ENCRYPTION_KMS_KEY_ID=$DOC_ENCRYPTION_KMS_KEY_ID" \
+            --env "NEBIUS_PROJECT_ID_LADDER=$NEBIUS_PROJECT_ID_LADDER" \
             --env "DUCKDNS_TOKEN=$DUCKDNS_TOKEN" \
             --env "DUCKDNS_SUBDOMAIN=archon-api" \
             --env "CADDY_DOMAIN=archon-api.duckdns.org"

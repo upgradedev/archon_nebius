@@ -123,13 +123,18 @@ export default function Dashboard() {
     setSettingsOpen(true)
   }
 
+  const [submittingAnalysis, setSubmittingAnalysis] = useState(false)
+
   const triggerAnalysis = async () => {
-    if (!activePeriod) return
+    if (!activePeriod || submittingAnalysis) return
+    setSubmittingAnalysis(true)
     try {
       const job = await api.analyze(activePeriod)
       setTriggerJobId(job.id)
     } catch (err) {
       antMessage.error(err instanceof Error ? err.message : 'Failed to start analysis')
+    } finally {
+      setSubmittingAnalysis(false)
     }
   }
 
@@ -425,7 +430,7 @@ export default function Dashboard() {
                   <CheckCircleOutlined style={{ fontSize: 40, color: token.colorSuccess }} />
                   <Title level={5}>Extraction complete for {fmtPeriod(effectivePeriod!)}</Title>
                   <Text type="secondary">Documents have been processed. Run the analysis pipeline to generate your P&amp;L report.</Text>
-                  <Button type="primary" icon={<RocketOutlined />} onClick={triggerAnalysis}>
+                  <Button type="primary" icon={<RocketOutlined />} onClick={triggerAnalysis} loading={submittingAnalysis}>
                     Run Analysis
                   </Button>
                 </Space>
