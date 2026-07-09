@@ -1,0 +1,82 @@
+name: List Subnets for Fallback Project
+
+on:
+  workflow_dispatch:
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate fresh Nebius IAM token from service account
+        env:
+          NEBIUS_SA_KEY_B64: ${{ secrets.NEBIUS_SA_KEY_B64 }}
+          NEBIUS_SA_KEY_ID: ${{ secrets.NEBIUS_SA_KEY_ID }}
+          NEBIUS_SA_ID: ${{ secrets.NEBIUS_SA_ID }}
+        run: |
+          python3 - <<'PYEOF'
+          import os, base64, time, jwt, requests
+          
+          key_b64 = os.environ.get("NEBIUS_SA_KEY_B64")
+          key_id = os.environ.get("NEBIUS_SA_KEY_ID")
+          sa_id = os.environ.get("NEBIUS_SA_ID")
+          
+          if not (key_b64 and key_id and sa_id):
+              print("Missing SA credentials secrets")
+              exit(1)
+              
+          private_key = base64.b64decode(key_b64)
+          now = int(time.time())
+          payload = {
+              "aud": "https://auth.nebius.com/oauth2/token",
+              "iss": sa_id,
+              "iat": now,
+              "exp": now + 3600,
+          }
+          headers = {"kid": key_id}
+          token = jwt.encode(payload, private_key, algorithm="PS256", headers=headers)
+          
+          res = requests.post(
+              "https://auth.nebius.com/oauth2/token",
+              data={
+                  "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                  "assertion": token,
+              }
+          )
+          res.raise_for_status()
+          access_token = res.json()["access_token"]
+          
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"NEBIUS_DEPLOY_IAM_TOKEN={access_token}\n")
+          PYEOF
+
+      - name: Install Nebius CLI
+        run: |
+          curl -sSL https://storage.eu-north1.nebius.cloud/cli/install.sh | bash
+          echo "$HOME/.nebius/bin" >> $GITHUB_PATH
+
+      - name: Authenticate Nebius CLI
+        run: |
+          mkdir -p ~/.nebius
+          cat > ~/.nebius/config.yaml << 'NEBIUS_CONFIG'
+          default: ci
+          profiles:
+              ci:
+                  endpoint: api.nebius.cloud
+                  auth-type: federation
+                  federation-endpoint: auth.nebius.com
+                  parent-id: project-e00cncsmpr00e8p6knyvdq
+                  tenant-id: tenant-e00e1r6ntpkd0ws76b
+          NEBIUS_CONFIG
+          cat > ~/.nebius/credentials.yaml << NEBIUS_CREDS
+          tokens:
+              federation/auth.nebius.com//ci:
+                  token: $NEBIUS_DEPLOY_IAM_TOKEN
+                  expires_at: 9999999999
+          NEBIUS_CREDS
+
+      - name: List subnets of the fallback project
+        run: |
+          nebius vpc subnet list --parent-id "project-e00cncsmpr00e8p6knyvdq" --format json
