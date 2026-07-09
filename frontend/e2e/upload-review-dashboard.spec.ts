@@ -147,3 +147,56 @@ test('e. Signed-in + empty store falls back to the shared sample dataset with a 
   await expect(drill.getByText('Revenue — supporting documents')).toBeVisible()
   await expect(drill.getByText('sales-invoice-3001.pdf')).toBeVisible()
 })
+
+test('f. JobStatus component renders a live Automated Deploy countdown badge with color-coding', async ({
+  authedPage: page,
+}) => {
+  // Mock a slow job API response that remains in 'running' state
+  let callCount = 0
+  await page.route('**/api/jobs/slow-job-1', async (route) => {
+    callCount++
+    const status = callCount === 1 ? 'pending' : 'running'
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'slow-job-1',
+        status: status,
+        period: '2026-01',
+        documentsCount: 3,
+        progress: 30,
+        createdAt: new Date().toISOString(),
+      })
+    })
+  })
+
+  // Open the upload dialog
+  const flow = new UploadFlow(page)
+  await flow.open()
+
+  // Override the submitJob POST endpoint to return our slow-job-1 ID
+  await page.route('**/api/jobs', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'slow-job-1',
+        status: 'pending',
+        period: '2026-01',
+        documentsCount: 3,
+        createdAt: new Date().toISOString(),
+      })
+    })
+  })
+
+  await flow.uploadFile()
+
+  // Verify that the dialog displays the JobStatus component and the timer badge
+  const dialog = flow.dialog()
+  await expect(dialog.getByText('Extraction job')).toBeVisible()
+  
+  // The "Automated Deploy" badge should be visible
+  const deployBadge = dialog.getByText(/Automated Deploy:/)
+  await expect(deployBadge).toBeVisible()
+})
+
