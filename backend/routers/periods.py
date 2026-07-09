@@ -19,7 +19,7 @@ class CompanyProfile(BaseModel):
 
 @router.get("/periods")
 def list_periods():
-    """List periods derived from uploaded raw-docs or DB documents, with extraction/report status."""
+    """List periods derived from PostgreSQL database or fallback S3 scanner, with extraction/report status."""
     # 1. Fetch report keys from S3 to determine hasReport status
     report_keys = storage.list_keys("reports/")
     report_periods = {
@@ -44,34 +44,40 @@ def list_periods():
         logger.warning("Could not list periods from PostgreSQL: %s — falling back to S3 bucket", exc)
         db_failed = True
 
-    # 3. Scan S3 bucket as fallback or to discover raw-docs upload periods
-    raw_keys = storage.list_keys("raw-docs/")
-    extracted_keys = storage.list_keys("extracted/")
-
-    def _period_set(keys: list[str], prefix: str) -> set[str]:
-        periods: set[str] = set()
-        for key in keys:
-            rest = key[len(prefix):]
-            segment = rest.split("/")[0]
-            if segment:
-                periods.add(segment)
-        return periods
-
-    raw_periods = _period_set(raw_keys, "raw-docs/")
-    extracted_periods = _period_set(extracted_keys, "extracted/")
-
-    # 4. Merge
+    # 3. Fallback to S3 bucket scan if database failed
     if db_failed:
-        active_extracted = extracted_periods
-    else:
-        active_extracted = db_periods
+        raw_keys = storage.list_keys("raw-docs/")
+        extracted_keys = storage.list_keys("extracted/")
 
-    all_periods = sorted(raw_periods | active_extracted | report_periods, reverse=True)
+        def _period_set(keys: list[str], prefix: str) -> set[str]:
+            periods: set[str] = set()
+            for key in keys:
+                rest = key[len(prefix):]
+                segment = rest.split("/")[0]
+                if segment:
+                    periods.add(segment)
+            return periods
+
+        raw_periods = _period_set(raw_keys, "raw-docs/")
+        extracted_periods = _period_set(extracted_keys, "extracted/")
+
+        all_periods = sorted(raw_periods | extracted_periods | report_periods, reverse=True)
+        return [
+            {
+                "period": p,
+                "hasReport": p in report_periods,
+                "hasExtraction": p in extracted_periods,
+            }
+            for p in all_periods
+        ]
+
+    # 4. Otherwise, use strictly the DB periods combined with reports
+    all_periods = sorted(db_periods | report_periods, reverse=True)
     return [
         {
             "period": p,
             "hasReport": p in report_periods,
-            "hasExtraction": p in active_extracted,
+            "hasExtraction": p in db_periods,
         }
         for p in all_periods
     ]
