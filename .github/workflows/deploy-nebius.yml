@@ -5,6 +5,9 @@ name: Deploy to Nebius
 # Extraction and analysis run as on-demand Jobs — no persistent endpoint for them.
 
 on:
+  push:
+    branches:
+      - master
   workflow_dispatch:
 
 jobs:
