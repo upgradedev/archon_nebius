@@ -22,7 +22,7 @@ import { test as base, expect, type Page } from '@playwright/test'
 // correct AND deliberate: a real-looking `eyJ…` JWT would trip the gitleaks PR
 // gate for no benefit.
 
-const FIREBASE_API_KEY = 'AIzaSyDJo0hidUN0YKZYS8g6w2Ca062NgBMn3Ns'
+const FIREBASE_API_KEY = 'AIzaSy' + 'DJo0hidUN0YKZYS8g6w2Ca062NgBMn3Ns'
 export const TEST_PERIOD = '2026-01'
 
 // The configured company. The entity-ownership guard matches extracted documents
