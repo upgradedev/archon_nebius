@@ -16,40 +16,41 @@ jobs:
           NEBIUS_SA_KEY_ID: ${{ secrets.NEBIUS_SA_KEY_ID }}
           NEBIUS_SA_ID: ${{ secrets.NEBIUS_SA_ID }}
         run: |
+          pip install nebius==0.3.76 --quiet
           python3 - <<'PYEOF'
-          import os, base64, time, jwt, requests
-          
-          key_b64 = os.environ.get("NEBIUS_SA_KEY_B64")
-          key_id = os.environ.get("NEBIUS_SA_KEY_ID")
-          sa_id = os.environ.get("NEBIUS_SA_ID")
-          
-          if not (key_b64 and key_id and sa_id):
-              print("Missing SA credentials secrets")
-              exit(1)
-              
-          private_key = base64.b64decode(key_b64)
-          now = int(time.time())
-          payload = {
-              "aud": "https://auth.nebius.com/oauth2/token",
-              "iss": sa_id,
-              "iat": now,
-              "exp": now + 3600,
-          }
-          headers = {"kid": key_id}
-          token = jwt.encode(payload, private_key, algorithm="PS256", headers=headers)
-          
-          res = requests.post(
-              "https://auth.nebius.com/oauth2/token",
-              data={
-                  "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-                  "assertion": token,
-              }
-          )
-          res.raise_for_status()
-          access_token = res.json()["access_token"]
-          
-          with open(os.environ["GITHUB_ENV"], "a") as f:
-              f.write(f"NEBIUS_DEPLOY_IAM_TOKEN={access_token}\n")
+          import base64
+          import asyncio
+          import os
+          import tempfile
+          import sys
+
+          sa_key_b64 = os.environ["NEBIUS_SA_KEY_B64"]
+          sa_key_id = os.environ["NEBIUS_SA_KEY_ID"]
+          sa_id = os.environ["NEBIUS_SA_ID"]
+
+          async def main() -> str:
+              from nebius.sdk import SDK
+
+              pem = base64.b64decode(sa_key_b64).decode()
+              tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False)
+              tmp.write(pem)
+              tmp.flush()
+              tmp.close()
+
+              sdk = SDK(
+                  service_account_private_key_file_name=tmp.name,
+                  service_account_public_key_id=sa_key_id,
+                  service_account_id=sa_id,
+              )
+              try:
+                  token = await sdk._token_bearer.receiver().fetch(timeout=30)
+                  return token.token
+              finally:
+                  await sdk.close()
+
+          token = asyncio.run(main())
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"NEBIUS_DEPLOY_IAM_TOKEN={token}\n")
           PYEOF
 
       - name: Install Nebius CLI
