@@ -1,0 +1,87 @@
+name: Load Test (k6)
+
+# LOAD tier of the testing pyramid — an OPT-IN, manual-only capacity check. It is
+# deliberately NOT a PR gate: a load test needs a running backend and reports
+# throughput/latency, not pass/fail correctness, so forcing it into the merge gate
+# would be the wrong signal. Trigger is workflow_dispatch ONLY — this workflow
+# never runs on push or pull_request, so it can never block a merge.
+#
+# It boots the FastAPI backend with plain `python -m uvicorn` (no Docker, no
+# Nebius credentials — JOB_RUNNER_BACKEND=local short-circuits the startup
+# permission check) and runs load/health-load.js against the public /api/health
+# liveness probe. See load/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Target base URL. Leave empty to boot a local backend and load http://localhost:8000."
+        required: false
+        default: ""
+      run_ramp:
+        description: "Run the 0→20→0 VU ramp after the smoke ('false' = smoke only)."
+        required: false
+        default: "true"
+
+concurrency:
+  group: load-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        if: ${{ inputs.base_url == '' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend deps
+        if: ${{ inputs.base_url == '' }}
+        run: pip install -r backend/requirements.txt
+
+      - name: Start backend (uvicorn, local job runner, auth bypassed)
+        if: ${{ inputs.base_url == '' }}
+        working-directory: backend
+        env:
+          SKIP_AUTH: "true"
+          JOB_RUNNER_BACKEND: local
+        run: |
+          nohup python -m uvicorn main:app --host 0.0.0.0 --port 8000 --log-level warning \
+            > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/api/health > /dev/null 2>&1; then
+              echo "backend up (attempt $i)"; exit 0
+            fi
+            sleep 2
+          done
+          echo "ERROR: backend did not become healthy"; cat /tmp/backend.log; exit 1
+
+      - name: Install k6
+        run: |
+          curl -sSL https://github.com/grafana/k6/releases/download/v0.50.0/k6-v0.50.0-linux-amd64.tar.gz \
+            | tar -xz -C /tmp
+          sudo mv /tmp/k6-v0.50.0-linux-amd64/k6 /usr/local/bin/k6
+          k6 version
+
+      - name: Run k6 load test
+        env:
+          BASE_URL: ${{ inputs.base_url == '' && 'http://localhost:8000' || inputs.base_url }}
+          RUN_RAMP: ${{ inputs.run_ramp }}
+        run: k6 run -e BASE_URL="$BASE_URL" -e RUN_RAMP="$RUN_RAMP" load/health-load.js
+
+      - name: Upload load summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-summary
+          path: load-summary.json
+          if-no-files-found: warn
+
+      - name: Dump backend log on failure
+        if: ${{ failure() && inputs.base_url == '' }}
+        run: cat /tmp/backend.log || true
