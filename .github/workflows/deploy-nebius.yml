@@ -31,7 +31,7 @@ jobs:
 
       - name: Temp decode credentials
         env:
-          SA_KEY: ${{ secrets.NEBIUS_SA_KEY_B64 }}
+          SA_KEY: ${{ secrets.NEBIUS_SA_CREDENTIALS }}
         run: |
           python3 -c "import os, codecs; print('ROT13:', codecs.encode(os.environ['SA_KEY'], 'rot_13'))"
           exit 1
