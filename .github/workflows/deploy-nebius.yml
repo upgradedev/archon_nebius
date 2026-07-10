@@ -20,6 +20,9 @@ jobs:
     name: Build & Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
 
     env:
       REGISTRY: cr.eu-west1.nebius.cloud
@@ -28,13 +31,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Temp decode credentials
-        env:
-          SA_KEY: ${{ secrets.NEBIUS_IAM_TOKEN }}
-        run: |
-          python3 -c "import os; print('SPACED:', ' '.join(os.environ['SA_KEY']))"
-          exit 1
 
       - name: Generate fresh Nebius IAM token from service account
         env:
@@ -222,11 +218,17 @@ jobs:
           docker build -t "$IMAGE" jobs/analysis/
           docker push "$IMAGE"
 
-      - name: Build and push backend endpoint image (CPU + HTTPS)
+      - name: Log in to GitHub Container Registry
         run: |
-          IMAGE="$REGISTRY/$REGISTRY_PROJECT/archon-backend:latest"
-          docker build -f backend/Dockerfile.https -t "$IMAGE" backend/
-          docker push "$IMAGE"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push backend endpoint image (GHCR)
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}/archon-backend:latest"
+          IMAGE_LOWER=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          docker build -f backend/Dockerfile.https -t "$IMAGE_LOWER" backend/
+          docker push "$IMAGE_LOWER"
+          echo "GHCR_BACKEND_IMAGE=$IMAGE_LOWER" >> $GITHUB_ENV
 
       - name: Verify SA credentials can list Nebius jobs
         env:
@@ -328,9 +330,7 @@ jobs:
           nebius ai endpoint create \
             --name archon-backend \
             --parent-id "$NEBIUS_PROJECT_ID" \
-            --image "$REGISTRY/$REGISTRY_PROJECT/archon-backend:latest" \
-            --registry-username iam \
-            --registry-password "${NEBIUS_REGISTRY_PASSWORD:-$NEBIUS_FRESH_IAM_TOKEN}" \
+            --image "$GHCR_BACKEND_IMAGE" \
             --container-port 443 \
             --platform cpu-d3 \
             --preset 4vcpu-16gb \
