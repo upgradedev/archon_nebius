@@ -106,6 +106,18 @@ echo ""
 # ── Step 4: Deploy backend endpoint (CPU, always-on) ──────────────────────────
 echo "[4/4] Deploying backend endpoint (CPU)..."
 
+if [[ -z "${NEBIUS_REGISTRY_PASSWORD:-}" ]]; then
+  echo "WARNING: NEBIUS_REGISTRY_PASSWORD is not set in .env."
+  echo "         Falling back to temporary RUNTIME_IAM_TOKEN."
+  echo "         ⚠️  The deployed endpoint will enter an 'error' state after 12 hours"
+  echo "            if restarted or scaled, because this token will expire."
+  echo "         To fix this permanently, issue a static key for CONTAINER_REGISTRY"
+  echo "         on your service account ($NEBIUS_SA_ID) and set it as NEBIUS_REGISTRY_PASSWORD in .env."
+  echo "         Command to generate:"
+  echo "           nebius iam static-key issue --account-service-account-id=$NEBIUS_SA_ID --service=CONTAINER_REGISTRY"
+  echo ""
+fi
+
 nebius ai endpoint create \
   --name "archon-backend" \
   --parent-id "$NEBIUS_PROJECT_ID" \
@@ -116,7 +128,7 @@ nebius ai endpoint create \
   --preset 4vcpu-16gb \
   --public \
   --registry-username iam \
-  --registry-password "$RUNTIME_IAM_TOKEN" \
+  --registry-password "${NEBIUS_REGISTRY_PASSWORD:-$RUNTIME_IAM_TOKEN}" \
   --env "NEBIUS_SA_KEY_B64=${NEBIUS_SA_KEY_B64:-}" \
   --env "NEBIUS_SA_KEY_ID=${NEBIUS_SA_KEY_ID:-}" \
   --env "NEBIUS_SA_ID=${NEBIUS_SA_ID:-}" \

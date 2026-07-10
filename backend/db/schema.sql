@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS documents (
     detected_lang   TEXT,
     issue_date      DATE,
     vendor_name     TEXT,
-    vendor_tax_id   TEXT,                   -- Greek ΑΦΜ
+    vendor_tax_id   TEXT,                   -- National Tax ID
     recipient_name  TEXT,
     currency        CHAR(3) DEFAULT 'EUR',
     subtotal        NUMERIC(14,2),
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS employees (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employee_code   TEXT UNIQUE,            -- internal HR code extracted from payslip
     full_name       TEXT,
-    tax_id          TEXT,                   -- ΑΦΜ
+    tax_id          TEXT,                   -- National Tax ID
     bank_account    TEXT,                   -- IBAN, used to link bank confirmation lines
     created_at      TIMESTAMPTZ DEFAULT now(),
     updated_at      TIMESTAMPTZ DEFAULT now()

@@ -17,9 +17,21 @@ def test_get_registry_token_fallback_to_iam_token(monkeypatch):
     monkeypatch.delenv("NEBIUS_SA_KEY_B64", raising=False)
     monkeypatch.delenv("NEBIUS_SA_KEY_ID", raising=False)
     monkeypatch.delenv("NEBIUS_SA_ID", raising=False)
+    monkeypatch.delenv("NEBIUS_REGISTRY_PASSWORD", raising=False)
 
     from services.nebius import _get_registry_token
     assert _get_registry_token() == "my-iam-token"
+
+
+def test_get_registry_token_uses_registry_password(monkeypatch):
+    monkeypatch.setenv("NEBIUS_REGISTRY_PASSWORD", "my-registry-static-key")
+    monkeypatch.delenv("NEBIUS_SA_KEY_B64", raising=False)
+    monkeypatch.delenv("NEBIUS_SA_KEY_ID", raising=False)
+    monkeypatch.delenv("NEBIUS_SA_ID", raising=False)
+    monkeypatch.delenv("NEBIUS_IAM_TOKEN", raising=False)
+
+    from services.nebius import _get_registry_token
+    assert _get_registry_token() == "my-registry-static-key"
 
 
 def test_get_registry_token_returns_empty_when_nothing_configured(monkeypatch):

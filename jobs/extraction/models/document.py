@@ -35,7 +35,7 @@ class ExtractedDocument(BaseModel):
     detected_language: str          # e.g. "el" for Greek, "en" for English
     issue_date: str | None = None          # ISO 8601 date string
     vendor_name: str | None = None
-    vendor_tax_id: str | None = None       # ΑΦΜ for Greek docs
+    vendor_tax_id: str | None = None       # National Tax ID
     recipient_name: str | None = None
     currency: str                   # ISO 4217 — normalised to EUR when possible
     original_currency: str | None = None   # as billed (e.g. "USD" for AWS/OpenAI)

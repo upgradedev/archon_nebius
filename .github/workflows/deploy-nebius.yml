@@ -173,6 +173,43 @@ jobs:
                   expires_at: 9999999999
           NEBIUS_CREDS
 
+      - name: Generate or rotate CONTAINER_REGISTRY static key
+        env:
+          NEBIUS_SA_ID: ${{ secrets.NEBIUS_SA_ID }}
+        run: |
+          if [ -z "$NEBIUS_SA_ID" ]; then
+            echo "NEBIUS_SA_ID secret is not set; skipping dynamic static key generation."
+            exit 0
+          fi
+          
+          echo "Listing existing static keys for Service Account: $NEBIUS_SA_ID"
+          KEYS=$(nebius iam static-key list --account-service-account-id "$NEBIUS_SA_ID" --format json 2>/dev/null || echo "[]")
+          
+          # Delete any existing CONTAINER_REGISTRY static keys to avoid hitting limits
+          python3 -c "
+          import sys, json, subprocess
+          try:
+              data = json.loads(sys.stdin.read())
+              items = data.get('items', []) if isinstance(data, dict) else data
+              for item in items:
+                  if item.get('service') == 'CONTAINER_REGISTRY':
+                      kid = item['metadata']['id']
+                      print(f'Deleting old CONTAINER_REGISTRY static key {kid}...')
+                      subprocess.run(['nebius', 'iam', 'static-key', 'delete', '--id', kid], check=True)
+          except Exception as e:
+              print(f'Warning: could not delete old keys: {e}', file=sys.stderr)
+          " <<< "$KEYS"
+
+          # Issue a fresh static key
+          echo "Issuing new CONTAINER_REGISTRY static key..."
+          NEW_KEY_JSON=$(nebius iam static-key issue --account-service-account-id "$NEBIUS_SA_ID" --service CONTAINER_REGISTRY --format json)
+          STATIC_KEY_TOKEN=$(python3 -c "import sys, json; print(json.load(sys.stdin)['token'])" <<< "$NEW_KEY_JSON")
+          
+          # Mask key in logs and save to GITHUB_ENV
+          echo "::add-mask::$STATIC_KEY_TOKEN"
+          echo "NEBIUS_REGISTRY_PASSWORD=$STATIC_KEY_TOKEN" >> $GITHUB_ENV
+          echo "New static key successfully registered and set in environment."
+
       - name: Preflight Nebius endpoint permissions
         run: |
           set +e
@@ -301,6 +338,7 @@ jobs:
           NEBIUS_STORAGE_SECRET_KEY: ${{ secrets.NEBIUS_STORAGE_SECRET_KEY }}
           NEBIUS_INFERENCE_API_KEY: ${{ secrets.NEBIUS_INFERENCE_API_KEY }}
           DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
+          NEBIUS_REGISTRY_PASSWORD: ${{ secrets.NEBIUS_REGISTRY_PASSWORD }}
           # Document-at-rest KMS envelope encryption. OFF by default. To enable:
           # create a Nebius KMS symmetric key (`nebius kms symmetric-key create
           # --algorithm aes_256`), grant this deploy service account the KMS
@@ -322,7 +360,7 @@ jobs:
             --parent-id "$NEBIUS_PROJECT_ID" \
             --image "$REGISTRY/$REGISTRY_PROJECT/archon-backend:latest" \
             --registry-username iam \
-            --registry-password "$NEBIUS_FRESH_IAM_TOKEN" \
+            --registry-password "${NEBIUS_REGISTRY_PASSWORD:-$NEBIUS_FRESH_IAM_TOKEN}" \
             --container-port 443 \
             --platform cpu-d3 \
             --preset 4vcpu-16gb \
@@ -340,6 +378,7 @@ jobs:
             --env "AWS_SECRET_ACCESS_KEY=$NEBIUS_STORAGE_SECRET_KEY" \
             --env "NEBIUS_INFERENCE_BASE_URL=https://api.studio.nebius.ai/v1" \
             --env "NEBIUS_INFERENCE_API_KEY=$NEBIUS_INFERENCE_API_KEY" \
+            --env "NEBIUS_REGISTRY_PASSWORD=${NEBIUS_REGISTRY_PASSWORD:-}" \
             --env "VISION_MODEL=Qwen/Qwen2.5-VL-72B-Instruct" \
             --env "ANALYSIS_MODEL=meta-llama/Llama-3.3-70B-Instruct" \
             --env "EXTRACTION_JOB_IMAGE=$REGISTRY/$REGISTRY_PROJECT/archon-extraction:latest" \

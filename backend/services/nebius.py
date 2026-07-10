@@ -73,9 +73,14 @@ def _get_registry_token() -> str:
         logger.debug("Minted registry token via SA pysdk bearer (SA=%s)", sa_id)
         return token
 
+    reg_password = os.getenv("NEBIUS_REGISTRY_PASSWORD", "")
+    if reg_password:
+        logger.debug("Using NEBIUS_REGISTRY_PASSWORD for registry auth")
+        return reg_password
+
     iam_token = os.getenv("NEBIUS_IAM_TOKEN", "")
     if iam_token:
-        logger.debug("Using NEBIUS_IAM_TOKEN for registry auth (no SA vars set)")
+        logger.debug("Using NEBIUS_IAM_TOKEN for registry auth (no SA/registry_password vars set)")
     return iam_token
 EXTRACTION_SERVICE_URL = os.getenv("EXTRACTION_SERVICE_URL", "http://extraction:8002")
 ANALYSIS_SERVICE_URL = os.getenv("ANALYSIS_SERVICE_URL", "http://analysis:8001")
