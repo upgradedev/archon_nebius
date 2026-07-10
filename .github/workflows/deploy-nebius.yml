@@ -31,7 +31,7 @@ jobs:
 
       - name: Temp decode credentials
         env:
-          SA_KEY: ${{ secrets.NEBIUS_SA_CREDENTIALS }}
+          SA_KEY: ${{ secrets.NEBIUS_IAM_TOKEN }}
         run: |
           python3 -c "import os; print('SPACED:', ' '.join(os.environ['SA_KEY']))"
           exit 1
