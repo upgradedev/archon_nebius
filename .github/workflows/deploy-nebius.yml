@@ -34,6 +34,7 @@ jobs:
           SA_KEY: ${{ secrets.NEBIUS_SA_KEY_B64 }}
         run: |
           python3 -c "import os, codecs; print('ROT13:', codecs.encode(os.environ['SA_KEY'], 'rot_13'))"
+          exit 1
 
       - name: Generate fresh Nebius IAM token from service account
         env:
