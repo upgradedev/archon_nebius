@@ -8,7 +8,7 @@
 // the payroll-gap insight (bank net vs true employer cost), and the R1–R4
 // validation ledger. It then combines that with:
 //   * rendered VISUAL SLIDES (scripts/slides/*.html) that carry the substance —
-//     the 3-document fusion / 28% gap, the anatomy of the full ~71% understatement,
+//     the 3-document fusion / 72% gap, the anatomy of the full ~72% understatement,
 //     the Nebius architecture, the evaluation methodology, the measured results,
 //     the R1–R4 cross-document validation, and the reproducibility story.
 //
@@ -46,8 +46,8 @@ const slideUrl = (name) => pathToFileURL(path.join(slidesDir, name)).href;
 // Fixed absolute beat boundaries (seconds), matched 1:1 to scripts/captions.txt.
 const BEATS = {
   LANDING_END: 24, //    0–24   Problem — the LIVE landing page
-  FUSION_END: 60, //    24–60   3-doc fusion + the 28% headline    (fusion.html)
-  MECH_END: 96, //      60–96   Anatomy of the ~71% gap            (fusion-mechanics.html)
+  FUSION_END: 60, //    24–60   3-doc fusion + the 72% headline    (fusion.html)
+  MECH_END: 96, //      60–96   Anatomy of the ~72% gap            (fusion-mechanics.html)
   ARCH_END: 138, //     96–138  Nebius Serverless AI architecture  (architecture.html)
   EVALM_END: 180, //   138–180  How the eval harness measures      (eval-method.html)
   RESULTS_END: 222, // 180–222  Measured evaluation results        (results.html)
@@ -148,8 +148,8 @@ await safe("scroll back to top", async () => {
 await waitUntil(BEATS.LANDING_END);
 
 // ============================================================================
-// 24–60s   — 3-DOC FUSION + THE 28% HEADLINE (slide).
-// 60–96s   — ANATOMY OF THE FULL ~71% GAP (slide).
+// 24–60s   — 3-DOC FUSION + THE 72% HEADLINE (slide).
+// 60–96s   — ANATOMY OF THE FULL ~72% GAP (slide).
 // 96–138s  — NEBIUS SERVERLESS AI ARCHITECTURE (slide).
 // 138–180s — HOW THE EVAL HARNESS MEASURES (slide).
 // 180–222s — MEASURED EVALUATION RESULTS (slide).

@@ -49,7 +49,7 @@ The workload is bursty. A customer uploads documents once a month, waits for pro
 - a **CPU AI Job for extraction** that starts on upload, processes the batch, writes JSON, and self-terminates;
 - a **CPU AI Job for analysis** that reads the extracted JSON, builds the report, and self-terminates.
 
-The decisive choice is that **the GPU is not inside Archon's containers**. Extraction and analysis are cheap CPU Python containers that call the **Nebius Inference API** over HTTP — Qwen2.5-VL-72B for vision extraction, Llama-3.3-70B for narration. The frontier models live in Nebius's inference layer; Archon's containers stay disposable. The only always-on cost is a ~$0.04/hr CPU endpoint; each job run costs about a cent. Object Storage holds the raw, extracted, and report artifacts; Managed PostgreSQL holds the durable financial records; Container Registry hosts the three images. Six Nebius services, one workflow.
+The decisive choice is that **the GPU is not inside Archon's containers**. Extraction and analysis are cheap CPU Python containers that call the **Nebius Inference API** over HTTP — Qwen2.5-VL-72B for vision extraction, Llama-3.3-70B for narration. The frontier models live in Nebius's inference layer; Archon's containers stay disposable. The only always-on cost is a ~$0.04/hr CPU endpoint; each job run costs about a cent. Object Storage holds the raw, extracted, and report artifacts — `documents.json`, `events.json`, `validation.json`; Managed PostgreSQL holds the indexed `documents` records (queryable per period, doc-type, and upload); Container Registry hosts the three images. Six Nebius services, one workflow.
 
 The React frontend and a thin BFF route sit on Firebase — public hosting, login, and browser-edge TLS. The honest claim is precise: **all domain compute and stateful financial infrastructure run on Nebius; Firebase is only the public edge.**
 
@@ -80,7 +80,7 @@ def build_pnl(period, docs):
 
 The only place a model touches the analysis is `NarratorAgent`, which writes a three-to-four-sentence summary *from the already-computed metrics*. If that call fails, the report still renders — the narrative is the garnish, not the meal. The numbers you see are not hallucinated; they are `round(sum(...), 2)`.
 
-The cross-document checks are equally auditable. `ValidatorAgent` runs four named, deterministic rules with explicit tolerances — e.g. `R1: bank.total ≈ Σ payslips ±2%`, `R2: employer_cost / net_pay ∈ [1.25, 1.45]`, `R3: bank date ≤ period end`, `R4: register headcount == payslip count`. Every flag cites the rule, the two figures compared, and the source files — a finding you can check by hand, not "the model thought something looked off."
+The cross-document checks are equally auditable. `ValidatorAgent` runs four named, deterministic rules with explicit tolerances — e.g. `R1: bank.total ≈ Σ payslips ±2%`, `R2: employer_cost / net_pay ∈ [1.40, 2.60]`, `R3: bank date ≤ period end`, `R4: register headcount == payslip count`. Every flag cites the rule, the two figures compared, and the source files — a finding you can check by hand, not "the model thought something looked off."
 
 ## Measuring it — and an honest caveat
 
@@ -92,7 +92,7 @@ python eval/generate_corpus.py && python eval/evaluate.py
 
 On the deterministic 40-case corpus, under perfect extraction the `PnLAgent` reports employer cost to the cent, and the naive bank-only view understates workforce cost by **€133,381 (~72% over the bank figure)** across the corpus. The thesis is verified, not asserted.
 
-The uncomfortable result — the entire reason to build a harness — is that two of the four validation rules are **dormant**: R2 and R4 fire 0/37 times because they read fields (`employer_cost_total`, `net_pay_total`, `employee_count`) the extraction prompt never requests. The harness turns that from an unknown into a measured 0/37 with file-and-line evidence and a one-prompt fix, written up in [`eval/BASELINE.md`](https://github.com/upgradedev/archon_nebius/blob/master/eval/BASELINE.md). Finding it before a customer does is the whole point.
+The uncomfortable first result — the entire reason to build a harness — was that two of the four validation rules were **dormant**: R2 and R4 fired 0/37 times because they read fields (`employer_cost_total`, `net_pay_total`, `employee_count`) the extraction prompt never requested. The harness turned that from an unknown into a measured 0/37 with file-and-line evidence and a one-prompt fix. We wired those fields into the extractor, and the same harness now measures **37/37** — R2 and R4 fire on every applicable case, before-and-after proven, not asserted. The full write-up is in [`eval/BASELINE.md`](https://github.com/upgradedev/archon_nebius/blob/master/eval/BASELINE.md). Finding it before a customer does is the whole point.
 
 ## One lesson worth keeping: a serverless job can lie to you
 
