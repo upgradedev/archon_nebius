@@ -3,9 +3,19 @@
 --
 -- Four concern areas, each with a single-responsibility table group:
 --   1. Document registry   — tracks every uploaded and extracted document
---   2. Employee master      — built from payslip extraction, enriched over time
+--   2. Employee master      — relational model for per-employee payroll lines
 --   3. Payroll events       — links the three payroll doc subtypes per period
 --   4. Validation results   — cross-document consistency audit trail
+--
+-- Source of truth. The `documents` table is actively written (on document
+-- review, see backend/routers/periods.py) and queried (period + document
+-- listing, with an Object Storage fallback). The authoritative computed
+-- financial report is persisted to Nebius Object Storage as report.json, NOT to
+-- a table. The employees / employee_payroll / payroll_events /
+-- payroll_event_payslips / validation_results tables are provisioned by this
+-- relational schema and cleared on period delete; wiring their write path from
+-- the analysis Job is a roadmap item (the report they would mirror already
+-- lives in Object Storage).
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 1. Document registry
@@ -39,7 +49,9 @@ CREATE INDEX IF NOT EXISTS idx_documents_upload_id ON documents (upload_id);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 2. Employee master
--- Populated / updated each time a payslip is extracted.
+-- Relational model for per-employee payroll lines (see source-of-truth note at
+-- the top of this file): intended to be built from payslip extraction; the
+-- computed per-employee figures currently ship in Object Storage report.json.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS employees (

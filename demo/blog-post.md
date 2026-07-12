@@ -57,7 +57,7 @@ The React frontend and a thin BFF route sit on Firebase — public hosting, logi
 
 **Extraction (4 agents)** turns raw files into structured JSON. `ExtractorAgent` auto-detects file type and routes digital text to text extraction, scans and images to the vision model. `ClassifierAgent` then *deterministically* refines the document type — keeping common LLM misclassifications out of the accounting layer. `EventLinkerAgent` fuses the payroll triad (above). `ValidatorAgent` runs cross-document consistency checks.
 
-**Analysis (7 agents)** turns that JSON into a dashboard-ready report: re-classify, then `PnLAgent`, `CashFlowAgent`, `EmployeeAgent`, `ReconciliationAgent`, a `ValidatorAgent` safety net, and finally `NarratorAgent` for the executive summary. Each agent is single-responsibility — easy to test and easy to reason about.
+**Analysis (7 agents)** turns that JSON into a dashboard-ready report: re-classify, then `PnLAgent`, `CashFlowAgent`, a `ValidatorAgent` cross-document safety net, `EmployeeAgent` (whose payroll-event summaries consume that validation), `ReconciliationAgent`, and finally `NarratorAgent` for the executive summary. Each agent is single-responsibility — easy to test and easy to reason about.
 
 ## Trust: the numbers are deterministic, the LLM only narrates
 

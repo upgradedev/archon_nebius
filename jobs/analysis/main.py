@@ -9,8 +9,9 @@ Pipeline (7 single-responsibility agents):
   1. ClassifierAgent         — re-classify doc_type for analysis context
   2. PnLAgent                — P&L (uses employer_cost from register, not bank net)
   3. CashFlowAgent           — cash flow (uses bank transfers for real cash)
-  4. EmployeeAgent           — per-employee salary analytics
-  5. ValidatorAgent          — cross-document consistency checks
+  4. ValidatorAgent          — cross-document consistency checks
+  5. EmployeeAgent           — per-employee salary analytics (payroll-event summaries
+                               consume step 4's validation results)
   6. ReconciliationAgent     — vendor statement vs. invoice diff
   7. NarratorAgent           — LLM CFO-level executive summary (Nebius Inference API)
 

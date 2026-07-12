@@ -49,7 +49,7 @@ Archon exercises the Nebius platform end-to-end, not a single service. Every pri
 | 2 | **AI Jobs** (CPU `cpu-d3`, ×2) | submit: `backend/services/nebius.py` (`JobServiceClient` · `CreateJobRequest`); jobs: `jobs/extraction/main.py` (4 agents) + `jobs/analysis/main.py` (7 agents) | Two on-demand, self-terminating pipelines — document extraction and financial analysis | ✅ `jobs/extraction/tests/` + `jobs/analysis/tests/`; submission + failover in `backend/tests/test_nebius_service.py` (real-pysdk `JobStatus` contract, mocked runner) |
 | 3 | **Inference API** (OpenAI-compatible) | `jobs/extraction/extractors/{pdf,image,docx}.py` + `jobs/analysis/agents/narrator.py` (`OpenAI(base_url=NEBIUS_INFERENCE_BASE_URL)`) | Qwen2.5-VL-72B (vision extraction) + Llama-3.3-70B (analysis narration) | ✅ extractor + `test_narrator.py` (mocked client) |
 | 4 | **Object Storage** (S3-compatible) | `backend/services/storage.py` (`boto3`, `endpoint_url=STORAGE_ENDPOINT_URL`) | `raw-docs/ · extracted/ · reports/` object I/O | ✅ `test_storage.py` + `test_upload_storage_robustness.py` (boto3 mocked) |
-| 5 | **Managed PostgreSQL** | `backend/db/client.py` (`psycopg2`) · `backend/db/models.py` · `backend/db/schema.sql` | Persists 6 tables (`documents · employees · employee_payroll · payroll_events · payroll_event_payslips · validation_results`) | ✅ `test_db_models.py` + `test_db_periods.py` (models + serialization) |
+| 5 | **Managed PostgreSQL** | `backend/db/client.py` (`psycopg2`) · `backend/db/models.py` · `backend/db/schema.sql` | Schema provisions 6 tables (`documents · employees · employee_payroll · payroll_events · payroll_event_payslips · validation_results`). `documents` is actively written (on document review) and queried (period + document listing) with S3 fallback; the computed report itself is authoritative in Object Storage (`report.json`), and the employee/payroll/validation tables are provisioned by the relational schema and cleared on period delete. | ✅ `test_db_models.py` + `test_db_periods.py` (models + router SQL) |
 | 6 | **Container Registry** | `nebius/redeploy.sh` (builds + pushes `archon-backend` / `archon-extraction` / `archon-analysis` images) | Hosts the three container images the Endpoint and Jobs pull | ✅ registry-credentials contract asserted by `test_redeploy_credentials.py` (`--registry-username iam`) |
 
 Security & supply chain: every change passes **gitleaks** (secrets), **CodeQL** (SAST, Python + TypeScript), **pip-audit / npm audit** (dependency CVEs), and a unit → integration → E2E test suite — see [Testing & CI](#testing--ci).
@@ -92,7 +92,7 @@ flowchart TB
 
     subgraph JOBS["Nebius Serverless AI Jobs (CPU cpu-d3, on-demand, self-terminating)"]
         EXT["Extraction Job — 4 agents<br/>Extractor → Classifier → EventLinker → Validator"]
-        ANA["Analysis Job — 7 agents<br/>Classifier → PnL → CashFlow → Employee → Reconciliation → Validator → Narrator"]
+        ANA["Analysis Job — 7 agents<br/>Classifier → PnL → CashFlow → Validator → Employee → Reconciliation → Narrator"]
     end
 
     STORE["Nebius Object Storage (S3-compatible)<br/>raw-docs / extracted / reports"]
@@ -273,7 +273,7 @@ CORS_ORIGINS=https://archon-pnl.web.app
 
 Four GitHub Actions pipelines guard every change:
 
-- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **170 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
+- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **186 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack. (The offline coverage gate additionally runs the extraction- and analysis-Job suites — 374 Python tests in all — plus `eval/tests`.)
 - **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), and a **conditional payroll-cost invariant** (`employer_cost_total ≥ bank net`) asserted for every detected payroll event whose register `employer_cost_total` was extracted. The extraction prompt now requests that field (see [`eval/BASELINE.md`](eval/BASELINE.md) §3), so the invariant is enforced whenever the live extraction returns it, and skips only for an event where it is absent. Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
 - **CodeQL** (`codeql.yml`, every PR + weekly) — SAST over both language families (Python: backend + extraction Job + analysis Endpoint; JavaScript/TypeScript: frontend) with the `security-and-quality` query suite.
 - **Dependency Audit** (`security-audit.yml`, every PR + weekly) — `pip-audit` against all three Python requirement sets and `npm audit` for the frontend; high/critical dependency CVEs fail the build.
@@ -404,35 +404,57 @@ To switch providers, update the `JOB_RUNNER_BACKEND` and `STORAGE_BACKEND` env v
 
 ## Sample Output
 
-A `POST /analyze` call returns a structured `FinancialReport` JSON. Abbreviated example:
+`POST /analyze` submits an on-demand analysis Job and returns its ID for polling.
+Once the Job completes, `GET /reports/{period}` returns the report from Object
+Storage — the persisted `report.json` wraps the `FinancialReport` with `jobId`
+and `generatedAt`. Abbreviated example (some report fields omitted for brevity;
+field names and casing are exactly as returned):
 
 ```json
 {
-  "period": "2026-01",
-  "generated_at": "2026-01-31T14:22:01Z",
-  "pnl": {
-    "total_revenue": 48500.00,
-    "total_expenses": 31200.00,
-    "net_profit": 17300.00,
-    "gross_margin_pct": 35.7,
-    "operating_margin_pct": 28.4,
-    "payroll_cost_total": 18400.00,
-    "payroll_cost_bank_net": 10700.00,
-    "payroll_gap_pct": 72.0
-  },
-  "cash_flow": {
-    "operating": 15200.00,
-    "investing": -3400.00,
-    "financing": 0.00,
-    "net": 11800.00
-  },
-  "employees": [
-    { "name": "J. Andersen", "gross_salary": 2400.00, "employer_cost": 2976.00 }
-  ],
-  "executive_summary": "January 2026 shows a healthy 28.4% operating margin. Payroll represents the largest cost centre at €18,400 — about 72% above the €10,700 the bank transfer alone would suggest, reflecting employer social-security contributions and employee withholdings the transfer nets out. Cash position improved by €11,800...",
-  "validation": { "rules_passed": 4, "rules_failed": 0 }
+  "jobId": "aijob-3f9c1a2b",
+  "generatedAt": "2026-01-31T14:22:01Z",
+  "report": {
+    "period": "2026-01",
+    "pnl": {
+      "period": "2026-01",
+      "revenue": 48500.00,
+      "expenses": 31200.00,
+      "netProfit": 17300.00,
+      "grossMarginPct": 35.7,
+      "operatingMarginPct": 28.4
+    },
+    "cashFlow": {
+      "period": "2026-01",
+      "operating": 15200.00,
+      "investing": -3400.00,
+      "financing": 0.00,
+      "net": 11800.00
+    },
+    "payrollEvents": [
+      {
+        "period": "2026-01",
+        "company_name": "Contoso EPE",
+        "net_total": 10700.00,
+        "gross_total": 15300.00,
+        "employer_cost_total": 18400.00,
+        "employee_count": 6,
+        "bank_confirmed": true,
+        "validation_passed": true
+      }
+    ],
+    "employeeSummaries": [
+      { "employee_code": "E-018", "employee_name": "J. Andersen", "period": "2026-01", "net_pay": 1740.00, "gross_pay": 2400.00, "employer_cost": 2976.00 }
+    ],
+    "validationResults": [
+      { "rule": "R1: bank.total ≈ sum(payslips) ±2%", "passed": true, "severity": "info", "message": "Bank transfer matches payslip net within tolerance", "source_files": ["bank_confirmation.pdf", "payslip_01.pdf"] }
+    ],
+    "executiveSummary": "January 2026 shows a healthy 28.4% operating margin. The month's payroll event cost €18,400 in true employer cost — about 72% above the €10,700 bank transfer alone, reflecting employer social-security contributions the transfer nets out. Cash position improved by €11,800..."
+  }
 }
 ```
+
+> The **~72% workforce-cost gap** lives in the `payrollEvents` entry: `employer_cost_total` (€18,400, from the register) against `net_total` (€10,700, from the bank confirmation) — the same event, counted once, read from two angles.
 
 The React dashboard renders this as:
 - Monthly P&L trend chart (revenue / expenses / net profit)
