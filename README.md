@@ -271,7 +271,7 @@ CORS_ORIGINS=https://archon-pnl.web.app
 
 Four GitHub Actions pipelines guard every change:
 
-- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **163 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
+- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **170 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack.
 - **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), and a **conditional payroll-cost invariant** (`employer_cost_total ≥ bank net`) asserted for every detected payroll event whose register `employer_cost_total` was extracted. The extraction prompt now requests that field (see [`eval/BASELINE.md`](eval/BASELINE.md) §3), so the invariant is enforced whenever the live extraction returns it, and skips only for an event where it is absent. Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
 - **CodeQL** (`codeql.yml`, every PR + weekly) — SAST over both language families (Python: backend + extraction Job + analysis Endpoint; JavaScript/TypeScript: frontend) with the `security-and-quality` query suite.
 - **Dependency Audit** (`security-audit.yml`, every PR + weekly) — `pip-audit` against all three Python requirement sets and `npm audit` for the frontend; high/critical dependency CVEs fail the build.
