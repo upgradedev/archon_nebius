@@ -5,7 +5,7 @@
 48|60|~72% gap in the sample — true employer cost vs the bank transfer
 60|72|Walk the bank transfer up to the true cost of employment
 72|84|+~35% employer social-security  ·  +~36% employee withholdings
-84|96|Workforce cost understated ~71%  —  EUR 133,382 across the corpus
+84|96|Workforce cost understated ~72%  —  EUR 133,381 across the corpus
 96|108|Built entirely on Nebius Serverless AI
 108|122|2 on-demand CPU Jobs (extract + analyze)  ·  1 CPU AI Endpoint
 122|138|Inference API: Qwen2.5-VL-72B vision  ·  Llama-3.3-70B analysis

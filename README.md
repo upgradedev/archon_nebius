@@ -321,7 +321,7 @@ stall **invisibly**. Archon now degrades gracefully and fails loudly instead:
 
 Verified entirely in CI via unit + mocked-runner tests and a real-pysdk
 `JobStatus` shape contract test (`backend/tests/test_nebius_service.py`) — no live
-jobs are submitted (quota is 0 and live jobs cost money). See **ADR-009**.
+jobs are submitted (quota is 0 and live jobs cost money). See **[ADR-009](docs/adr/ADR-009-capacity-probe-failover.md)**.
 
 **Deep dive + one-command demo.** The named pattern (failure taxonomy, the
 GPU-only capacity-API finding, and the flow diagram) is documented in
