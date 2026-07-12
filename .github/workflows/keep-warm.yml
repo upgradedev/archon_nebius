@@ -5,9 +5,11 @@ name: Keep Endpoint Warm
 # cold start would make the first click after an idle period appear broken.
 #
 # This scheduled job pings the public liveness probe every ~5 minutes. The point
-# is only to make a request REACH the endpoint — that traffic is what keeps the
-# instance warm. It never fails the run: a 200 (warm), a 401 (auth-gated route),
-# a 5xx (mid-cold-start), or a timeout are all "we hit it", which is the goal.
+# is to drive a request that actually COMPLETES a cold start (~50s) so the
+# instance is left genuinely warm — not just to fire a packet that aborts
+# mid-cold-start. The step therefore waits out the cold start (--max-time 120)
+# and asserts HTTP 200; anything else (timeout=000, 5xx, 401) fails the run so a
+# cold-failing endpoint surfaces instead of hiding behind a false green.
 #
 # Note: GitHub only runs scheduled workflows from the default branch, and cron is
 # best-effort (may drift to 5-15 min under load). Both are fine for keep-warm.
@@ -35,8 +37,19 @@ jobs:
         run: |
           URL="https://archon-pnl.web.app/api/health"
           echo "Pinging $URL to keep the Nebius endpoint warm..."
-          # -sS quiet but show errors; --max-time bounds a cold-start hang; never
-          # fail the step — hitting the endpoint at all is the whole objective.
-          CODE=$(curl -sS --max-time 45 -o /dev/null -w '%{http_code}' "$URL" || echo "000")
-          echo "Response code: $CODE (any response — 200/401/5xx/000 — kept it warm)"
-          exit 0
+          # --max-time 120 exceeds the ~50s cold start so the request completes
+          # the warm-up instead of aborting mid-cold-start. Retry a few times to
+          # absorb a single cold start, then assert HTTP 200 — fail otherwise so a
+          # cold-failing endpoint is visible rather than a false green.
+          CODE=000
+          for attempt in 1 2 3; do
+            CODE=$(curl -sS --max-time 120 -o /dev/null -w '%{http_code}' "$URL" || echo "000")
+            echo "Attempt $attempt: response code $CODE"
+            if [ "$CODE" = "200" ]; then
+              echo "Endpoint is warm (HTTP 200)."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Endpoint did not return HTTP 200 after 3 attempts (last code: $CODE)."
+          exit 1
