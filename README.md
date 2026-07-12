@@ -27,6 +27,8 @@ difficulty: advanced
 [![Nebius Serverless](https://img.shields.io/badge/Nebius-Serverless%20AI-green)](https://nebius.com)
 [![#NebiusServerlessChallenge](https://img.shields.io/badge/%23NebiusServerlessChallenge-2026-orange)](https://nebius.com)
 
+> **Measured impact.** Booking only the bank salary transfer as "the payroll cost" — what most SMB bookkeeping does — understates the true employer cost by **€133,381.71 on the corpus, ~72% over the bank figure** (of which the employer's own social-security wedge is ~35%). Archon fuses the bank confirmation, payroll register, and payslips into one event and reports the number the documents actually support. Measured offline against a 40-case labelled corpus — **€0, no API key** ([`eval/BASELINE.md`](eval/BASELINE.md)).
+
 ---
 
 ## What is Archon?
@@ -39,16 +41,16 @@ Built entirely on **Nebius Serverless AI** — a FastAPI orchestration backend r
 
 ## Nebius services used (6 primitives)
 
-Archon exercises the Nebius platform end-to-end, not a single service:
+Archon exercises the Nebius platform end-to-end, not a single service. Every primitive below is wired to real code — the "Where used" column is a direct citation:
 
-| # | Nebius service | Role in Archon |
-|---|---|---|
-| 1 | **AI Endpoints** (CPU `cpu-d3`) | Always-on FastAPI orchestration backend (`/upload · /jobs · /analyze · /reports`) |
-| 2 | **AI Jobs** (CPU `cpu-d3`) | Two on-demand pipelines — **extraction** (4 agents) and **analysis** (7 agents) — self-terminating |
-| 3 | **Inference API** (`studio.nebius.ai`) | Qwen2.5-VL-72B (vision extraction) + Llama-3.3-70B (analysis narration), OpenAI-compatible |
-| 4 | **Object Storage** (S3-compatible) | `raw-docs/ · extracted/ · reports/` — documents, events, validation, reports |
-| 5 | **Managed PostgreSQL** | `documents · employees · employee_payroll · payroll_events · payroll_event_payslips · validation_results` |
-| 6 | **Container Registry** | Hosts the `archon-backend`, `archon-extraction`, `archon-analysis` images |
+| # | Nebius primitive | Where used (file / module) | What it does | Tested? |
+|---|---|---|---|---|
+| 1 | **AI Endpoint** (CPU `cpu-d3`) | deploy: `nebius/redeploy.sh` (`nebius ai endpoint create`); app: `backend/main.py` | Always-on FastAPI orchestration (`/upload · /jobs · /analyze · /reports`) | ✅ app routes unit-tested (`backend/tests/`); deploy path exercised by `test_redeploy_credentials.py` (mocked CLI → asserts `endpoint create`) |
+| 2 | **AI Jobs** (CPU `cpu-d3`, ×2) | submit: `backend/services/nebius.py` (`JobServiceClient` · `CreateJobRequest`); jobs: `jobs/extraction/main.py` (4 agents) + `jobs/analysis/main.py` (7 agents) | Two on-demand, self-terminating pipelines — document extraction and financial analysis | ✅ `jobs/extraction/tests/` + `jobs/analysis/tests/`; submission + failover in `backend/tests/test_nebius_service.py` (real-pysdk `JobStatus` contract, mocked runner) |
+| 3 | **Inference API** (OpenAI-compatible) | `jobs/extraction/extractors/{pdf,image,docx}.py` + `jobs/analysis/agents/narrator.py` (`OpenAI(base_url=NEBIUS_INFERENCE_BASE_URL)`) | Qwen2.5-VL-72B (vision extraction) + Llama-3.3-70B (analysis narration) | ✅ extractor + `test_narrator.py` (mocked client) |
+| 4 | **Object Storage** (S3-compatible) | `backend/services/storage.py` (`boto3`, `endpoint_url=STORAGE_ENDPOINT_URL`) | `raw-docs/ · extracted/ · reports/` object I/O | ✅ `test_storage.py` + `test_upload_storage_robustness.py` (boto3 mocked) |
+| 5 | **Managed PostgreSQL** | `backend/db/client.py` (`psycopg2`) · `backend/db/models.py` · `backend/db/schema.sql` | Persists 6 tables (`documents · employees · employee_payroll · payroll_events · payroll_event_payslips · validation_results`) | ✅ `test_db_models.py` + `test_db_periods.py` (models + serialization) |
+| 6 | **Container Registry** | `nebius/redeploy.sh` (builds + pushes `archon-backend` / `archon-extraction` / `archon-analysis` images) | Hosts the three container images the Endpoint and Jobs pull | ✅ registry-credentials contract asserted by `test_redeploy_credentials.py` (`--registry-username iam`) |
 
 Security & supply chain: every change passes **gitleaks** (secrets), **CodeQL** (SAST, Python + TypeScript), **pip-audit / npm audit** (dependency CVEs), and a unit → integration → E2E test suite — see [Testing & CI](#testing--ci).
 
