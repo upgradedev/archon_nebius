@@ -293,8 +293,8 @@ def build_criteria(skip_live: bool) -> list[Criterion]:
                   "Engineering blog post present and substantial (>5 KB)",
                   _blog_substantial),
             Check("edu.blog.grounded",
-                  "Blog references the eval harness and the measured figure",
-                  lambda: file_contains("demo/blog-post.md", r"eval/", r"133,381")),
+                  "Blog references the eval harness and the measured accuracy",
+                  lambda: file_contains("demo/blog-post.md", r"eval/", r"100\s*%")),
             Check("edu.no_stale_gap",
                   "No superseded '28% payroll gap' number in README/blog",
                   _no_stale_gap),
@@ -335,7 +335,7 @@ def build_criteria(skip_live: bool) -> list[Criterion]:
 
         Criterion("usefulness", "Real-world usefulness", [
             Check("useful.figure.consistent",
-                  "Measured figure (133,381 / 72%) consistent across README, eval, blog",
+                  "Euro figure lives in eval evidence only; README/blog carry accuracy + labelled ~72%",
                   _figure_consistent),
             Check("useful.floor.recovers",
                   "Naive-floor eval recovers the measured understatement",
@@ -466,15 +466,24 @@ def _no_stale_gap() -> tuple[str, str]:
 
 
 def _figure_consistent() -> tuple[str, str]:
-    targets = {"README.md": None, "eval/BASELINE.md": None, "demo/blog-post.md": None}
-    for rel in targets:
-        ok_num, ev_num = file_contains(rel, r"133,381")
-        ok_pct, ev_pct = file_contains(rel, r"72\s*%")
-        if not ok_num:
-            return FAIL, f"133,381 missing from {rel}"
+    # The measured euro figure is EVAL EVIDENCE only. Quoting it as a value
+    # headline reads as a real customer result, so it must NOT appear in README
+    # or blog as a claim. BASELINE carries the measured figure; README and blog
+    # carry the accuracy evidence (100%) plus a labelled ~72% sample ratio.
+    ok_num, _ = file_contains("eval/BASELINE.md", r"133,381")
+    if not ok_num:
+        return FAIL, "measured 133,381 missing from eval/BASELINE.md (the evidence source)"
+    for rel in ("README.md", "demo/blog-post.md"):
+        ok_pct, _ = file_contains(rel, r"72\s*%")
         if not ok_pct:
-            return FAIL, f"72% missing from {rel}"
-    return PASS, "133,381 + 72% present + consistent in README, eval/BASELINE, blog"
+            return FAIL, f"labelled ~72% sample ratio missing from {rel}"
+        ok_acc, _ = file_contains(rel, r"100\s*%")
+        if not ok_acc:
+            return FAIL, f"accuracy evidence (100%) missing from {rel}"
+        has_euro, _ = file_contains(rel, r"133,381")
+        if has_euro:
+            return FAIL, f"{rel} still quotes 133,381 as a value claim (keep it eval-evidence only)"
+    return PASS, "euro figure in eval evidence only; README + blog carry 100% + labelled ~72%"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
