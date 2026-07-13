@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Layout, Typography, Row, Col, Card, Button, Spin, Alert, Space, theme,
   Avatar, Tooltip, Modal, Drawer, Form, Input, Popconfirm, Tag,
@@ -69,6 +69,21 @@ export default function Dashboard() {
     queryFn: api.getPeriods,
     refetchInterval: 30_000,
   })
+
+  // Auto-select a period once the list loads so a signed-in user lands on a
+  // populated dashboard instead of a blank "pick a period" state. Prefer the
+  // newest period that already has a report; otherwise the newest overall.
+  // Demo mode already seeds DEMO_PERIOD, so it is left untouched. This only
+  // fires while the selection is null — it never overrides an explicit user
+  // choice, and after a delete (which resets the selection to null) it falls
+  // through to the newest remaining period, or clears out when none are left.
+  useEffect(() => {
+    if (isDemoMode() || activePeriod !== null || periods.length === 0) return
+    const byNewest = [...periods].sort((a, b) => b.period.localeCompare(a.period))
+    const pick = byNewest.find((p) => p.hasReport) ?? byNewest[0]
+    if (pick) setActivePeriod(pick.period)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periods])
 
   const { data: reportData, isLoading: reportLoading, error: reportError, refetch: refetchReport } = useQuery({
     queryKey: ['report', activePeriod],

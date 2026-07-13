@@ -139,6 +139,15 @@ describe('Dashboard — with periods', () => {
     render(<Dashboard />, { wrapper: Wrapper })
     await waitFor(() => expect(screen.getByText(/Dec 2024/i)).toBeTruthy())
   })
+
+  it('auto-selects the newest period with a report (no manual click needed)', async () => {
+    // Signed-in landing must open a populated dashboard, not a blank
+    // "pick a period" state. 2025-01 has a report; 2024-12 does not — so the
+    // report for 2025-01 is fetched automatically on load.
+    render(<Dashboard />, { wrapper: Wrapper })
+    await waitFor(() => expect(mocks.getReport).toHaveBeenCalledWith('2025-01'))
+    expect(mocks.getReport).not.toHaveBeenCalledWith('2024-12')
+  })
 })
 
 describe('Dashboard — upload modal', () => {
