@@ -128,9 +128,9 @@ that the classifier earns its place (it recovers a chunk of the
 misclassified-as-generic docs) and that R2 catches a defect the perfect
 extractor never produces.
 
-### Naive-bookkeeping FLOOR — the value at stake
+### Naive-bookkeeping FLOOR — reconciliation measured on the sample
 
-The owner who books the bank salary transfer as "the payroll cost":
+These are measurement figures on the synthetic corpus, not a customer result. The owner who books the bank salary transfer as "the payroll cost":
 
 | Quantity | Sample (5 bank cases) | Full (31 bank cases) |
 |---|---|---|

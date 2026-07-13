@@ -27,7 +27,7 @@ difficulty: advanced
 [![Nebius Serverless](https://img.shields.io/badge/Nebius-Serverless%20AI-green)](https://nebius.com)
 [![#NebiusServerlessChallenge](https://img.shields.io/badge/%23NebiusServerlessChallenge-2026-orange)](https://nebius.com)
 
-> **Measured impact.** The bank salary transfer is only the net-wages component; the register's true employer cost adds the withheld payroll taxes and the employer's own contributions — **€133,381.71 more on the corpus, ~72% over the bank figure** (of which the employer's own social-security contribution is ~35%). Archon fuses the bank confirmation, payroll register, and payslips into one event and reconciles every component back to a source document, so nothing the register says is owed can slip through. Measured offline against a 40-case labelled corpus — **€0, no API key** ([`eval/BASELINE.md`](eval/BASELINE.md)).
+> **Measured, not claimed.** The offline harness scores the real pipeline agents at **100% classification, field, and fusion accuracy** across a 40-case labelled corpus, for **€0 with no API key**. The value is a completeness guarantee, not a headline number: the bank salary transfer is only the net-wages component, so Archon fuses the bank confirmation, payroll register, and payslips into one event and reconciles every component (the withheld payroll taxes, then the employer's own contributions, ~72% over bank net on the sample) back to a source document. Nothing the register says is owed can slip through ([`eval/BASELINE.md`](eval/BASELINE.md)).
 
 ---
 
@@ -78,7 +78,7 @@ The backend endpoint (write path) and the extraction Job (read path) both reach 
 - **Public repo:** https://github.com/upgradedev/archon_nebius
 - **Nebius services used:** AI Endpoint, AI Jobs, Inference API, Object Storage, Managed PostgreSQL, Container Registry
 - **Local run:** `docker compose up --build`
-- **One-command reproducibility (offline, €0, no API key):** `bash scripts/verify-reproducible.sh` reproduces the headline €133,381.71 / ~72% figure from the corpus, runs every offline agent suite, and prints the readiness gate — see [Reproduce it in one command](#reproduce-it-in-one-command).
+- **One-command reproducibility (offline, €0, no API key):** `bash scripts/verify-reproducible.sh` reproduces the headline accuracy scores from the corpus (100% field and fusion; the ~72%-over-bank-net reconciliation ratio on the sample), runs every offline agent suite, and prints the readiness gate — see [Reproduce it in one command](#reproduce-it-in-one-command).
 - **Readiness gate:** `python scripts/readiness.py` scores this submission against the 6 Nebius judging criteria with real evidence (wiring + passing tests) and writes `readiness.json` — see [Readiness gate](#readiness-gate).
 - **Core invariant (worked example):** linked payroll events use the full employer cost, not the bank-net transfer — one instance of Archon reconciling a source against its supporting documents, here surfacing the workforce-cost gap the bank transfer hides (measured at **~72% over the net transfer**, of which the employer's own social-security contribution is **~35%** — see [`eval/BASELINE.md`](eval/BASELINE.md)).
 
@@ -381,9 +381,9 @@ real Qwen2.5-VL extractor on Nebius ([`eval/LIVE_EXTRACTION.md`](eval/LIVE_EXTRA
 - **Positive result:** under perfect extraction the `PnLAgent` reports the
   *employer cost* (gross + employer social-security contributions), not the bank
   net, to the cent across 40 diverse cases — the core thesis is verified, and the
-  **register's true employer cost reconciles to EUR 133,381 more than the naive
-  bank-only floor (~72% over the bank figure)** on the corpus, every euro tied to a
-  source document.
+  register's true employer cost reconciles to the register total, **~72% over the
+  naive bank-only floor on the sample**, every component tied back to a source
+  document.
 - **Keystone finding (the harness earns its place):** validation rules **R2 and
   R4 were DORMANT — they fired 0/37 times** because no extractor populated the
   `employer_cost_total` / `net_pay_total` / `employee_count` fields they read.
@@ -406,7 +406,7 @@ bash scripts/verify-reproducible.sh
 ```
 
 It (1) re-scores the 40-case corpus and asserts the register's true employer cost
-reconciles to **€133,381.71 more than the naive bank-only floor (~72%)**, (2) runs every **offline**
+reconciles to the register total (**~72% over the naive bank-only floor, on the sample**), (2) runs every **offline**
 agent suite (the extraction and analysis pipelines end-to-end against
 deterministic Fake/mocked clients — no Inference API, S3 or Postgres), and
 (3) runs the readiness gate below. Exit code `0` means the repo reproduced its
@@ -418,7 +418,7 @@ The submission's completeness is itself machine-checked. `scripts/readiness.py`
 encodes the **six equal Nebius judging criteria** as concrete checks backed by
 **real evidence** — not "does a file exist", but "is the cited symbol wired into
 the cited file **and** does the cited offline test actually pass", plus an
-in-process reproduction of the €133,381.71 figure:
+in-process reproduction of the reconciliation ratio (~72% over bank net, on the sample):
 
 ```bash
 python scripts/readiness.py            # per-criterion report + readiness.json
@@ -510,12 +510,12 @@ field names and casing are exactly as returned):
     "validationResults": [
       { "rule": "R1: bank.total ≈ sum(payslips) ±2%", "passed": true, "severity": "info", "message": "Bank transfer matches payslip net within tolerance", "source_files": ["bank_confirmation.pdf", "payslip_01.pdf"] }
     ],
-    "executiveSummary": "January 2026 shows a healthy 28.4% operating margin. The month's payroll event cost €18,400 in true employer cost — about 72% above the €10,700 bank transfer alone, reflecting employer social-security contributions the transfer nets out. Cash position improved by €11,800..."
+    "executiveSummary": "January 2026 shows a healthy 28.4% operating margin. The month's payroll event reconciles the bank net up to the register's full employer cost, about 72% more once the withheld payroll taxes and the employer's own social-security contributions are folded back in. Cash position improved over the prior month..."
   }
 }
 ```
 
-> The **~72% workforce-cost gap** lives in the `payrollEvents` entry: `employer_cost_total` (€18,400, from the register) against `net_total` (€10,700, from the bank confirmation) — the same event, counted once, read from two angles.
+> The **reconciliation (~72% over bank net on the sample)** lives in the `payrollEvents` entry: `employer_cost_total` (from the register) against `net_total` (from the bank confirmation), the same event, counted once, read from two angles.
 
 The React dashboard renders this as:
 - Monthly P&L trend chart (revenue / expenses / net profit)
