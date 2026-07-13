@@ -58,6 +58,10 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"  # a shared multi-component .env carries keys this
+        #                   service doesn't own — ignore them (mirrors backend
+        #                   main.py). Without this, `cp .env.example .env` per
+        #                   the quickstart breaks the analysis suite locally.
 
 
 settings = Settings()
