@@ -214,6 +214,119 @@ class ComputeCapacityUnavailable(RuntimeError):
         )
 
 
+class NoJobsQuota(ComputeCapacityUnavailable):
+    """A pre-flight quota check proved AI-Jobs quota is a hard 0 for the target
+    platform+region, so a submission would sit in PROVISIONING and then FAIL
+    (~30 min) with zero chance of launching. Mapped to the same HTTP 503, but
+    raised BEFORE submitting so the caller gets an instant, named answer.
+
+    Note on 'chance of launch': Nebius' Capacity Advisor (HIGH/MEDIUM/LOW) is
+    GPU-VM-only and explicitly excludes cpu-d3 and AI Jobs, so there is no
+    probabilistic capacity signal for this workload — a CPU Job either has quota
+    (>0, launches) or does not (==0, never launches). This check reads that
+    deterministic quota via QuotaAllowanceService.
+    """
+
+    def __init__(self, platform: str, region: str, limit):
+        self.platform = platform
+        self.region = region
+        super(ComputeCapacityUnavailable, self).__init__(
+            f"no AI-Jobs quota for {platform} in region {region} "
+            f"(limit={limit}). Request a quota increase in the Nebius Console "
+            f"(project quotas) or email serverlesschallenge@nebius.com."
+        )
+
+
+def _target_region() -> str:
+    """Region the Jobs run in. Single-region today (one hardcoded subnet); the
+    cross-region failover ladder is a documented future item (see ADR-010)."""
+    return os.getenv("NEBIUS_REGION", "eu-west1").strip() or "eu-west1"
+
+
+def _jobs_quota_state(project_id: str, region: str, platform: str) -> tuple[str, object]:
+    """Best-effort deterministic quota lookup for AI Jobs on `platform`/`region`.
+
+    Returns (state, limit) where state is:
+      * "zero"      — a matching quota was found with limit == 0 (never launches)
+      * "available" — a matching quota was found with limit > 0
+      * "unknown"   — no matching quota found, or the lookup failed / SDK missing
+
+    FAIL-OPEN by contract: any uncertainty returns "unknown" so the caller
+    proceeds to submit exactly as before. This check can only ever convert a
+    would-be 30-minute FAILED into an instant 503 — it never blocks a submission
+    that might otherwise succeed.
+    """
+    try:
+        from nebius.api.nebius.quotas.v1 import (
+            QuotaAllowanceServiceClient,
+            ListQuotaAllowancesRequest,
+        )
+    except Exception as exc:  # SDK without quotas API
+        logger.info("Quota pre-flight unavailable (SDK): %s", exc)
+        return "unknown", None
+
+    # Quota allowances may be scoped to the tenant; prefer an explicit tenant id.
+    parent_id = os.getenv("NEBIUS_TENANT_ID", "").strip() or project_id
+    platform_l = platform.lower()
+    try:
+        sdk = _make_sdk()
+        svc = QuotaAllowanceServiceClient(sdk)
+        resp = svc.list(ListQuotaAllowancesRequest(parent_id=parent_id)).wait()
+        best = None
+        for item in getattr(resp, "items", []) or []:
+            spec = getattr(item, "spec", None)
+            status = getattr(item, "status", None)
+            if spec is None:
+                continue
+            if (getattr(spec, "region", "") or "") != region:
+                continue
+            # Match the compute-Jobs quota heuristically across name/service/desc.
+            hay = " ".join(
+                str(x).lower() for x in (
+                    getattr(getattr(item, "metadata", None), "name", ""),
+                    getattr(status, "service", ""),
+                    getattr(status, "description", ""),
+                )
+            )
+            is_jobs = ("job" in hay) or ("compute" in hay and platform_l in hay) or (platform_l in hay)
+            if not is_jobs:
+                continue
+            limit = getattr(spec, "limit", None)
+            if limit is None:
+                continue
+            # A confirmed zero is decisive; keep scanning only to prefer a >0 match.
+            if limit == 0:
+                return "zero", 0
+            best = ("available", limit)
+        if best is not None:
+            return best
+        return "unknown", None
+    except Exception as exc:
+        logger.info("Quota pre-flight failed (fail-open): %s", exc)
+        return "unknown", None
+
+
+def _preflight_jobs_quota(project_id: str, platform: str) -> None:
+    """Raise NoJobsQuota if quota is a confirmed hard 0. Opt-in and fail-open.
+
+    Disabled unless JOB_QUOTA_PREFLIGHT is truthy — the exact quota resource name
+    must be confirmed against a live tenant (real credentials) before this can
+    safely short-circuit submissions. Off by default = behaviour identical to
+    today; on = the 30-minute provision-then-FAIL becomes an instant, named 503.
+    """
+    if os.getenv("JOB_QUOTA_PREFLIGHT", "").strip().lower() not in ("1", "true", "yes", "on"):
+        return
+    region = _target_region()
+    state, limit = _jobs_quota_state(project_id, region, platform)
+    if state == "zero":
+        logger.warning(
+            "Quota pre-flight: %s AI-Jobs quota in %s is 0 — refusing to submit "
+            "(would provision then FAIL). Raising 503.", platform, region,
+        )
+        raise NoJobsQuota(platform, region, limit)
+    logger.info("Quota pre-flight for %s in %s: %s (proceeding)", platform, region, state)
+
+
 def _parse_ladder_env() -> list[tuple[str, str]]:
     """Parse JOB_PRESET_LADDER ('platform:preset,platform:preset,...') defensively.
 
@@ -428,6 +541,11 @@ def _submit_job_with_failover(name_prefix, period, default_platform, default_pre
 
     projects = _project_ladder()
     presets = _preset_ladder(default_platform, default_preset)
+
+    # Deterministic pre-flight: if AI-Jobs quota is a hard 0 for this platform,
+    # the submission would only PROVISION-then-FAIL (~30 min). Refuse up front
+    # with an instant, named 503. Opt-in + fail-open (see _preflight_jobs_quota).
+    _preflight_jobs_quota(projects[0] if projects else "", default_platform)
 
     attempts: list[str] = []
 
