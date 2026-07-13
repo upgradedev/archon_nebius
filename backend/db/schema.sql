@@ -7,15 +7,24 @@
 --   3. Payroll events       — links the three payroll doc subtypes per period
 --   4. Validation results   — cross-document consistency audit trail
 --
--- Source of truth. The `documents` table is actively written (on document
--- review, see backend/routers/periods.py) and queried (period + document
--- listing, with an Object Storage fallback). The authoritative computed
--- financial report is persisted to Nebius Object Storage as report.json, NOT to
--- a table. The employees / employee_payroll / payroll_events /
--- payroll_event_payslips / validation_results tables are provisioned by this
--- relational schema and cleared on period delete; wiring their write path from
--- the analysis Job is a roadmap item (the report they would mirror already
--- lives in Object Storage).
+-- Write model. Object Storage holds the authoritative artifacts: the analysis
+-- Job writes report.json (and extraction writes documents.json). PostgreSQL is a
+-- relational MIRROR of those artifacts, populated by the BACKEND (which is in the
+-- same VPC as this IP-allowlisted cluster; an ephemeral Job container is not):
+--   * `documents`            — written on document review (PUT /documents/{period},
+--                              backend/routers/periods.py) and queried for the
+--                              period + document listing, with an S3 fallback.
+--   * `employees` / `employee_payroll` / `payroll_events` / `validation_results`
+--                            — mirrored from the completed report by
+--                              backend/services/pg_sync.py, invoked best-effort on
+--                              GET /reports/{period}. Idempotent per period; a DB
+--                              failure never breaks the report response (the S3
+--                              report remains the source of truth).
+--   * `payroll_event_payslips` — junction of payroll events to payslip documents;
+--                              populated only when document-level linkage is
+--                              available (left empty by the report mirror, which
+--                              carries no per-document IDs).
+-- All tables are cleared on period delete.
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 1. Document registry
