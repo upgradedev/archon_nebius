@@ -343,6 +343,11 @@ export default function Dashboard() {
               <Col>
                 <Title level={4} style={{ margin: 0 }}>
                   {effectiveProfile?.company_name || 'Financial Report'} — {fmtPeriod(effectivePeriod!)}
+                  {demo && (
+                    <Tag color="gold" style={{ marginLeft: 10, verticalAlign: 'middle', fontWeight: 400 }}>
+                      Sample data
+                    </Tag>
+                  )}
                 </Title>
                 {reportGeneratedAt && (
                   <Text type="secondary" style={{ fontSize: 12 }}>

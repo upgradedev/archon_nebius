@@ -2,10 +2,10 @@
 18|34|Archon consolidates every source into one financial picture — and flags what won't reconcile
 34|53|One worked example — the workforce: a payroll event leaves three documents
 53|72|Bank confirmation  ·  payroll register  ·  payslips  →  one fused event
-72|91|Bank net is only the net wages — register's true employer cost reconciles to ~72% more
+72|91|Bank net is only net wages; true employer cost is ~72% more (on the sample)
 91|105|Walk the bank transfer up to the true cost of employment
 105|119|+~35% employer social-security  ·  +~36% employee withholdings
-119|134|Every euro tied to a source document — EUR 133,381 reconciled across the corpus
+119|134|Every component tied to a source document, reconciled across the corpus
 134|147|Same completeness on the payables side — every supplier statement reconciled
 147|161|Flags a supplier not paid, a duplicate payment, a wrong amount, or wrong vendor
 161|174|Built entirely on Nebius Serverless AI
