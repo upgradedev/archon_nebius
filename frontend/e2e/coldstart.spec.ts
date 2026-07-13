@@ -32,14 +32,11 @@ test('cold start: non-blanking warming state, auto-retry health until warm, auto
   // Catch-all FIRST (lowest priority) so nothing leaks to a real backend; the
   // specific routes below are registered later and therefore win.
   await page.route('**/api/**', (route) => json(route, {}))
-  // Two periods so selecting one fires the Tabs onChange (a lone tab is
-  // auto-active, so clicking it is a no-op). The first is active by default; the
-  // test selects the second (TEST_PERIOD) to trigger its report fetch.
+  // A single report-bearing period. On load the dashboard auto-selects the
+  // newest period that has a report and fetches it — no manual click — which is
+  // exactly the real flow that surfaces the cold-start state.
   await page.route('**/api/periods', (route) =>
-    json(route, [
-      { period: '2026-02', hasReport: true, hasExtraction: true },
-      { period: TEST_PERIOD, hasReport: true, hasExtraction: true },
-    ]),
+    json(route, [{ period: TEST_PERIOD, hasReport: true, hasExtraction: true }]),
   )
   await page.route('**/api/company-profile', (route) => json(route, COMPANY_PROFILE))
 
@@ -59,8 +56,8 @@ test('cold start: non-blanking warming state, auto-retry health until warm, auto
 
   await signIn(page)
 
-  // Select the period → triggers the report fetch, which returns 502 (cold).
-  await page.getByRole('tab', { name: /Jan 2026/ }).click()
+  // Auto-select fires the report fetch for the newest report-bearing period on
+  // load — no manual click needed. That first fetch returns 502 (cold).
 
   // (a) A non-destructive "warming up / retrying" state appears — the calm
   // in-content notice AND the auto-retry overlay — NOT the destructive red error.
