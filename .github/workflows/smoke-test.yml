@@ -91,6 +91,38 @@ jobs:
           path: readiness.json
           if-no-files-found: warn
 
+  pen-test:
+    # Machine-checkable APPLICATION-SECURITY suite (OWASP-relevant surface for
+    # this app): authz/authn boundary, injection (path/param + prompt-injection
+    # fence), IDOR / period isolation, sensitive-data exposure, and abuse/DoS
+    # limits. Real requests + assertions against the actual FastAPI app
+    # (TestClient) and the extraction fence — no placeholders. Offline, per-PR.
+    #
+    # The dependency-CVE gate (pip-audit + npm audit) is the separate "Dependency
+    # Audit" workflow (security-audit.yml); test_pentest_sca.py asserts it stays
+    # wired + blocking. gitleaks secret-scan runs as the first step of smoke-test
+    # below.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend + extraction deps
+        run: |
+          pip install -r backend/requirements.txt
+          pip install -r jobs/extraction/requirements.txt
+
+      - name: Backend pen-test suite (authz · injection · IDOR · exposure · abuse · SCA)
+        run: cd backend && python -m pytest tests/test_pentest_*.py -v
+
+      - name: Extraction prompt-injection fence + scanner
+        run: cd jobs/extraction && python -m pytest tests/test_pentest_injection_fence.py tests/test_injection_scan.py -v
+
   smoke-test:
     runs-on: ubuntu-latest
     timeout-minutes: 45

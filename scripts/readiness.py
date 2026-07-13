@@ -2,9 +2,10 @@
 """
 Archon readiness gate — machine-checkable submission completeness.
 
-Encodes the SIX equal Nebius judging criteria (technical implementation,
+Encodes the six equal Nebius judging criteria (technical implementation,
 reproducibility, educational content, product-usage depth, real-world
-usefulness, originality) as concrete machine checks backed by REAL evidence:
+usefulness, originality) — plus an added APPLICATION-SECURITY (pen-test) gate —
+as concrete machine checks backed by REAL evidence:
 not "does a file exist" but "is the cited symbol wired into the cited file AND
 does the cited offline test actually pass". It also reproduces the headline
 measured figure (EUR 133,381.71 / ~72%) from the corpus, in-process.
@@ -18,8 +19,9 @@ Each check resolves to one of three states:
                  score (a judge/user must confirm these on the live site)
 
 The gate prints a per-criterion report, computes a weighted completeness %
-over the AUTOMATABLE criteria (the six criteria weighted equally, matching the
-rubric), writes readiness.json, and exits non-zero if that % < THRESHOLD.
+over the AUTOMATABLE criteria (the six rubric criteria plus the security gate,
+each weighted equally), writes readiness.json, and exits non-zero if that %
+< THRESHOLD.
 
 Design notes
 ------------
@@ -345,6 +347,43 @@ def build_criteria(skip_live: bool) -> list[Criterion]:
                       "jobs/analysis/tests/test_reconciliation_agent.py")),
         ]),
 
+        Criterion("security", "Application security (pen-test gate)", [
+            Check("security.authz.wired_tested",
+                  "AuthZ/AuthN boundary pen-test wired + passing (401 gate)",
+                  lambda: _wired_and_tested(
+                      ("backend/tests/test_pentest_authz.py",
+                       (r"verify_firebase_token", r"401")),
+                      "backend/tests/test_pentest_authz.py")),
+            Check("security.injection.fence",
+                  "Prompt-injection fence + scanner pen-test passes",
+                  lambda: _wired_and_tested(
+                      ("jobs/extraction/tests/test_pentest_injection_fence.py",
+                       (r"scan_document", r"SECURITY RULE")),
+                      "jobs/extraction/tests/test_pentest_injection_fence.py")),
+            Check("security.injection.surface",
+                  "Path/param injection pen-test (upload traversal + period 422)",
+                  lambda: run_pytest("backend/tests/test_pentest_injection.py")),
+            Check("security.idor",
+                  "IDOR / period-isolation pen-test passes",
+                  lambda: run_pytest("backend/tests/test_pentest_idor.py")),
+            Check("security.exposure",
+                  "Sensitive-data-exposure pen-test (no secret leak + at-rest) passes",
+                  lambda: run_pytest("backend/tests/test_pentest_data_exposure.py")),
+            Check("security.abuse",
+                  "Abuse/DoS-lite pen-test (oversized/malformed -> 4xx) passes",
+                  lambda: run_pytest("backend/tests/test_pentest_abuse.py")),
+            Check("security.sca.gate",
+                  "SCA/CVE gate (pip-audit + npm audit) wired + asserted",
+                  lambda: _wired_and_tested(
+                      (".github/workflows/security-audit.yml",
+                       (r"pip-audit", r"npm audit")),
+                      "backend/tests/test_pentest_sca.py")),
+            Check("security.ci.job",
+                  "Dedicated pen-test CI job runs the suite on every PR",
+                  lambda: file_contains(".github/workflows/smoke-test.yml",
+                                        r"pen-test", r"test_pentest_")),
+        ]),
+
         Criterion("originality", "Originality", [
             Check("orig.adr.present",
                   "ADR-009 (capacity-probe failover) documented in-repo",
@@ -473,7 +512,7 @@ def main() -> int:
     if not args.quiet:
         print()
         print("=" * 74)
-        print(" ARCHON READINESS GATE — 6 Nebius judging criteria (equal weight)")
+        print(" ARCHON READINESS GATE — 6 Nebius judging criteria + security gate")
         print("=" * 74)
         for crit in scored:
             print(f"\n[{crit.pct:5.1f}%] {crit.title}")

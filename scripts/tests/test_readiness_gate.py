@@ -53,11 +53,14 @@ def test_readiness_gate_offline_meets_threshold(gate_run) -> None:
 
 
 def test_readiness_report_shape_is_complete(gate_run) -> None:
-    """The artifact must cover all six scored criteria and list user-gated items."""
+    """The artifact must cover the six rubric criteria plus the security gate,
+    and list user-gated items."""
     report = gate_run["report"]
     expected = {"technical", "reproducibility", "educational",
-                "product_depth", "usefulness", "originality"}
-    assert set(report["criteria"]) == expected, "gate must score exactly the 6 rubric criteria"
+                "product_depth", "usefulness", "originality", "security"}
+    assert set(report["criteria"]) == expected, (
+        "gate must score the 6 rubric criteria + the security pen-test gate"
+    )
 
     # Every scored check carries real evidence (never an empty string).
     for crit in report["criteria"].values():

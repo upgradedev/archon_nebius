@@ -162,14 +162,18 @@ jobs:
       - name: Run signed-in live E2E (test_05)
         env:
           BACKEND_URL: ${{ vars.E2E_BACKEND_URL || 'https://archon-api.duckdns.org' }}
+          # Path A (headless): a pre-minted Firebase ID token — no Google sign-in
+          # call. Path B: email/password (the test mints the token). Either works.
+          NEBIUS_E2E_SESSION: ${{ secrets.NEBIUS_E2E_SESSION }}
           E2E_FIREBASE_API_KEY: ${{ secrets.E2E_FIREBASE_API_KEY }}
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
           E2E_VERIFY_TLS: "false"
         run: |
-          if [ -z "$E2E_FIREBASE_API_KEY" ] || [ -z "$E2E_EMAIL" ] || [ -z "$E2E_PASSWORD" ]; then
-            echo "ERROR: signed-in-live requires E2E_FIREBASE_API_KEY / E2E_EMAIL / E2E_PASSWORD repo secrets."
-            echo "Set them in repo settings, then re-run this job."
+          if [ -z "$NEBIUS_E2E_SESSION" ] && { [ -z "$E2E_FIREBASE_API_KEY" ] || [ -z "$E2E_EMAIL" ] || [ -z "$E2E_PASSWORD" ]; }; then
+            echo "ERROR: signed-in-live needs EITHER the NEBIUS_E2E_SESSION secret"
+            echo "(a Firebase ID token) OR E2E_FIREBASE_API_KEY + E2E_EMAIL + E2E_PASSWORD."
+            echo "Set one path in repo settings, then re-run this job."
             exit 1
           fi
           pip install -r e2e/requirements.txt -q
