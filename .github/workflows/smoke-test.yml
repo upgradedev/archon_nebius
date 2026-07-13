@@ -80,8 +80,8 @@ jobs:
       - name: Run readiness gate (offline; fails under 95%)
         run: python scripts/readiness.py --skip-live
 
-      - name: Readiness gate e2e test (asserts the gate runs + offline >= 95%)
-        run: python -m pytest scripts/tests/test_readiness_gate.py -q
+      - name: Script tests (readiness gate + PG-mirror verifier logic)
+        run: python -m pytest scripts/tests/ -q
 
       - name: Upload readiness.json
         if: always()
