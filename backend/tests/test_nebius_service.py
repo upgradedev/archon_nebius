@@ -235,13 +235,23 @@ def _make_sdk_and_service(job_id: str = "job-nebius-001"):
 
 # ── _submit_nebius_job (extraction) ───────────────────────────────────────────
 
-def _patch_nebius_imports(sdk, service, FakeJobSpec):
-    """Context manager stack for patching all nebius SDK imports used in _submit_nebius_job."""
+def _patch_nebius_imports(sdk, service, FakeJobSpec, stub_idempotency=True):
+    """Context manager stack for patching all nebius SDK imports used in _submit_nebius_job.
+
+    stub_idempotency (default True) neutralises the S3-backed idempotency marker so
+    the submit-path tests never touch a real boto3 client (a failing S3 call retries
+    for ~25s). It stubs "no prior job" + a no-op marker write. The dedicated
+    idempotency tests pass stub_idempotency=False to exercise the real helpers with
+    an in-memory storage fake.
+    """
     from contextlib import ExitStack
     stack = ExitStack()
     stack.enter_context(patch("services.nebius._make_sdk", return_value=sdk))
     stack.enter_context(patch("services.nebius._delete_nebius_error_jobs"))
     stack.enter_context(patch("services.nebius._get_registry_token", return_value="test-token"))
+    if stub_idempotency:
+        stack.enter_context(patch("services.nebius._existing_live_job", return_value=None))
+        stack.enter_context(patch("services.nebius._write_job_marker"))
     stack.enter_context(patch("nebius.api.nebius.ai.v1.JobServiceClient", return_value=service))
     stack.enter_context(patch("nebius.api.nebius.ai.v1.CreateJobRequest", side_effect=lambda **kw: MagicMock(**kw)))
     stack.enter_context(patch("nebius.api.nebius.ai.v1.JobSpec", FakeJobSpec))
@@ -344,12 +354,15 @@ def test_submit_extraction_job_passes_registry_credentials(monkeypatch):
 
 # ── _submit_nebius_analysis_job ───────────────────────────────────────────────
 
-def _patch_analysis_imports(sdk, service, FakeJobSpec):
+def _patch_analysis_imports(sdk, service, FakeJobSpec, stub_idempotency=True):
     from contextlib import ExitStack
     stack = ExitStack()
     stack.enter_context(patch("services.nebius._make_sdk", return_value=sdk))
     stack.enter_context(patch("services.nebius._delete_nebius_error_jobs"))
     stack.enter_context(patch("services.nebius._get_registry_token", return_value="analysis-token"))
+    if stub_idempotency:
+        stack.enter_context(patch("services.nebius._existing_live_job", return_value=None))
+        stack.enter_context(patch("services.nebius._write_job_marker"))
     stack.enter_context(patch("nebius.api.nebius.ai.v1.JobServiceClient", return_value=service))
     stack.enter_context(patch("nebius.api.nebius.ai.v1.CreateJobRequest", side_effect=lambda **kw: MagicMock(**kw)))
     stack.enter_context(patch("nebius.api.nebius.ai.v1.JobSpec", FakeJobSpec))
@@ -643,24 +656,48 @@ def test_analysis_job_fails_over_too(monkeypatch):
     assert service.create.call_count == 2
 
 
-def test_accept_then_stall_provisioning_triggers_failover(monkeypatch):
-    """The #81 gap: a job accepted but stuck in PROVISIONING with 0 instances past
-    the probe deadline (the zero-capacity accept-then-stall signature) must be
-    classified _NEVER_PROVISIONED → deleted → failed over to the next rung.
+def test_slow_provisioning_probe_returns_pending_not_never_provisioned(monkeypatch):
+    """REGRESSION (the days-costly bug): _await_provisioning must return
+    _PENDING_PROVISION — NOT _NEVER_PROVISIONED — for a job still in PROVISIONING
+    with zero instances past the probe deadline.
 
-    Before the fix this returned _PROVISIONED (pending) and the job stalled forever.
-    The stall state is PROVISIONING (1) with 0 instances and no started_at — it is
-    NOT a terminal-failure state, so it reaches the deadline branch, unlike the
-    terminal-failure failover tests above.
+    Nebius Jobs take MINUTES to provision, so a job still PROVISIONING at the ~30-90s
+    deadline is a healthy slow start, not a capacity miss. The old code classified it
+    _NEVER_PROVISIONED, which made the caller delete it and walk the whole preset
+    ladder recreating jobs.
     """
-    _failover_env(monkeypatch)  # JOB_PROVISION_PROBE_SECS=0 → deadline hits at once
+    monkeypatch.setenv("JOB_PROVISION_PROBE_SECS", "0")  # deadline fires immediately
+    monkeypatch.setenv("JOB_PROVISION_POLL_SECS", "0")
+
+    from services.nebius import _await_provisioning, _PENDING_PROVISION, _NEVER_PROVISIONED
+
+    service = MagicMock()
+    # PROVISIONING (1), 0 instances, never started → healthy slow start.
+    service.get.return_value = _wrap(_make_mock_job("job-slow", _make_status(state=1, instances=0, started=False)))
+
+    with patch("nebius.api.nebius.ai.v1.GetJobRequest", side_effect=lambda **kw: MagicMock(**kw)):
+        outcome = _await_provisioning(service, "job-slow")
+
+    assert outcome == _PENDING_PROVISION
+    assert outcome != _NEVER_PROVISIONED
+
+
+def test_slow_provisioning_submit_returns_pending_no_failover_no_delete(monkeypatch):
+    """REGRESSION (the days-costly bug, end-to-end): a job still PROVISIONING at the
+    probe deadline must be RETURNED as pending on the SAME job id — the submitter
+    must NOT delete it and must NOT advance to a second preset.
+
+    Before the fix this deleted job-1 and created job-2 (walking the ladder,
+    spawning duplicate/phantom jobs). After the fix: exactly one create, zero
+    deletes, and the returned job id is the slow job the frontend keeps polling.
+    """
+    _failover_env(monkeypatch)  # 2-rung ladder + JOB_PROVISION_PROBE_SECS=0
 
     sdk, service = _make_sdk_and_service()
     service.create.side_effect = [_make_create_result("job-1"), _make_create_result("job-2")]
-    # job-1: PROVISIONING (1), 0 instances, never started → accept-then-stall.
-    stalled = _make_mock_job("job-1", _make_status(state=1, instances=0, started=False))
-    running = _make_mock_job("job-2", _make_status(state=3, instances=1, started=True))
-    service.get.side_effect = [_wrap(stalled), _wrap(running)]
+    # job-1: PROVISIONING (1), 0 instances, never started → healthy slow start.
+    slow = _make_mock_job("job-1", _make_status(state=1, instances=0, started=False))
+    service.get.side_effect = [_wrap(slow)]
     service.delete.return_value = _wrap(MagicMock())
 
     FakeJobSpec = _make_jobspec_class()
@@ -668,9 +705,10 @@ def test_accept_then_stall_provisioning_triggers_failover(monkeypatch):
         from services.nebius import _submit_nebius_job
         result = _submit_nebius_job("upload-abc", "2025-01")
 
-    assert result["id"] == "job-2"          # failed over to rung 2
-    assert service.create.call_count == 2   # both rungs tried
-    service.delete.assert_called_once()     # stalled rung-1 scaffolding deleted
+    assert result["id"] == "job-1"          # SAME job returned (not a new preset)
+    assert result["status"] == "pending"
+    assert service.create.call_count == 1   # did NOT advance to rung 2
+    service.delete.assert_not_called()      # did NOT kill the healthy slow job
 
 
 def test_job_vanished_during_probe_triggers_failover(monkeypatch):
@@ -690,6 +728,121 @@ def test_job_vanished_during_probe_triggers_failover(monkeypatch):
 
     assert result["id"] == "job-2"
     assert service.create.call_count == 2
+
+
+# ── Idempotent submit (dedupe per key) ────────────────────────────────────────
+
+class _FakeStore:
+    """In-memory stand-in for services.storage's JSON object round-trip."""
+
+    def __init__(self):
+        self.objects: dict[str, dict] = {}
+
+    def download_json(self, key):
+        if key not in self.objects:
+            raise KeyError(key)  # stands in for a NoSuchKey / missing marker
+        return self.objects[key]
+
+    def put_json(self, key, data):
+        self.objects[key] = data
+        return key
+
+
+def test_extraction_submit_is_idempotent_per_upload_and_period(monkeypatch):
+    """Two submits with the same (upload_id, period) create the underlying job ONCE;
+    the second returns the SAME job id from the durable marker (no duplicate)."""
+    _failover_env(monkeypatch)
+
+    store = _FakeStore()
+    sdk, service = _make_sdk_and_service("job-idem")
+    # Exactly ONE create result: a second real create would raise StopIteration and
+    # fail the test loudly — which is the point (there must be no second create).
+    service.create.side_effect = [_make_create_result("job-idem")]
+    service.get.side_effect = [_wrap(_make_mock_job("job-idem", _make_status(state=3, instances=1, started=True)))]
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_nebius_imports(sdk, service, FakeJobSpec, stub_idempotency=False), \
+         patch("services.storage.download_json", side_effect=store.download_json), \
+         patch("services.storage.put_json", side_effect=store.put_json), \
+         patch("services.nebius.get_job_status", return_value={"status": "pending"}):
+        from services.nebius import _submit_nebius_job
+        first = _submit_nebius_job("upload-xyz", "2025-01")
+        second = _submit_nebius_job("upload-xyz", "2025-01")
+
+    assert first["id"] == "job-idem"
+    assert second["id"] == "job-idem"           # same job, reused from the marker
+    assert service.create.call_count == 1        # created exactly ONCE
+    assert "jobs/upload-xyz__2025-01.json" in store.objects
+
+
+def test_terminally_failed_prior_job_allows_resubmit(monkeypatch):
+    """A prior job that is terminally FAILED must NOT block a fresh submit."""
+    _failover_env(monkeypatch)
+
+    store = _FakeStore()
+    store.objects["jobs/upload-xyz__2025-01.json"] = {
+        "job_id": "old-failed", "nebius_job_name": "n", "period": "2025-01",
+        "createdAt": "2025-01-01T00:00:00+00:00",
+    }
+    sdk, service = _make_sdk_and_service("job-new")
+    service.create.side_effect = [_make_create_result("job-new")]
+    service.get.side_effect = [_wrap(_make_mock_job("job-new", _make_status(state=3, instances=1, started=True)))]
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_nebius_imports(sdk, service, FakeJobSpec, stub_idempotency=False), \
+         patch("services.storage.download_json", side_effect=store.download_json), \
+         patch("services.storage.put_json", side_effect=store.put_json), \
+         patch("services.nebius.get_job_status", return_value={"status": "failed"}):
+        from services.nebius import _submit_nebius_job
+        result = _submit_nebius_job("upload-xyz", "2025-01")
+
+    assert result["id"] == "job-new"             # a NEW job WAS created
+    assert service.create.call_count == 1
+
+
+def test_marker_read_failure_is_swallowed_and_submit_proceeds(monkeypatch):
+    """A storage outage (read AND write raise) must never block submission — the
+    idempotency marker is best-effort, not on the critical path."""
+    _failover_env(monkeypatch)
+
+    sdk, service = _make_sdk_and_service("job-ok")
+    service.create.side_effect = [_make_create_result("job-ok")]
+    service.get.side_effect = [_wrap(_make_mock_job("job-ok", _make_status(state=3, instances=1, started=True)))]
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_nebius_imports(sdk, service, FakeJobSpec, stub_idempotency=False), \
+         patch("services.storage.download_json", side_effect=RuntimeError("S3 down")), \
+         patch("services.storage.put_json", side_effect=RuntimeError("S3 down")), \
+         patch("services.nebius.get_job_status", return_value={"status": "pending"}):
+        from services.nebius import _submit_nebius_job
+        result = _submit_nebius_job("upload-xyz", "2025-01")
+
+    assert result["id"] == "job-ok"              # storage outage never blocks submit
+    assert service.create.call_count == 1
+
+
+def test_analysis_submit_is_idempotent_per_period(monkeypatch):
+    """The analysis path dedupes per period (its idempotency key)."""
+    _failover_env(monkeypatch, image_key="ANALYSIS_JOB_IMAGE")
+
+    store = _FakeStore()
+    sdk, service = _make_sdk_and_service("an-idem")
+    service.create.side_effect = [_make_create_result("an-idem")]
+    service.get.side_effect = [_wrap(_make_mock_job("an-idem", _make_status(state=3, instances=1, started=True)))]
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_analysis_imports(sdk, service, FakeJobSpec, stub_idempotency=False), \
+         patch("services.storage.download_json", side_effect=store.download_json), \
+         patch("services.storage.put_json", side_effect=store.put_json), \
+         patch("services.nebius.get_job_status", return_value={"status": "running"}):
+        from services.nebius import _submit_nebius_analysis_job
+        first = _submit_nebius_analysis_job("2025-06")
+        second = _submit_nebius_analysis_job("2025-06")
+
+    assert first["id"] == "an-idem"
+    assert second["id"] == "an-idem"
+    assert service.create.call_count == 1
+    assert "jobs/analysis__2025-06.json" in store.objects
 
 
 # ── REAL-SDK JobStatus shape contract ─────────────────────────────────────────

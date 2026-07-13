@@ -167,10 +167,17 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
 
     // A scaled-to-zero endpoint answers 502/503 (incl. ADR-009 capacity) for the
     // upload OR the job submission — sometimes even just after /api/health went
-    // warm. So we don't warm only once: on ANY cold-start error we drop back into
-    // the self-updating "starting up" state, poll /api/health, and RETRY the whole
-    // submit automatically. This is the visible retry — the user never lands on a
-    // dead-end "warming up" message and never has to click again.
+    // warm. On a cold-start error we drop back into the self-updating "starting up"
+    // state, poll /api/health, and retry — but we retry the two steps SEPARATELY so
+    // we never re-run a step that already succeeded:
+    //   • Upload the bytes EXACTLY ONCE on success. A cold-start failure BEFORE the
+    //     upload succeeds stored nothing, so re-warming and retrying the upload is
+    //     safe (not a duplicate). Once the upload succeeds we never re-upload.
+    //   • Retry ONLY the submitJob call on a cold-start 502/503 — never the upload.
+    //     Backend idempotency (keyed on upload_id + period) returns the SAME job, so
+    //     a retried submit can never spawn a duplicate job.
+    // This is the visible retry — the user never lands on a dead-end "warming up"
+    // message and never has to click again.
     const isCold = (err: unknown) =>
       [502, 503].includes((err as { response?: { status?: number } })?.response?.status ?? 0)
     const waitUntilWarm = async (): Promise<boolean> => {
@@ -194,29 +201,54 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
         return
       }
 
+      // 1) Upload the bytes — retried ONLY if the upload itself fails cold (nothing
+      //    was stored yet). On success this runs exactly once; we never re-upload.
+      let uploadId: string
+      let detectedPeriod: string
       for (;;) {
         try {
           setUploadPct(0)
           setUploadPhase('sending')
           // period is the client-side fallback — the backend still auto-detects
           // per document and returns the resolved period; use that downstream.
-          const { uploadId, period: detectedPeriod } = await api.upload(
+          const res = await api.upload(
             files, period || undefined,
             // Once the bytes are all sent, the request is waiting on the server —
             // flip to 'processing' so the UI stops implying it's stuck.
             (pct) => { setUploadPct(pct); if (pct >= 100) setUploadPhase('processing') },
             fileNames,
           )
-          setUploadPhase('processing')
-          setPeriod(detectedPeriod)
+          uploadId = res.uploadId
+          detectedPeriod = res.period
+          break
+        } catch (err: unknown) {
+          if (isCold(err) && Date.now() - startedAt < MAX_MS) {
+            // Cold-start before the upload landed → warm again, then retry upload.
+            if (await waitUntilWarm()) continue
+            setError('The analysis service is still starting up after being idle. Please try again in a minute.')
+            return
+          }
+          setError(err instanceof Error ? err.message : 'Upload failed')
+          return
+        }
+      }
+      setUploadPhase('processing')
+      setPeriod(detectedPeriod)
+
+      // 2) Submit the extraction job — retried ONLY here on a cold-start 502/503.
+      //    We NEVER re-upload the bytes. Backend idempotency (upload_id + period)
+      //    guarantees the SAME job id is returned, so a retried submit can never
+      //    spawn a duplicate job.
+      for (;;) {
+        try {
           const job = await api.submitJob(uploadId, detectedPeriod)
           setJobId(job.id)
           setStep(1)
           return
         } catch (err: unknown) {
           if (isCold(err) && Date.now() - startedAt < MAX_MS) {
-            // Cold-start on upload or submit → warm again, then retry the submit.
-            if (await waitUntilWarm()) continue
+            // Cold-start on submit → warm again, then retry ONLY the submit.
+            if (await waitUntilWarm()) { setUploadPhase('processing'); continue }
             setError('The analysis service is still starting up after being idle. Please try again in a minute.')
             return
           }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""One-command, offline demo of the Accept-then-Stall Capacity Probe + Failover
-Ladder (see docs/capacity-probe-pattern.md, ADR-009).
+"""One-command, offline demo of the Capacity Probe + Failover Ladder
+(see docs/capacity-probe-pattern.md, ADR-009).
 
 This drives the *real* `_submit_job_with_failover` from
 `backend/services/nebius.py`. The only things mocked are the Nebius SDK boundary
@@ -11,10 +11,13 @@ logic under test is production code, unmodified.
 Scenario:
   * `JOB_PRESET_LADDER` = a deliberately-UNPROVISIONABLE first rung followed by a
     working second rung.
-  * Rung 1 is accepted but stalls in PROVISIONING with zero instances past the
-    probe deadline (the accept-then-stall zero-capacity signature).
+  * Rung 1 is accepted but terminally FAILS with zero instances and never reaches
+    compute (the unambiguous never-provisioned / zero-capacity signal).
   * The probe classifies it `_NEVER_PROVISIONED`, deletes the scaffolding, and
     fails over to rung 2, which allocates an instance and runs.
+  * (Note: a job merely still PROVISIONING is a HEALTHY slow start — it is returned
+    as pending and kept, NEVER failed over. Failover is reserved for the terminal
+    capacity failure shown here.)
 
 Run it:
     bash scripts/demo-failover.sh
@@ -71,9 +74,9 @@ def _build_service():
     """A JobServiceClient stand-in that simulates the project + preset failover scenario."""
     service = MagicMock()
     # 4 create attempts:
-    # 1. project-1 preset-1 -> job-1-1 (stalls)
-    # 2. project-1 preset-2 -> job-1-2 (stalls)
-    # 3. project-2 preset-1 -> job-2-1 (stalls)
+    # 1. project-1 preset-1 -> job-1-1 (terminal capacity failure)
+    # 2. project-1 preset-2 -> job-1-2 (terminal capacity failure)
+    # 3. project-2 preset-1 -> job-2-1 (terminal capacity failure)
     # 4. project-2 preset-2 -> job-2-2 (succeeds)
     service.create.side_effect = [
         _wrap(_make_job("job-1-1", _make_status(state=3, instances=1, started=True))),
@@ -81,14 +84,18 @@ def _build_service():
         _wrap(_make_job("job-2-1", _make_status(state=3, instances=1, started=True))),
         _wrap(_make_job("job-2-2", _make_status(state=3, instances=1, started=True))),
     ]
-    stalled1 = _make_job("job-1-1", _make_status(state=1, instances=0, started=False))
-    stalled2 = _make_job("job-1-2", _make_status(state=1, instances=0, started=False))
-    stalled3 = _make_job("job-2-1", _make_status(state=1, instances=0, started=False))
+    # TRUE never-provisioned signal: a terminal FAILED (state=7) with ZERO instances
+    # and never RUNNING. This is the unambiguous capacity-miss the ladder fails over
+    # on. (A job merely still PROVISIONING is a HEALTHY slow start — it is returned
+    # as pending and kept, never failed over; see ADR-009 / _await_provisioning.)
+    failed1 = _make_job("job-1-1", _make_status(state=7, instances=0, started=False))
+    failed2 = _make_job("job-1-2", _make_status(state=7, instances=0, started=False))
+    failed3 = _make_job("job-2-1", _make_status(state=7, instances=0, started=False))
     running = _make_job("job-2-2", _make_status(state=3, instances=1, started=True))
     service.get.side_effect = [
-        _wrap(stalled1),
-        _wrap(stalled2),
-        _wrap(stalled3),
+        _wrap(failed1),
+        _wrap(failed2),
+        _wrap(failed3),
         _wrap(running)
     ]
     service.delete.return_value = _wrap(MagicMock())
@@ -120,7 +127,7 @@ def run_demo() -> dict:
     print(f"JOB_PRESET_LADDER        = {LADDER}")
     print(f"Resolved presets         = {ladder}")
     print(f"Probe window             = {svc._provision_probe_secs()}s "
-          f"(0 => accept-then-stall deadline fires immediately)")
+          f"(rungs terminally fail with 0 instances => never-provisioned)")
     print("-" * 72)
     print("BEFORE: submitting on project-1 preset 1...\n")
 
@@ -144,13 +151,13 @@ def run_demo() -> dict:
     print("\n" + "-" * 72)
     print("AFTER: the ladder healed itself.")
     print(f"  rungs attempted (create calls) : {service.create.call_count}")
-    print(f"  stalled scaffolding deleted     : {service.delete.call_count}")
+    print(f"  never-provisioned scaffolding deleted : {service.delete.call_count}")
     print(f"  final running job id            : {result['id']}")
     print(f"  final job status                : {result['status']}")
     print("=" * 72)
 
     failed_over = service.create.call_count == 4 and result["id"] == "job-2-2"
-    print("RESULT:", "FAILOVER SUCCEEDED (project-1 presets stalled -> project-2 preset-2 running)."
+    print("RESULT:", "FAILOVER SUCCEEDED (project-1 presets capacity-failed -> project-2 preset-2 running)."
           if failed_over else "UNEXPECTED — demo did not fail over as designed.")
 
     return {

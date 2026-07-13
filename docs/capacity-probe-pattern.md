@@ -30,22 +30,28 @@ an HTTP 503.
 
 ## Failure taxonomy
 
-Every submission outcome is classified into one of three buckets. Only one of them
+Every submission outcome is classified into one of four buckets. Only one of them
 triggers failover.
 
 | # | Failure mode | How Archon detects it | How Archon handles it |
 |---|---|---|---|
 | 1 | **Submit-rejected** — the `create` call itself raises a capacity/quota precondition (`FAILED_PRECONDITION`, `RESOURCE_EXHAUSTED`, "quota", "capacity", "unavailable", "insufficient"). | `_is_provisioning_error(exc)` matches the exception text against `_PROVISIONING_ERROR_MARKERS`. Any *other* exception (bad image, malformed spec, auth) is **not** a provisioning error. | **Fail over** to the next ladder rung. A non-provisioning exception is re-raised immediately (it would recur identically on every preset). |
-| 2 | **Accepted-but-never-provisioned** — the job is accepted but never reaches compute: a terminal failure (`FAILED`/`CANCELLED`/`ERROR`) with **zero instances** and never `RUNNING`, a job that vanishes mid-probe (GetJob raises), **or** a job still in `PROVISIONING` with zero instances when the probe window elapses (the accept-then-stall signature). | `_await_provisioning(service, job_id)` returns `_NEVER_PROVISIONED`. The discriminator is **instance-count + terminal-state**, with elapsed-time only as the accept-then-stall backstop — never the primary signal. | Delete the never-provisioned scaffolding (`_safe_delete_job`) so nothing leaks, then **fail over** to the next rung. When the whole ladder is exhausted, raise `ComputeCapacityUnavailable` → **HTTP 503**. |
+| 2 | **Accepted-but-never-provisioned** — the job is accepted but *unambiguously* never reaches compute: a terminal failure (`FAILED`/`CANCELLED`/`ERROR`) with **zero instances** and never `RUNNING`, **or** a job that vanishes mid-probe (GetJob raises — silent teardown). | `_await_provisioning(service, job_id)` returns `_NEVER_PROVISIONED`. The discriminator is **instance-count + terminal-state** — never elapsed time. | Delete the never-provisioned scaffolding (`_safe_delete_job`) so nothing leaks, then **fail over** to the next rung. When the whole ladder is exhausted, raise `ComputeCapacityUnavailable` → **HTTP 503**. |
 | 3 | **App-failure** — the job **reached compute** (`RUNNING` / instances present / `started_at` set) and *then* failed. | `_await_provisioning` returns `_APP_FAILURE` — `has_compute` was true at a terminal-failure state. | **No failover.** Surfaced immediately as a `RuntimeError`. A bug that recurs identically on every preset must not be retried — that would mask the bug and waste money. |
+| 4 | **Still-provisioning (healthy slow start)** — the probe window elapses while the job is still in `PROVISIONING` with zero instances and **no** terminal state. Nebius Jobs legitimately take **minutes** to provision (~5 min cold start), far longer than the probe window. | `_await_provisioning` returns `_PENDING_PROVISION`. | **No failover, no delete.** Return the job as pending and **keep it** — the caller/frontend polls THIS job id to completion on the same machine. Deleting a healthy slow provision and spawning a new preset job was the days-costly bug that walked the whole ladder (CPU→GPU), recreating jobs and spawning phantom "Deleting" churn. |
 
-The distinction between #2 and #3 is the crux: **did the job ever get compute?** If
-no instance was ever allocated, it is a capacity miss worth retrying elsewhere. If
-compute was allocated and the container then failed, it is an application/config
-bug that every preset will reproduce. Elapsed time never decides this — a preset
-*with* capacity allocates an instance quickly, so the probe returns `_PROVISIONED`
-the instant one appears; reaching the deadline with zero instances is itself the
-capacity signal.
+The distinction between #2 and #3 is the crux for *failover vs. app-error*: **did the
+job ever get compute?** If no instance was ever allocated *and* the job is in a
+terminal-failure state (or vanished), it is a capacity miss worth retrying
+elsewhere. If compute was allocated and the container then failed, it is an
+application/config bug that every preset will reproduce.
+
+Elapsed time never decides failover. A job merely still in `PROVISIONING` at the
+deadline (#4) is **not** presumed dead — we cannot tell a healthy slow provision
+from a zero-capacity stall by the clock, so we refuse to guess: it is returned as
+pending and kept, never deleted, never failed over. Failover is reserved for the
+unambiguous never-provisioned signals in #2 (terminal failure with zero instances,
+or a vanished job) and the submit-time precondition in #1.
 
 ## Architecture
 
@@ -59,8 +65,9 @@ Two functions carry the pattern, both in
   error, or fails over. Shared by both `_submit_nebius_job` (extraction) and
   `_submit_nebius_analysis_job` (analysis) — DRY across both pipelines.
 - **`_await_provisioning(service, job_id)`** — the probe. Polls `GetJob` for a
-  bounded window and returns exactly one of `_PROVISIONED`, `_NEVER_PROVISIONED`,
-  or `_APP_FAILURE`.
+  bounded window and returns exactly one of `_PROVISIONED`, `_PENDING_PROVISION`
+  (healthy slow start — kept and returned as pending), `_NEVER_PROVISIONED`, or
+  `_APP_FAILURE`.
 
 Supporting pieces:
 
@@ -77,7 +84,7 @@ Tunables (all read from the environment, with safe defaults):
 | Env var | Default | Meaning |
 |---|---|---|
 | `JOB_PRESET_LADDER` | *(unset)* | Ordered `platform:preset,...` failover ladder. Unset ⇒ live preset then `cpu-d3:8vcpu-32gb`. |
-| `JOB_PROVISION_PROBE_SECS` | `30` | How long the probe waits for a real instance before declaring accept-then-stall. |
+| `JOB_PROVISION_PROBE_SECS` | `90` | How long the probe watches a just-submitted job for a fast provisioning outcome before returning it as pending. Kept generous so a healthy-but-slow provision is returned and KEPT (polled to completion), never killed. |
 | `JOB_PROVISION_POLL_SECS` | `5` | Poll interval inside the probe window. |
 
 ### Flow
@@ -97,6 +104,7 @@ _submit_job_with_failover(build_spec)
         │   _await_provisioning(service, job_id)
         │        │
         │        ├── _PROVISIONED        ► return running job  (poll to completion)
+        │        ├── _PENDING_PROVISION  ► [4] return SAME job as pending  (keep it, poll to completion — NO failover)
         │        ├── _APP_FAILURE        ► [3] raise RuntimeError  (NO failover)
         │        └── _NEVER_PROVISIONED  ► [2] _safe_delete_job → next rung
         │
@@ -150,10 +158,11 @@ real job submitted (quota is 0 and live jobs cost money):
 bash scripts/demo-failover.sh
 ```
 
-The demo sets `JOB_PRESET_LADDER` with a deliberately-unprovisionable first rung,
-mocks the provisioning outcomes, and drives the **real**
+The demo sets `JOB_PRESET_LADDER` with a deliberately-unprovisionable first rung
+(one that terminally fails with zero instances — the unambiguous never-provisioned
+signal), mocks the provisioning outcomes, and drives the **real**
 `_submit_job_with_failover` so you can watch the live log narration fail over from
-the stalled rung to a working one. It is covered in CI by
+the capacity-failed rung to a working one. It is covered in CI by
 `backend/tests/test_demo_failover.py`, alongside the full failover unit suite and
 a real-pysdk `JobStatus` shape contract test in
 `backend/tests/test_nebius_service.py`.
