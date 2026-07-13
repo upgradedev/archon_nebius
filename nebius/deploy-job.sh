@@ -66,8 +66,8 @@ nebius ai job create \
   --name "$JOB_NAME" \
   --parent-id "$NEBIUS_PROJECT_ID" \
   --image "$IMAGE_REF" \
-  --platform "${EXTRACTION_JOB_PLATFORM:-gpu-l40s-a}" \
-  --preset "${EXTRACTION_JOB_PRESET:-1gpu-8vcpu-32gb}" \
+  --platform "${EXTRACTION_JOB_PLATFORM:-cpu-d3}" \
+  --preset "${EXTRACTION_JOB_PRESET:-8vcpu-32gb}" \
   --timeout "${JOB_TIMEOUT:-2h}" \
   "${PREEMPTIBLE_ARGS[@]}" \
   "${ENV_ARGS[@]}"

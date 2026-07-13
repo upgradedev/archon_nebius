@@ -243,6 +243,10 @@ export async function setupApiMocks(page: Page) {
     const path = new URL(req.url()).pathname
 
     // ── reads ──────────────────────────────────────────────────────────────
+    if (method === 'GET' && path.endsWith('/api/health')) {
+      // Warm-before-write probes /api/health first; the mocked endpoint is warm.
+      return fulfillJson(route, { status: 'ok' })
+    }
     if (method === 'GET' && path.endsWith('/api/company-profile')) {
       return fulfillJson(route, COMPANY_PROFILE)
     }

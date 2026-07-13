@@ -189,6 +189,7 @@ _PROVISIONING_ERROR_MARKERS = (
 
 # Provisioning-probe outcome classes.
 _PROVISIONED = "provisioned"
+_PENDING_PROVISION = "pending_provision"
 _NEVER_PROVISIONED = "never_provisioned"
 _APP_FAILURE = "app_failure"
 
@@ -277,8 +278,18 @@ def _is_provisioning_error(exc: Exception) -> bool:
 
 
 def _provision_probe_secs() -> float:
-    """How long to probe a submitted job for a fast provisioning failure."""
-    return float(os.getenv("JOB_PROVISION_PROBE_SECS", "90"))
+    """How long to probe a submitted job for a fast provisioning outcome.
+
+    Kept comfortably UNDER the Firebase BFF ~60s request ceiling so the submit
+    POST returns (with the job as pending) before the BFF times out and the
+    frontend retries — a retry that raced a still-open ~90s probe used to hit the
+    backend before the idempotency marker was written, spawning a duplicate. The
+    marker is now written the instant the job is created (before the probe), so the
+    window is closed either way; a shorter probe just removes the retry entirely in
+    the common case. A slow provision returns pending and is polled to completion,
+    so the probe no longer needs to be generous.
+    """
+    return float(os.getenv("JOB_PROVISION_PROBE_SECS", "25"))
 
 
 def _provision_poll_secs() -> float:
@@ -293,25 +304,34 @@ def _await_provisioning(service, job_id: str) -> str:
                             present / started_at set). The job reached real compute,
                             so we return it as pending and let the caller poll it to
                             completion.
-      * _NEVER_PROVISIONED— terminal failure with zero instances and never RUNNING,
-                            the job vanished mid-provisioning (silent teardown), OR
-                            the probe window elapsed while the job was STILL in
-                            PROVISIONING with zero instances (the accept-then-stall
-                            capacity signature: on a zero-capacity preset the job is
-                            accepted but no instance is ever allocated). Caller
-                            deletes the scaffolding and fails over to the next preset.
+      * _PENDING_PROVISION— the probe window elapsed while the job was STILL in
+                            PROVISIONING with zero instances and NO terminal state.
+                            Nebius AI Jobs legitimately take MINUTES to provision
+                            (~5 min cold start), far longer than the probe window, so
+                            this is a HEALTHY slow start, not a failure. We return it
+                            as pending WITHOUT deleting it: the caller keeps THIS job
+                            and the frontend polls it to completion on the same
+                            machine. Never fail over here — killing a healthy slow
+                            provision and spawning a new preset job was the bug that
+                            walked the whole ladder (CPU->GPU) recreating jobs.
+      * _NEVER_PROVISIONED— an UNAMBIGUOUS never-provisioned signal: a terminal
+                            failure (`FAILED`/`CANCELLED`/`ERROR`) with zero instances
+                            and never RUNNING, or the job vanished mid-provisioning
+                            (GetJob raised — silent teardown). Caller deletes the
+                            scaffolding and fails over to the next preset.
       * _APP_FAILURE      — the job reached compute (RUNNING / instances / started_at)
                             and then failed. This is an application/config bug that
                             would recur identically on every preset, so the caller
                             does NOT fail over (retrying would mask the bug + cost
                             money).
 
-    The primary discriminator is instances-count + terminal-state. Elapsed time is
-    the backstop: a job still in PROVISIONING with zero instances at the deadline is
-    an accept-then-stall capacity miss (_NEVER_PROVISIONED), not a healthy slow job —
-    a preset WITH capacity allocates an instance quickly (the probe returns
-    _PROVISIONED the instant one appears), so reaching the deadline with none means
-    the preset has no capacity for this job.
+    The discriminator is instances-count + terminal-state, NEVER elapsed time. A job
+    stuck in PROVISIONING at the deadline is NOT presumed dead — we cannot tell a
+    healthy slow provision from a zero-capacity stall by the clock, so we refuse to
+    guess: we return _PENDING_PROVISION and keep the job. Failover is reserved for
+    the two signals that are genuinely unambiguous (terminal failure with zero
+    instances, or a vanished job) plus the submission-time quota/precondition error
+    handled by the caller.
     """
     from nebius.api.nebius.ai.v1 import GetJobRequest
 
@@ -345,18 +365,20 @@ def _await_provisioning(service, job_id: str) -> str:
             # caller poll to completion exactly as before.
             return _PROVISIONED
         if time.monotonic() >= deadline:
-            # Still PROVISIONING with zero instances at probe end. This is the
-            # accept-then-stall capacity signature (#81 gap): the job was accepted
-            # but the preset never allocated an instance. A preset WITH capacity
-            # allocates quickly and would have returned _PROVISIONED above, so treat
-            # this as a capacity miss — delete the scaffolding and fail over to the
-            # next rung rather than leaving the job stalled forever in PROVISIONING.
+            # Still PROVISIONING with zero instances at probe end, and NOT in a
+            # terminal state. Nebius Jobs take minutes to provision, so this is a
+            # healthy slow start — NOT a capacity miss. Return it as pending and let
+            # the caller keep THIS job (the frontend polls the same job id to
+            # completion). We deliberately do NOT delete it or fail over: doing so
+            # was the days-costly bug that killed healthy slow provisions at ~30s and
+            # spawned a fresh preset job each time, walking the whole ladder.
             logger.warning(
-                "Job %s still provisioning with 0 instances after %.0fs — "
-                "accept-then-stall capacity miss; failing over to next preset",
+                "Job %s still provisioning with 0 instances after %.0fs — healthy "
+                "slow start (Jobs take minutes); returning it as pending and keeping "
+                "it. The caller polls THIS job to completion; no failover, no new job.",
                 job_id, _provision_probe_secs(),
             )
-            return _NEVER_PROVISIONED
+            return _PENDING_PROVISION
         time.sleep(poll)
 
 
@@ -381,15 +403,25 @@ def _safe_delete_job(service, job_id: str) -> None:
         logger.warning("Could not delete never-provisioned job %s — continuing", job_id)
 
 
-def _submit_job_with_failover(name_prefix, period, default_platform, default_preset, build_spec) -> dict:
+def _submit_job_with_failover(name_prefix, period, default_platform, default_preset, build_spec, on_created=None) -> dict:
     """Submit a Nebius AI Job, failing over across projects and compute preset ladders on
     never-provisioned outcomes only.
 
-    build_spec(platform, preset) -> JobSpec. Each ladder entry is tried AT MOST
-    ONCE, in order. Fails over ONLY when a job never provisioned (terminal failure
-    with zero instances / vanished job / submission-time provisioning error).
-    Reaching compute then failing is surfaced immediately (no failover). When the
-    whole ladder is exhausted, raises ComputeCapacityUnavailable (→ HTTP 503).
+    build_spec(platform, preset) -> JobSpec. on_created(job_dict), if given, is
+    invoked the INSTANT a job is created (right after create succeeds, BEFORE the
+    provisioning probe) with {id, nebius_job_name, period, createdAt} — used to
+    persist the idempotency marker immediately so a retry that races the still-open
+    probe finds it and dedupes instead of spawning a duplicate.
+
+    Each ladder entry is tried AT MOST
+    ONCE, in order. Fails over ONLY when a job is UNAMBIGUOUSLY never-provisioned
+    (terminal failure with zero instances / vanished job / submission-time
+    provisioning error). A job that is still PROVISIONING at the probe deadline is a
+    healthy slow start (Jobs take minutes) — it is returned as pending on THE SAME
+    machine, never deleted, never failed over (the caller/frontend polls that job id
+    to completion). Reaching compute then failing is surfaced immediately (no
+    failover). When the whole ladder is exhausted, raises ComputeCapacityUnavailable
+    (→ HTTP 503).
     """
     from nebius.api.nebius.ai.v1 import JobServiceClient, CreateJobRequest
     from nebius.api.nebius.common.v1 import ResourceMetadata
@@ -434,10 +466,33 @@ def _submit_job_with_failover(name_prefix, period, default_platform, default_pre
                     raise
 
                 job_id = operation.resource_id
+                if on_created is not None:
+                    # Persist the idempotency marker the instant the job exists —
+                    # BEFORE the (bounded) probe — so a retry that races the still-open
+                    # submit finds the marker and dedupes to THIS job. A marker that
+                    # ends up pointing at a job we then delete (never-provisioned
+                    # failover) is self-correcting: the next rung's create overwrites
+                    # it, and _existing_live_job treats a vanished job as "resubmit".
+                    on_created({
+                        "id": job_id,
+                        "nebius_job_name": job_name,
+                        "period": period,
+                        "createdAt": datetime.now(timezone.utc).isoformat(),
+                    })
                 outcome = _await_provisioning(service, job_id)
 
-                if outcome == _PROVISIONED:
-                    logger.info("Job %s provisioned on %s:%s in project=%s (id=%s)", job_name, platform, preset, project_id, job_id)
+                if outcome in (_PROVISIONED, _PENDING_PROVISION):
+                    if outcome == _PROVISIONED:
+                        logger.info("Job %s provisioned on %s:%s in project=%s (id=%s)", job_name, platform, preset, project_id, job_id)
+                    else:
+                        # Healthy slow start — keep THIS job, do NOT delete or fail
+                        # over. The caller polls this job id to completion.
+                        logger.warning(
+                            "Job %s still provisioning on %s:%s in project=%s (id=%s) — "
+                            "returning it as pending; polling continues on the SAME job "
+                            "(no failover, no duplicate job).",
+                            job_name, platform, preset, project_id, job_id,
+                        )
                     return {
                         "id": job_id,
                         "status": "pending",
@@ -465,6 +520,84 @@ def _submit_job_with_failover(name_prefix, period, default_platform, default_pre
     # Reconstruct the representation of what was tried for the exception message
     ladder_repr = [(p, pr) for p in projects for (pl, pr) in presets]
     raise ComputeCapacityUnavailable(name_prefix, ladder_repr, attempts)
+
+
+# ── Idempotent submit (dedupe per key) ────────────────────────────────────────
+# A submit is keyed by a durable S3 marker so a retry (frontend cold-start retry,
+# double-click, or a re-fired request) returns the SAME job instead of spawning a
+# duplicate. Extraction is keyed by (upload_id, period); analysis by period. The
+# marker holds {job_id, nebius_job_name, period, createdAt}. All storage access is
+# fully defensive: a missing/unreadable marker or an undeterminable status degrades
+# to "no prior job — submit", never a crash, so a storage outage only forfeits
+# dedupe, it never breaks submission.
+
+def _job_marker_key(upload_id: str, period: str) -> str:
+    return f"jobs/{upload_id}__{period}.json"
+
+
+def _analysis_marker_key(period: str) -> str:
+    return f"jobs/analysis__{period}.json"
+
+
+def _existing_live_job(marker_key: str, period: str) -> dict | None:
+    """Return an existing NON-terminal job for this idempotency key, else None.
+
+    Reads the durable marker written on the previous submit and queries the job's
+    live status. Anything pending/running/completed => return the existing job dict
+    (do not spawn a duplicate). Terminally failed (FAILED/CANCELLED/ERROR),
+    vanished/not-found, or an unreadable marker => None (a fresh submit is allowed).
+    """
+    from services import storage
+
+    try:
+        marker = storage.download_json(marker_key)
+    except Exception:
+        return None  # no marker / unreadable => no prior job
+    job_id = (marker or {}).get("job_id")
+    if not job_id:
+        return None
+    try:
+        status = get_job_status(job_id)
+    except Exception:
+        # Cannot determine (e.g. the job was deleted / NOT_FOUND) => allow resubmit.
+        return None
+    st = status.get("status")
+    if st == "failed":  # FAILED / CANCELLED / ERROR all map here => allow resubmit
+        return None
+    logger.info(
+        "Idempotent submit: reusing existing job %s (status=%s) for %s — not "
+        "creating a duplicate", job_id, st, marker_key,
+    )
+    return {
+        "id": job_id,
+        "status": st if st in ("running", "completed") else "pending",
+        "period": marker.get("period", period),
+        "documentsCount": 0,
+        "createdAt": marker.get("createdAt", datetime.now(timezone.utc).isoformat()),
+        "nebius_job_name": marker.get("nebius_job_name"),
+    }
+
+
+def _write_job_marker(marker_key: str, job: dict) -> None:
+    """Persist the idempotency marker for a freshly-created job (defensive).
+
+    A write failure is logged and swallowed: the job already exists, so losing the
+    marker only forfeits dedupe for this key — it must never fail the submit.
+    """
+    from services import storage
+
+    try:
+        storage.put_json(marker_key, {
+            "job_id": job.get("id"),
+            "nebius_job_name": job.get("nebius_job_name"),
+            "period": job.get("period"),
+            "createdAt": job.get("createdAt"),
+        })
+    except Exception:
+        logger.warning(
+            "Could not write job idempotency marker %s — continuing (dedupe disabled "
+            "for this key)", marker_key,
+        )
 
 
 def check_nebius_permissions() -> dict:
@@ -499,6 +632,13 @@ def submit_extraction_job(upload_id: str, period: str) -> dict:
 def _submit_nebius_job(upload_id: str, period: str) -> dict:
     from nebius.api.nebius.ai.v1 import JobSpec
     from google.protobuf.duration_pb2 import Duration
+
+    # Idempotency: a prior job for this (upload_id, period) that is still alive is
+    # returned as-is — never spawn a duplicate for a retried submit.
+    marker_key = _job_marker_key(upload_id, period)
+    existing = _existing_live_job(marker_key, period)
+    if existing is not None:
+        return existing
 
     # Fetch the registry token once and reuse across ladder attempts (it is a
     # short-lived IAM token; the whole failover completes well within its TTL).
@@ -549,6 +689,7 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
         default_platform=os.getenv("EXTRACTION_JOB_PLATFORM", "cpu-d3"),
         default_preset=os.getenv("EXTRACTION_JOB_PRESET", "4vcpu-16gb"),
         build_spec=build_spec,
+        on_created=lambda job: _write_job_marker(marker_key, job),
     )
 
 
@@ -657,6 +798,13 @@ def _submit_nebius_analysis_job(period: str) -> dict:
     from nebius.api.nebius.ai.v1 import JobSpec
     from google.protobuf.duration_pb2 import Duration
 
+    # Idempotency: a prior analysis job for this period that is still alive is
+    # returned as-is — never spawn a duplicate for a retried submit.
+    marker_key = _analysis_marker_key(period)
+    existing = _existing_live_job(marker_key, period)
+    if existing is not None:
+        return existing
+
     job_id_env = uuid.uuid4().hex[:8]
     token = _get_registry_token()
 
@@ -694,6 +842,7 @@ def _submit_nebius_analysis_job(period: str) -> dict:
         default_platform=os.getenv("ANALYSIS_JOB_PLATFORM", "cpu-d3"),
         default_preset=os.getenv("ANALYSIS_JOB_PRESET", "4vcpu-16gb"),
         build_spec=build_spec,
+        on_created=lambda job: _write_job_marker(marker_key, job),
     )
 
 

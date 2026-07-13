@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Layout, Typography, Upload as AntUpload, Button,
   Steps, Card, Space, Alert, Tag, theme, Row, Col, Avatar, Tooltip,
-  Table, Select, Checkbox, Progress,
+  Table, Select, Checkbox, Progress, Spin,
 } from 'antd'
 import {
   InboxOutlined, RocketOutlined, CheckCircleOutlined, LogoutOutlined,
@@ -112,6 +112,15 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [uploadPct, setUploadPct] = useState(0)
+  // Upload lifecycle the user can actually see:
+  //   'warming'    = the endpoint was cold; we poll /api/health and only write
+  //                  once it answers, so the write never dies mid-cold-start.
+  //   'sending'    = bytes uploading (deterministic % bar).
+  //   'processing' = bytes are in, waiting on the server (store + submit the job).
+  // This means the user is never left staring at a frozen "Uploading…" or an
+  // unexplained "warming up" while a scaled-to-zero endpoint starts.
+  const [uploadPhase, setUploadPhase] = useState<'warming' | 'sending' | 'processing'>('sending')
+  const [warmWaited, setWarmWaited] = useState(0)
   // Holds the post-analysis redirect timer so it can be cleared on unmount — the
   // Dashboard modal unmounts this component the instant analysis completes.
   const completeTimerRef = useRef<number | null>(null)
@@ -148,20 +157,105 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
     setError(null)
     setSubmitting(true)
     setUploadPct(0)
+    setWarmWaited(0)
+    setUploadPhase('sending')
+
+    const files = fileList.map(f => f.originFileObj as File)
+    const fileNames = fileList.map(f => f.name)
+    const startedAt = Date.now()
+    const MAX_MS = 6 * 60_000
+
+    // A scaled-to-zero endpoint answers 502/503 (incl. ADR-009 capacity) for the
+    // upload OR the job submission — sometimes even just after /api/health went
+    // warm. On a cold-start error we drop back into the self-updating "starting up"
+    // state, poll /api/health, and retry — but we retry the two steps SEPARATELY so
+    // we never re-run a step that already succeeded:
+    //   • Upload the bytes EXACTLY ONCE on success. A cold-start failure BEFORE the
+    //     upload succeeds stored nothing, so re-warming and retrying the upload is
+    //     safe (not a duplicate). Once the upload succeeds we never re-upload.
+    //   • Retry ONLY the submitJob call on a cold-start 502/503 — never the upload.
+    //     Backend idempotency (keyed on upload_id + period) returns the SAME job, so
+    //     a retried submit can never spawn a duplicate job.
+    // This is the visible retry — the user never lands on a dead-end "warming up"
+    // message and never has to click again.
+    const isCold = (err: unknown) =>
+      [502, 503].includes((err as { response?: { status?: number } })?.response?.status ?? 0)
+    const waitUntilWarm = async (): Promise<boolean> => {
+      setUploadPhase('warming')
+      for (;;) {
+        let warm = false
+        try { warm = await api.getHealth() } catch { warm = false }
+        if (warm) return true
+        if (Date.now() - startedAt > MAX_MS) return false
+        await new Promise((r) => setTimeout(r, 6_000))
+        setWarmWaited(Math.round((Date.now() - startedAt) / 1000))
+      }
+    }
+
     try {
-      const files = fileList.map(f => f.originFileObj as File)
-      const fileNames = fileList.map(f => f.name)
-      // period is the client-side fallback — the backend still auto-detects per
-      // document and returns the resolved period; use that for the pipeline.
-      const { uploadId, period: detectedPeriod } = await api.upload(
-        files, period || undefined, setUploadPct, fileNames,
-      )
+      // Proactive warm so the first write rarely hits a cold endpoint at all.
+      let warm = false
+      try { warm = await api.getHealth() } catch { warm = false }
+      if (!warm && !(await waitUntilWarm())) {
+        setError('The analysis service is still starting up after being idle. Please try again in a minute.')
+        return
+      }
+
+      // 1) Upload the bytes — retried ONLY if the upload itself fails cold (nothing
+      //    was stored yet). On success this runs exactly once; we never re-upload.
+      let uploadId: string
+      let detectedPeriod: string
+      for (;;) {
+        try {
+          setUploadPct(0)
+          setUploadPhase('sending')
+          // period is the client-side fallback — the backend still auto-detects
+          // per document and returns the resolved period; use that downstream.
+          const res = await api.upload(
+            files, period || undefined,
+            // Once the bytes are all sent, the request is waiting on the server —
+            // flip to 'processing' so the UI stops implying it's stuck.
+            (pct) => { setUploadPct(pct); if (pct >= 100) setUploadPhase('processing') },
+            fileNames,
+          )
+          uploadId = res.uploadId
+          detectedPeriod = res.period
+          break
+        } catch (err: unknown) {
+          if (isCold(err) && Date.now() - startedAt < MAX_MS) {
+            // Cold-start before the upload landed → warm again, then retry upload.
+            if (await waitUntilWarm()) continue
+            setError('The analysis service is still starting up after being idle. Please try again in a minute.')
+            return
+          }
+          setError(err instanceof Error ? err.message : 'Upload failed')
+          return
+        }
+      }
+      setUploadPhase('processing')
       setPeriod(detectedPeriod)
-      const job = await api.submitJob(uploadId, detectedPeriod)
-      setJobId(job.id)
-      setStep(1)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
+
+      // 2) Submit the extraction job — retried ONLY here on a cold-start 502/503.
+      //    We NEVER re-upload the bytes. Backend idempotency (upload_id + period)
+      //    guarantees the SAME job id is returned, so a retried submit can never
+      //    spawn a duplicate job.
+      for (;;) {
+        try {
+          const job = await api.submitJob(uploadId, detectedPeriod)
+          setJobId(job.id)
+          setStep(1)
+          return
+        } catch (err: unknown) {
+          if (isCold(err) && Date.now() - startedAt < MAX_MS) {
+            // Cold-start on submit → warm again, then retry ONLY the submit.
+            if (await waitUntilWarm()) { setUploadPhase('processing'); continue }
+            setError('The analysis service is still starting up after being idle. Please try again in a minute.')
+            return
+          }
+          setError(err instanceof Error ? err.message : 'Upload failed')
+          return
+        }
+      }
     } finally {
       setSubmitting(false)
     }
@@ -432,16 +526,58 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
 
             {submitting && (
               <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Uploading {fileList.length} file{fileList.length !== 1 ? 's' : ''}…
-                </Text>
-                <Progress
-                  percent={uploadPct}
-                  size="small"
-                  status="active"
-                  style={{ marginTop: 4 }}
-                  format={pct => `${Math.round(((pct ?? 0) / 100) * fileList.length)} / ${fileList.length}`}
-                />
+                {uploadPhase === 'warming' ? (
+                  <>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      <Spin size="small" style={{ marginRight: 8 }} />
+                      Starting the analysis service…
+                    </Text>
+                    <Progress
+                      percent={100}
+                      size="small"
+                      status="active"
+                      showInfo={false}
+                      style={{ marginTop: 4 }}
+                    />
+                    <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+                      The serverless endpoint scales to zero when idle, so the first
+                      use after a pause takes a moment to start (usually under a
+                      minute). Your upload begins automatically the instant it's ready
+                      — no need to click again.{warmWaited > 0 ? ` (waited ${warmWaited}s)` : ''}
+                    </Text>
+                  </>
+                ) : uploadPhase === 'sending' ? (
+                  <>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Uploading {fileList.length} file{fileList.length !== 1 ? 's' : ''}…
+                    </Text>
+                    <Progress
+                      percent={uploadPct}
+                      size="small"
+                      status="active"
+                      style={{ marginTop: 4 }}
+                      format={pct => `${Math.round(((pct ?? 0) / 100) * fileList.length)} / ${fileList.length}`}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      <Spin size="small" style={{ marginRight: 8 }} />
+                      Files received — starting the extraction pipeline…
+                    </Text>
+                    <Progress
+                      percent={100}
+                      size="small"
+                      status="active"
+                      showInfo={false}
+                      style={{ marginTop: 4 }}
+                    />
+                    <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+                      The serverless endpoint may be warming up — first use can take up
+                      to a minute. This keeps running on its own; no need to click again.
+                    </Text>
+                  </>
+                )}
               </div>
             )}
 
