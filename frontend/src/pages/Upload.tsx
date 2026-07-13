@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Layout, Typography, Upload as AntUpload, Button,
   Steps, Card, Space, Alert, Tag, theme, Row, Col, Avatar, Tooltip,
-  Table, Select, Checkbox, Progress,
+  Table, Select, Checkbox, Progress, Spin,
 } from 'antd'
 import {
   InboxOutlined, RocketOutlined, CheckCircleOutlined, LogoutOutlined,
@@ -112,6 +112,11 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [uploadPct, setUploadPct] = useState(0)
+  // 'sending' = bytes still uploading (deterministic % bar); 'processing' = bytes
+  // are in, we're now waiting on the server (store + submit the extraction job).
+  // Splitting these means the user is never left staring at a frozen "Uploading…"
+  // while a cold serverless endpoint warms up behind a silent request.
+  const [uploadPhase, setUploadPhase] = useState<'sending' | 'processing'>('sending')
   // Holds the post-analysis redirect timer so it can be cleared on unmount — the
   // Dashboard modal unmounts this component the instant analysis completes.
   const completeTimerRef = useRef<number | null>(null)
@@ -148,14 +153,20 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
     setError(null)
     setSubmitting(true)
     setUploadPct(0)
+    setUploadPhase('sending')
     try {
       const files = fileList.map(f => f.originFileObj as File)
       const fileNames = fileList.map(f => f.name)
       // period is the client-side fallback — the backend still auto-detects per
       // document and returns the resolved period; use that for the pipeline.
       const { uploadId, period: detectedPeriod } = await api.upload(
-        files, period || undefined, setUploadPct, fileNames,
+        files, period || undefined,
+        // Once the bytes are all sent, the request is waiting on the server —
+        // flip to the 'processing' state so the UI stops implying it's stuck.
+        (pct) => { setUploadPct(pct); if (pct >= 100) setUploadPhase('processing') },
+        fileNames,
       )
+      setUploadPhase('processing')
       setPeriod(detectedPeriod)
       const job = await api.submitJob(uploadId, detectedPeriod)
       setJobId(job.id)
@@ -432,16 +443,38 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
 
             {submitting && (
               <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Uploading {fileList.length} file{fileList.length !== 1 ? 's' : ''}…
-                </Text>
-                <Progress
-                  percent={uploadPct}
-                  size="small"
-                  status="active"
-                  style={{ marginTop: 4 }}
-                  format={pct => `${Math.round(((pct ?? 0) / 100) * fileList.length)} / ${fileList.length}`}
-                />
+                {uploadPhase === 'sending' ? (
+                  <>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Uploading {fileList.length} file{fileList.length !== 1 ? 's' : ''}…
+                    </Text>
+                    <Progress
+                      percent={uploadPct}
+                      size="small"
+                      status="active"
+                      style={{ marginTop: 4 }}
+                      format={pct => `${Math.round(((pct ?? 0) / 100) * fileList.length)} / ${fileList.length}`}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      <Spin size="small" style={{ marginRight: 8 }} />
+                      Files received — starting the extraction pipeline…
+                    </Text>
+                    <Progress
+                      percent={100}
+                      size="small"
+                      status="active"
+                      showInfo={false}
+                      style={{ marginTop: 4 }}
+                    />
+                    <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+                      The serverless endpoint may be warming up — first use can take up
+                      to a minute. This keeps running on its own; no need to click again.
+                    </Text>
+                  </>
+                )}
               </div>
             )}
 
