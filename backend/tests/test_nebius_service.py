@@ -800,6 +800,70 @@ def test_terminally_failed_prior_job_allows_resubmit(monkeypatch):
     assert service.create.call_count == 1
 
 
+def test_vanished_prior_job_allows_resubmit(monkeypatch):
+    """A marker pointing at a job whose status can no longer be determined (deleted /
+    NOT_FOUND -> get_job_status raises) must NOT block a fresh submit."""
+    _failover_env(monkeypatch)
+
+    store = _FakeStore()
+    store.objects["jobs/upload-xyz__2025-01.json"] = {
+        "job_id": "gone", "nebius_job_name": "n", "period": "2025-01",
+        "createdAt": "2025-01-01T00:00:00+00:00",
+    }
+    sdk, service = _make_sdk_and_service("job-fresh")
+    service.create.side_effect = [_make_create_result("job-fresh")]
+    service.get.side_effect = [_wrap(_make_mock_job("job-fresh", _make_status(state=3, instances=1, started=True)))]
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_nebius_imports(sdk, service, FakeJobSpec, stub_idempotency=False), \
+         patch("services.storage.download_json", side_effect=store.download_json), \
+         patch("services.storage.put_json", side_effect=store.put_json), \
+         patch("services.nebius.get_job_status", side_effect=RuntimeError("NOT_FOUND")):
+        from services.nebius import _submit_nebius_job
+        result = _submit_nebius_job("upload-xyz", "2025-01")
+
+    assert result["id"] == "job-fresh"           # vanished prior job => a fresh submit
+    assert service.create.call_count == 1
+
+
+def test_existing_live_job_none_when_marker_lacks_job_id():
+    """A present-but-malformed marker (no job_id) is treated as no prior job."""
+    from services.nebius import _existing_live_job
+    with patch("services.storage.download_json", return_value={"period": "2025-01"}):
+        assert _existing_live_job("jobs/x__2025-01.json", "2025-01") is None
+
+
+def test_marker_written_before_probe_dedupes_racing_retry(monkeypatch):
+    """The cold-start race: the marker must be written the instant the job is created
+    (BEFORE the bounded probe), so a retry that arrives while the first submit is
+    still probing finds the marker and returns the SAME job — no duplicate.
+
+    Simulated by writing the marker via the real on_created path on submit #1, then
+    issuing submit #2 with the SAME args before any second create is possible (only
+    one create result is provided; a second create would raise StopIteration)."""
+    _failover_env(monkeypatch)
+
+    store = _FakeStore()
+    sdk, service = _make_sdk_and_service("job-race")
+    service.create.side_effect = [_make_create_result("job-race")]
+    # Slow provision: still PROVISIONING at the (0s) deadline -> returned as pending.
+    service.get.side_effect = [_wrap(_make_mock_job("job-race", _make_status(state=1, instances=0, started=False)))]
+
+    FakeJobSpec = _make_jobspec_class()
+    with _patch_nebius_imports(sdk, service, FakeJobSpec, stub_idempotency=False), \
+         patch("services.storage.download_json", side_effect=store.download_json), \
+         patch("services.storage.put_json", side_effect=store.put_json), \
+         patch("services.nebius.get_job_status", return_value={"status": "pending"}):
+        from services.nebius import _submit_nebius_job
+        first = _submit_nebius_job("upload-race", "2025-01")   # creates + marks (pre-probe)
+        second = _submit_nebius_job("upload-race", "2025-01")  # races: finds marker
+
+    assert first["id"] == "job-race"
+    assert first["status"] == "pending"           # slow provision returned as pending
+    assert second["id"] == "job-race"             # deduped to the SAME job
+    assert service.create.call_count == 1          # marker written pre-probe => no duplicate
+
+
 def test_marker_read_failure_is_swallowed_and_submit_proceeds(monkeypatch):
     """A storage outage (read AND write raise) must never block submission — the
     idempotency marker is best-effort, not on the critical path."""

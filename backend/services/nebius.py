@@ -278,8 +278,18 @@ def _is_provisioning_error(exc: Exception) -> bool:
 
 
 def _provision_probe_secs() -> float:
-    """How long to probe a submitted job for a fast provisioning failure."""
-    return float(os.getenv("JOB_PROVISION_PROBE_SECS", "90"))
+    """How long to probe a submitted job for a fast provisioning outcome.
+
+    Kept comfortably UNDER the Firebase BFF ~60s request ceiling so the submit
+    POST returns (with the job as pending) before the BFF times out and the
+    frontend retries — a retry that raced a still-open ~90s probe used to hit the
+    backend before the idempotency marker was written, spawning a duplicate. The
+    marker is now written the instant the job is created (before the probe), so the
+    window is closed either way; a shorter probe just removes the retry entirely in
+    the common case. A slow provision returns pending and is polled to completion,
+    so the probe no longer needs to be generous.
+    """
+    return float(os.getenv("JOB_PROVISION_PROBE_SECS", "25"))
 
 
 def _provision_poll_secs() -> float:
@@ -393,11 +403,17 @@ def _safe_delete_job(service, job_id: str) -> None:
         logger.warning("Could not delete never-provisioned job %s — continuing", job_id)
 
 
-def _submit_job_with_failover(name_prefix, period, default_platform, default_preset, build_spec) -> dict:
+def _submit_job_with_failover(name_prefix, period, default_platform, default_preset, build_spec, on_created=None) -> dict:
     """Submit a Nebius AI Job, failing over across projects and compute preset ladders on
     never-provisioned outcomes only.
 
-    build_spec(platform, preset) -> JobSpec. Each ladder entry is tried AT MOST
+    build_spec(platform, preset) -> JobSpec. on_created(job_dict), if given, is
+    invoked the INSTANT a job is created (right after create succeeds, BEFORE the
+    provisioning probe) with {id, nebius_job_name, period, createdAt} — used to
+    persist the idempotency marker immediately so a retry that races the still-open
+    probe finds it and dedupes instead of spawning a duplicate.
+
+    Each ladder entry is tried AT MOST
     ONCE, in order. Fails over ONLY when a job is UNAMBIGUOUSLY never-provisioned
     (terminal failure with zero instances / vanished job / submission-time
     provisioning error). A job that is still PROVISIONING at the probe deadline is a
@@ -450,6 +466,19 @@ def _submit_job_with_failover(name_prefix, period, default_platform, default_pre
                     raise
 
                 job_id = operation.resource_id
+                if on_created is not None:
+                    # Persist the idempotency marker the instant the job exists —
+                    # BEFORE the (bounded) probe — so a retry that races the still-open
+                    # submit finds the marker and dedupes to THIS job. A marker that
+                    # ends up pointing at a job we then delete (never-provisioned
+                    # failover) is self-correcting: the next rung's create overwrites
+                    # it, and _existing_live_job treats a vanished job as "resubmit".
+                    on_created({
+                        "id": job_id,
+                        "nebius_job_name": job_name,
+                        "period": period,
+                        "createdAt": datetime.now(timezone.utc).isoformat(),
+                    })
                 outcome = _await_provisioning(service, job_id)
 
                 if outcome in (_PROVISIONED, _PENDING_PROVISION):
@@ -654,15 +683,14 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
             timeout=Duration(seconds=7200),  # 2 hours
         )
 
-    job = _submit_job_with_failover(
+    return _submit_job_with_failover(
         name_prefix="archon-extract",
         period=period,
         default_platform=os.getenv("EXTRACTION_JOB_PLATFORM", "cpu-d3"),
         default_preset=os.getenv("EXTRACTION_JOB_PRESET", "4vcpu-16gb"),
         build_spec=build_spec,
+        on_created=lambda job: _write_job_marker(marker_key, job),
     )
-    _write_job_marker(marker_key, job)
-    return job
 
 
 def _delete_nebius_error_jobs(period: str, prefix: str, project_id: str = None) -> None:
@@ -808,15 +836,14 @@ def _submit_nebius_analysis_job(period: str) -> dict:
             timeout=Duration(seconds=1800),  # 30 minutes
         )
 
-    job = _submit_job_with_failover(
+    return _submit_job_with_failover(
         name_prefix="archon-analysis",
         period=period,
         default_platform=os.getenv("ANALYSIS_JOB_PLATFORM", "cpu-d3"),
         default_preset=os.getenv("ANALYSIS_JOB_PRESET", "4vcpu-16gb"),
         build_spec=build_spec,
+        on_created=lambda job: _write_job_marker(marker_key, job),
     )
-    _write_job_marker(marker_key, job)
-    return job
 
 
 def _submit_local_analysis_job(period: str) -> dict:
