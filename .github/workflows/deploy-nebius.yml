@@ -261,45 +261,18 @@ jobs:
               sdk.sync_close()
           PYEOF
 
-      - name: Delete existing backend endpoint if present
+      # Blue/green: each deploy creates a UNIQUELY NAMED endpoint and only
+      # deletes the previous one after the new one is RUNNING and DNS points
+      # at it. Never reuse an endpoint name: re-creating a name whose previous
+      # endpoint died in ERROR/PROVISIONING wedges the platform-side backing
+      # application — every subsequent create with that name hangs in
+      # PROVISIONING or goes ERROR while identical specs under a fresh name
+      # provision in ~5 min (root-caused 2026-07-13 via A/B endpoint clones;
+      # the name "archon-backend" itself became undeployable).
+      - name: Choose unique backend endpoint name
         run: |
-          EXISTING=$(nebius ai endpoint list \
-            --parent-id "$NEBIUS_PROJECT_ID" \
-            --format json 2>/dev/null | \
-            python3 -c "
-          import sys, json
-          data = json.load(sys.stdin)
-          for ep in data.get('items', []):
-              if ep.get('metadata', {}).get('name') == 'archon-backend':
-                  print(ep['metadata']['id'])
-                  break
-          " 2>/dev/null || echo "")
-          if [ -n "$EXISTING" ]; then
-            echo "Deleting existing endpoint $EXISTING"
-            nebius ai endpoint delete --id "$EXISTING"
-            echo "Waiting for endpoint deletion to complete..."
-            for i in $(seq 1 30); do
-              STILL_EXIST=$(nebius ai endpoint list \
-                --parent-id "$NEBIUS_PROJECT_ID" \
-                --format json 2>/dev/null | \
-                python3 -c "
-              import sys, json
-              data = json.load(sys.stdin)
-              for ep in data.get('items', []):
-                  if ep.get('metadata', {}).get('name') == 'archon-backend':
-                      print(ep['metadata']['id'])
-                      break
-              " 2>/dev/null || echo "")
-              if [ -z "$STILL_EXIST" ]; then
-                echo "Endpoint deleted successfully from Nebius."
-                break
-              fi
-              echo "  Still deleting... (attempt $i/30)"
-              sleep 10
-            done
-          else
-            echo "No existing backend endpoint to delete"
-          fi
+          echo "ENDPOINT_NAME=archon-backend-r${{ github.run_number }}" >> $GITHUB_ENV
+          echo "Deploying endpoint: archon-backend-r${{ github.run_number }}"
 
       - name: Deploy archon-backend (CPU endpoint)
         env:
@@ -327,8 +300,13 @@ jobs:
           fi
           echo "Selected Subnet ID: $SUBNET_ID"
 
-          nebius ai endpoint create \
-            --name archon-backend \
+          # Bounded create: a healthy endpoint returns in ~3-8 min. If the CLI
+          # is still blocked after 15 min the endpoint is wedged — dump status
+          # + container logs for diagnosis and fail instead of eating the
+          # 30-min job timeout with no evidence.
+          set +e
+          timeout 900 nebius ai endpoint create \
+            --name "$ENDPOINT_NAME" \
             --parent-id "$NEBIUS_PROJECT_ID" \
             --image "$GHCR_BACKEND_IMAGE" \
             --container-port 443 \
@@ -367,7 +345,29 @@ jobs:
             --env "DUCKDNS_TOKEN=$DUCKDNS_TOKEN" \
             --env "DUCKDNS_SUBDOMAIN=archon-api" \
             --env "CADDY_DOMAIN=archon-api.duckdns.org"
-
+          CREATE_STATUS=$?
+          set -e
+          if [ "$CREATE_STATUS" -ne 0 ]; then
+            echo "Endpoint create failed or timed out (exit $CREATE_STATUS). Diagnostics:" >&2
+            EP_ID=$(nebius ai endpoint list --parent-id "$NEBIUS_PROJECT_ID" --format json 2>/dev/null | \
+              python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          import os
+          for ep in data.get('items', []):
+              if ep.get('metadata', {}).get('name') == os.environ['ENDPOINT_NAME']:
+                  print(ep['metadata']['id'])
+                  break
+          " 2>/dev/null || echo "")
+            if [ -n "$EP_ID" ]; then
+              nebius ai endpoint get --id "$EP_ID" --format json >&2 || true
+              echo "--- container logs (if any) ---" >&2
+              timeout 30 nebius ai endpoint logs "$EP_ID" --since 1h >&2 || true
+              echo "Deleting failed endpoint $EP_ID (the previous endpoint keeps serving)." >&2
+              nebius ai endpoint delete --id "$EP_ID" || true
+            fi
+            exit 1
+          fi
 
       - name: Verify Object Storage round-trip (real region/creds)
         # Catches storage misconfig (e.g. the eu-north1-vs-eu-west1 SigV4 mismatch
@@ -396,32 +396,80 @@ jobs:
               sys.exit(1)
           PYEOF
 
-      - name: Get backend public URL
+      - name: Wait for RUNNING and repoint DuckDNS at the ingress IP
+        env:
+          DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
         run: |
-          echo "Waiting for endpoint to receive a public IP..."
+          # start.sh's in-container ipify update reports the EGRESS IP, which
+          # can differ from the ingress IP clients connect to. Take the
+          # authoritative ingress IP from status.public_endpoints instead.
+          INGRESS_IP=""
           for i in $(seq 1 20); do
-            URL=$(nebius ai endpoint list \
+            STATE_AND_IP=$(nebius ai endpoint list \
               --parent-id "$NEBIUS_PROJECT_ID" \
               --format json 2>/dev/null | \
               python3 -c "
-          import sys, json
+          import sys, json, os, re
           data = json.load(sys.stdin)
           for ep in data.get('items', []):
-              if ep.get('metadata', {}).get('name') == 'archon-backend':
-                  eps = ep.get('status', {}).get('public_endpoints', [])
-                  if eps: print(eps[0])
+              if ep.get('metadata', {}).get('name') == os.environ['ENDPOINT_NAME']:
+                  st = ep.get('status', {})
+                  ip = ''
+                  for pe in st.get('public_endpoints', []) or []:
+                      m = re.match(r'^([0-9.]+):\\d+$', pe)
+                      if m:
+                          ip = m.group(1)
+                          break
+                  print((st.get('state') or '') + ' ' + ip)
                   break
           " 2>/dev/null || true)
-            if [ -n "$URL" ]; then
-              echo ""
-              echo "========================================================"
-              echo "Backend deployed successfully!"
-              echo "Container IP: $URL (port 443)"
-              echo "Public HTTPS URL: https://archon-api.duckdns.org"
-              echo "(DuckDNS IP will be updated by start.sh on first boot)"
-              echo "========================================================"
+            STATE=$(echo "$STATE_AND_IP" | cut -d' ' -f1)
+            INGRESS_IP=$(echo "$STATE_AND_IP" | cut -d' ' -f2)
+            echo "  $ENDPOINT_NAME state=$STATE ip=${INGRESS_IP:-<none>} (attempt $i/20)"
+            if [ "$STATE" = "RUNNING" ] && [ -n "$INGRESS_IP" ]; then
               break
             fi
-            echo "  Attempt $i/20 — waiting 15s..."
+            if [ "$STATE" = "ERROR" ]; then
+              echo "Endpoint went to ERROR after create returned." >&2
+              exit 1
+            fi
             sleep 15
+          done
+          if [ "$STATE" != "RUNNING" ] || [ -z "$INGRESS_IP" ]; then
+            echo "Endpoint did not reach RUNNING with a public IP in time." >&2
+            exit 1
+          fi
+          RESP=$(curl -sS "https://www.duckdns.org/update?domains=archon-api&token=${DUCKDNS_TOKEN}&ip=${INGRESS_IP}")
+          if [ "$RESP" != "OK" ]; then
+            echo "DuckDNS update failed: $RESP" >&2
+            exit 1
+          fi
+          echo ""
+          echo "========================================================"
+          echo "Backend deployed successfully!"
+          echo "Endpoint: $ENDPOINT_NAME  ingress IP: $INGRESS_IP (port 443)"
+          echo "Public HTTPS URL: https://archon-api.duckdns.org"
+          echo "========================================================"
+
+      - name: Clean up superseded backend endpoints
+        run: |
+          # Only after the new endpoint is RUNNING and DNS points at it.
+          # Sweeps the legacy fixed-name endpoint and older archon-backend-r*
+          # generations (including ERROR leftovers from failed deploys).
+          nebius ai endpoint list \
+            --parent-id "$NEBIUS_PROJECT_ID" \
+            --format json 2>/dev/null | \
+            python3 -c "
+          import sys, json, os
+          data = json.load(sys.stdin)
+          keep = os.environ['ENDPOINT_NAME']
+          for ep in data.get('items', []):
+              name = ep.get('metadata', {}).get('name', '')
+              if name == keep:
+                  continue
+              if name == 'archon-backend' or name.startswith('archon-backend-'):
+                  print(ep['metadata']['id'] + ' ' + name)
+          " | while read -r EP_ID EP_NAME; do
+            echo "Deleting superseded endpoint $EP_NAME ($EP_ID)"
+            nebius ai endpoint delete --id "$EP_ID" || echo "  (delete failed — clean up manually)"
           done
