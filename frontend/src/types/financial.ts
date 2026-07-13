@@ -89,13 +89,14 @@ export interface KeyMetrics {
   collectionRatePct: number
 }
 
-// Payroll-gap insight — the core "hidden cost" story. The bank transfer (net)
-// understates the true employer cost. Optional: present only when the report
-// fused a payroll event.
+// Payroll reconciliation — the bank transfer is only the net-wages component;
+// withheld payroll taxes + the employer's own contributions reconcile up to the
+// register's true employer cost. Optional: present only when the report fused a
+// payroll event.
 export interface PayrollGap {
-  bankTransferNet: number      // what actually left the account (net transfer)
+  bankTransferNet: number      // the net-wages component that left the account
   trueEmployerCost: number     // gross pay + employer social security
-  gapPct: number               // full understatement over the bank figure: (true / bank − 1) × 100 (~72%)
+  gapPct: number               // true cost reconciled over the bank net: (true / bank − 1) × 100 (~72%)
   employeeCount: number
 }
 

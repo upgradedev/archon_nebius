@@ -212,7 +212,7 @@ test.describe('demo mode — full judge journey, zero backend', () => {
     const cases: { q: string; expect: RegExp }[] = [
       { q: 'What was the net profit this period?', expect: /Net profit was €24,550 .* 25\.5% operating margin/ },
       { q: "What's the total employer cost?", expect: /true employer cost is €18,400 across 6 employees/ },
-      { q: 'How much did the bank transfer understate the true payroll cost?', expect: /bank moved €10,700.*€18,400.*72% understatement.*€7,700 hidden/ },
+      { q: 'How does the bank transfer reconcile to the true payroll cost?', expect: /bank moved €10,700.*€18,400.*72% more.*€7,700/ },
       { q: 'Which vendors cost the most?', expect: /Amazon Web Services \(€7,420\).*Google Cloud \(€4,180\).*Metro Toll Systems \(€2,960\)/ },
       { q: 'Were there any validation issues?', expect: /All 4 cross-document checks passed \(R1–R4\)\. No validation issues/ },
       { q: 'How much cash did the business generate?', expect: /Net cash generated was €11,900 .*92\.4% collection rate/ },

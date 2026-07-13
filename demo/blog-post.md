@@ -22,7 +22,7 @@ The clearest example of "the documents disagree" is a single payroll event, whic
 | Payslip | Gross − employee contributions − tax | €1,430 net / €2,000 gross |
 | Payroll register | Gross **+ employer** contributions | €2,446 true cost |
 
-The business actually spends about **€2,446** to employ that person, but the bank debit only shows **€1,430**. Software that reads only the bank statement silently under-reports workforce cost — here the true employer cost is about **72% above** what left the bank (the employer's own social-security contribution alone is ~35% of the transfer; the rest is the tax and social security withheld from the employee), and payroll is the single largest cost centre for most SMBs.
+The business actually spends about **€2,446** to employ that person, but the bank debit only shows **€1,430** — the net-wages component. Software that reads only the bank statement sees only that component; here the register's true employer cost reconciles to about **72% above** what left the bank (the employer's own social-security contribution alone is ~35% of the transfer; the rest is the tax and social security withheld from the employee), and payroll is the single largest cost centre for most SMBs.
 
 No single document can be trusted alone. The fix is to *fuse* the three into one event and read the right figure for the right question. That is a dedicated agent:
 
@@ -84,13 +84,13 @@ The cross-document checks are equally auditable. `ValidatorAgent` runs four name
 
 ## Measuring it — and an honest caveat
 
-A claim like "we surface the ~72% gap" is worth nothing without a number behind it, so the repo ships an **evaluation harness** (`eval/`) that scores the *real* pipeline agents against a labelled synthetic corpus. It runs offline, no API key, only `pydantic`:
+A claim like "the true payroll cost reconciles to ~72% over the bank net" is worth nothing without a number behind it, so the repo ships an **evaluation harness** (`eval/`) that scores the *real* pipeline agents against a labelled synthetic corpus. It runs offline, no API key, only `pydantic`:
 
 ```bash
 python eval/generate_corpus.py && python eval/evaluate.py
 ```
 
-On the deterministic 40-case corpus, under perfect extraction the `PnLAgent` reports employer cost to the cent, and the naive bank-only view understates workforce cost by **€133,381 (~72% over the bank figure)** across the corpus. The thesis is verified, not asserted.
+On the deterministic 40-case corpus, under perfect extraction the `PnLAgent` reports employer cost to the cent, and the register's true employer cost reconciles to **€133,381 more than the naive bank-only view (~72% over the bank figure)** across the corpus — every euro tied to a source document. The thesis is verified, not asserted.
 
 The uncomfortable first result — the entire reason to build a harness — was that two of the four validation rules were **dormant**: R2 and R4 fired 0/37 times because they read fields (`employer_cost_total`, `net_pay_total`, `employee_count`) the extraction prompt never requested. The harness turned that from an unknown into a measured 0/37 with file-and-line evidence and a one-prompt fix. We wired those fields into the extractor, and the same harness now measures **37/37** — R2 and R4 fire on every applicable case, before-and-after proven, not asserted. The full write-up is in [`eval/BASELINE.md`](https://github.com/upgradedev/archon_nebius/blob/master/eval/BASELINE.md). Finding it before a customer does is the whole point.
 

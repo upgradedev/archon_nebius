@@ -108,9 +108,9 @@ export const REPORT = {
     },
     executiveSummary:
       'January closed with revenue of EUR 96,400 and a net profit of EUR 24,550 — a 25.5% ' +
-      'operating margin. The defining correction is payroll: the bank moved EUR 10,700 in net ' +
-      'transfers, but the Event Linker recovered the true employer cost of EUR 18,400 — about a ' +
-      '72% understatement a bank-only close would have missed.\n\n' +
+      'operating margin. The defining reconciliation is payroll: the bank moved EUR 10,700 in net ' +
+      'wages, and the Event Linker reconciled the register\'s true employer cost of EUR 18,400 — ' +
+      'about 72% more, every euro tied to a source document.\n\n' +
       // The grounded narrator ends with a "Sources:" line whose citations are
       // separated by " · " (parseSummary splits on the middle dot into tags).
       'Sources: payroll-register-jan.pdf · sales-invoice-001.pdf · bank-confirmation-jan.pdf',

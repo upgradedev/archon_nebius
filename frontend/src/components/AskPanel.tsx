@@ -46,16 +46,17 @@ const QUESTIONS: QA[] = [
   },
   {
     id: 'payroll-gap',
-    q: 'How much did the bank transfer understate the true payroll cost?',
+    q: 'How does the bank transfer reconcile to the true payroll cost?',
     available: (r) => !!r.payrollGap,
     answer: (r) => {
       const g = r.payrollGap!
-      const hidden = g.trueEmployerCost - g.bankTransferNet
+      const reconciled = g.trueEmployerCost - g.bankTransferNet
       return (
-        `The bank moved ${fmt(g.bankTransferNet)}, but the true employer cost is ` +
-        `${fmt(g.trueEmployerCost)} — a ${g.gapPct.toFixed(0)}% understatement ` +
-        `(${fmt(hidden)} hidden). About half of that gap is the employer's own ` +
-        `social-security contribution (~35% over the transfer); the rest is ` +
+        `The bank moved ${fmt(g.bankTransferNet)} in net wages, and the register's ` +
+        `true employer cost is ${fmt(g.trueEmployerCost)} — ${g.gapPct.toFixed(0)}% more ` +
+        `once the withheld payroll taxes and the employer's own social-security ` +
+        `contributions are reconciled back to source documents (${fmt(reconciled)} in all). ` +
+        `The employer contribution alone is ~35% over the transfer; the rest is ` +
         `employee withholdings.`
       )
     },
