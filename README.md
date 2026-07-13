@@ -275,14 +275,32 @@ CORS_ORIGINS=https://archon-pnl.web.app
 
 ## Testing & CI
 
-Four GitHub Actions pipelines guard every change:
+Five GitHub Actions pipelines guard every change:
 
-- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **186 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack. (The offline coverage gate additionally runs the extraction- and analysis-Job suites — 374 Python tests in all — plus `eval/tests`.)
+- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **263 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack. (The offline coverage gate additionally runs the extraction- and analysis-Job suites — 455 Python tests in all — plus `eval/tests`.)
+- **Pen-test (application security)** (the `pen-test` job in `smoke-test.yml`, every PR) — a machine-checkable OWASP-relevant suite that makes **real requests + assertions** against the actual FastAPI app (`TestClient`) and the extraction fence: **authz/authn** (every `/api/**` data route returns 401 unauthenticated — never 200/500), **injection** (upload filename traversal is sanitized; period params are pattern-locked; the prompt-injection fence keeps untrusted document text in the data position while the scanner surfaces smuggled directives), **IDOR / period isolation** (a read for one period can't reach another's artifacts), **sensitive-data exposure** (error bodies carry only an exception type name, tokens aren't logged, documents are ciphertext at rest), and **abuse/DoS-lite** (oversized / malformed uploads → 4xx, never 5xx). See [`backend/tests/test_pentest_*.py`](backend/tests) and [`jobs/extraction/tests/test_pentest_injection_fence.py`](jobs/extraction/tests/test_pentest_injection_fence.py).
 - **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), and a **conditional payroll-cost invariant** (`employer_cost_total ≥ bank net`) asserted for every detected payroll event whose register `employer_cost_total` was extracted. The extraction prompt now requests that field (see [`eval/BASELINE.md`](eval/BASELINE.md) §3), so the invariant is enforced whenever the live extraction returns it, and skips only for an event where it is absent. Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
 - **CodeQL** (`codeql.yml`, every PR + weekly) — SAST over both language families (Python: backend + extraction Job + analysis Endpoint; JavaScript/TypeScript: frontend) with the `security-and-quality` query suite.
 - **Dependency Audit** (`security-audit.yml`, every PR + weekly) — `pip-audit` against all three Python requirement sets and `npm audit` for the frontend; high/critical dependency CVEs fail the build.
 
-Together the four form a layered security posture: **secrets** (gitleaks) · **source** (CodeQL) · **dependencies** (pip-audit / npm audit) · **behaviour** (unit → integration → E2E).
+Together they form a layered security posture: **secrets** (gitleaks) · **source** (CodeQL) · **dependencies** (pip-audit / npm audit) · **application** (pen-test suite) · **behaviour** (unit → integration → E2E).
+
+### Signed-in end-to-end (live authenticated path)
+
+The authenticated browser+BFF path (Firebase sign-in → Bearer token → `/api/upload` → `/api/jobs`) is exercised by [`e2e/test_05_signed_in.py`](e2e/test_05_signed_in.py). The **unauthenticated 401 boundary** in that file needs no credentials and always runs; the offline `pen-test` job makes that same 401 gate a per-PR invariant. Minting a token (or creating the test account) is the one interactive, user-gated step — everything after is one command:
+
+```bash
+# Path A — headless: you already hold a Firebase ID token
+NEBIUS_E2E_SESSION=<id_token> BACKEND_URL=https://archon-api.duckdns.org \
+  python -m pytest e2e/test_05_signed_in.py -v
+
+# Path B — email/password (the test mints the token via Firebase Identity Toolkit)
+E2E_FIREBASE_API_KEY=<web_api_key> NEBIUS_E2E_USER=<email> \
+  NEBIUS_E2E_PASSWORD=<password> BACKEND_URL=https://archon-api.duckdns.org \
+  python -m pytest e2e/test_05_signed_in.py -v
+```
+
+In CI it is the opt-in `signed-in-live` job (`e2e.yml`, manual dispatch / weekly), which accepts either the `NEBIUS_E2E_SESSION` secret or `E2E_FIREBASE_API_KEY` + `E2E_EMAIL` + `E2E_PASSWORD`.
 
 Beyond the gating pipelines, an **opt-in load test** (`load/health-load.js`, k6) exercises the serving layer under a ramp of concurrent virtual users against the public `/api/health` liveness probe, holding p95 latency < 500 ms and error rate < 1%. It is **manual-only** — the `Load Test (k6)` workflow (`load-test.yml`) is `workflow_dispatch`-triggered, so it never blocks a PR. Run it locally with `k6 run load/health-load.js` — see [`load/README.md`](load/README.md).
 
