@@ -68,14 +68,14 @@ jobs:
         run: |
           set -euo pipefail
           # The scripted tour's CTA opens at CTA_START and must hold for CTA_HOLD.
-          # These MUST match scripts/demo-tour.mjs BEATS (CTA opens at REPRO_END=300)
-          # and the default TARGET (300+14=314). The final length is driven by the
+          # These MUST match scripts/demo-tour.mjs BEATS (CTA opens at REPRO_END=340)
+          # and the default TARGET (340+20=360). The final length is driven by the
           # VOICEOVER, but is FLOORED at CTA_START+CTA_HOLD so a voiceover that lands
           # slightly short can never trim away the reproducibility + CTA beats. There
           # is NO upper cap here: the Nebius video target is 3–10 min, and this
           # analytical cut runs ~5–6 min — comfortably inside that window.
-          CTA_START=300
-          CTA_HOLD=14
+          CTA_START=340
+          CTA_HOLD=20
           AUDIO=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 archon-voiceover.mp3)
           echo "audio duration: ${AUDIO}s"
           TARGET=$(python3 -c "print(round(max(float('${AUDIO}')+4, ${CTA_START}+${CTA_HOLD}),1))")

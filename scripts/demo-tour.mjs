@@ -5,12 +5,13 @@
 // the login page. Instead this tour opens the app in DEMO MODE (APP_URL with
 // ?demo=1: the real dashboard rendered from seeded fixtures, no backend, no
 // auth) and records the ACTUAL dashboard for the opening app segment — the P&L,
-// the payroll-gap insight (bank net vs true employer cost), and the R1–R4
-// validation ledger. It then combines that with:
+// the reconciliation insight (bank net reconciled up to true employer cost), and
+// the R1–R4 completeness ledger. It then combines that with:
 //   * rendered VISUAL SLIDES (scripts/slides/*.html) that carry the substance —
-//     the 3-document fusion / 72% gap, the anatomy of the full ~72% understatement,
-//     the Nebius architecture, the evaluation methodology, the measured results,
-//     the R1–R4 cross-document validation, and the reproducibility story.
+//     the 3-document payroll fusion, reconciling the components up to true cost,
+//     the payables/supplier reconciliation, the Nebius architecture, the
+//     evaluation methodology, the measured results, the R1–R4 cross-document
+//     completeness checks, and the reproducibility story.
 //
 // The browser records one continuous webm whose timeline is locked to FIXED
 // absolute beat windows (BEATS below), matched 1:1 to scripts/captions.txt and
@@ -34,9 +35,9 @@ const APP_URL = process.env.APP_URL || "https://archon-pnl.web.app/?demo=1";
 // Absolute end of the closing beat. The fixed beats below never move; only the
 // final CTA stretches to TARGET so the recording is always at least as long as
 // the (regenerated) voiceover. The default mirrors the workflow's duration FLOOR
-// (CTA_START 300 + CTA_HOLD 14) so a local dry-run records the full scripted tour
+// (CTA_START 340 + CTA_HOLD 20) so a local dry-run records the full scripted tour
 // even with a silent voiceover stand-in.
-const TARGET = parseFloat(process.env.TARGET_SECONDS || "314");
+const TARGET = parseFloat(process.env.TARGET_SECONDS || "360");
 
 // Slides live next to this script (scripts/slides/*.html). pathToFileURL keeps
 // Windows-authored paths valid on the Linux CI runner (no backslash strings).
@@ -45,15 +46,16 @@ const slideUrl = (name) => pathToFileURL(path.join(slidesDir, name)).href;
 
 // Fixed absolute beat boundaries (seconds), matched 1:1 to scripts/captions.txt.
 const BEATS = {
-  LANDING_END: 24, //    0–24   Problem — the LIVE landing page
-  FUSION_END: 60, //    24–60   3-doc fusion + the 72% headline    (fusion.html)
-  MECH_END: 96, //      60–96   Anatomy of the ~72% gap            (fusion-mechanics.html)
-  ARCH_END: 138, //     96–138  Nebius Serverless AI architecture  (architecture.html)
-  EVALM_END: 180, //   138–180  How the eval harness measures      (eval-method.html)
-  RESULTS_END: 222, // 180–222  Measured evaluation results        (results.html)
-  VALID_END: 264, //   222–264  Cross-document validation R1–R4    (validation.html)
-  REPRO_END: 300, //   264–300  Reproducible by design             (reproducibility.html)
-  // 300–TARGET  CTA (cta.html)
+  LANDING_END: 34, //    0–34   Intro — the LIVE dashboard (one financial picture)
+  FUSION_END: 91, //    34–91   Payroll — 3-doc fusion                (fusion.html)
+  MECH_END: 134, //     91–134  Reconcile the components to true cost (fusion-mechanics.html)
+  AP_END: 161, //      134–161  Payables — supplier reconciliation    (payables.html)
+  ARCH_END: 201, //    161–201  Nebius Serverless AI architecture     (architecture.html)
+  EVALM_END: 238, //   201–238  How the eval harness measures         (eval-method.html)
+  RESULTS_END: 267, // 238–267  Measured evaluation results           (results.html)
+  VALID_END: 313, //   267–313  Cross-document completeness R1–R4     (validation.html)
+  REPRO_END: 340, //   313–340  Reproducible by design                (reproducibility.html)
+  // 340–TARGET  CTA (cta.html)
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -112,7 +114,7 @@ async function showSlide(label, file, until) {
 }
 
 // ============================================================================
-// 0–24s — PROBLEM: the REAL dashboard in demo mode (P&L → payroll-gap → R1–R4).
+// 0–34s — INTRO: the REAL dashboard in demo mode (P&L → reconciliation → R1–R4).
 // This is the app segment. Unlike the slides, the dashboard MUST actually render
 // — a blank capture here is the whole failure we are fixing — so this beat is
 // HARD-CHECKED (throws, not safe()) and saves a proof screenshot for the CI run.
@@ -131,8 +133,8 @@ await sleep(1500); // let chart animations settle before the proof frame
 await page.screenshot({ path: "video/dashboard-proof.png" }); // uploaded by CI
 console.log("dashboard beat verified: P&L + payroll-gap + R1–R4 all rendered");
 
-// Walk the dashboard within the opening beat: top (P&L + payroll gap) → charts
-// → the R1–R4 validation ledger at the bottom. Timings fit inside [0, 24].
+// Walk the dashboard within the opening beat: top (P&L + reconciliation) → charts
+// → the R1–R4 completeness ledger at the bottom. Timings fit inside [0, 34].
 await sleep(3500); // hold the top — metrics + payroll-gap headline
 await safe("scroll to charts", async () => {
   await smoothScrollTo(page, 640, 3500); // P&L bars + expense breakdown
@@ -148,16 +150,18 @@ await safe("scroll back to top", async () => {
 await waitUntil(BEATS.LANDING_END);
 
 // ============================================================================
-// 24–60s   — 3-DOC FUSION + THE 72% HEADLINE (slide).
-// 60–96s   — ANATOMY OF THE FULL ~72% GAP (slide).
-// 96–138s  — NEBIUS SERVERLESS AI ARCHITECTURE (slide).
-// 138–180s — HOW THE EVAL HARNESS MEASURES (slide).
-// 180–222s — MEASURED EVALUATION RESULTS (slide).
-// 222–264s — CROSS-DOCUMENT VALIDATION R1–R4 (slide).
-// 264–300s — REPRODUCIBLE BY DESIGN (slide).
+// 34–91s   — PAYROLL: 3-DOC FUSION (slide).
+// 91–134s  — RECONCILE THE COMPONENTS UP TO TRUE EMPLOYER COST (slide).
+// 134–161s — PAYABLES: SUPPLIER RECONCILIATION (slide).
+// 161–201s — NEBIUS SERVERLESS AI ARCHITECTURE (slide).
+// 201–238s — HOW THE EVAL HARNESS MEASURES (slide).
+// 238–267s — MEASURED EVALUATION RESULTS (slide).
+// 267–313s — CROSS-DOCUMENT COMPLETENESS R1–R4 (slide).
+// 313–340s — REPRODUCIBLE BY DESIGN (slide).
 // ============================================================================
 await showSlide("fusion slide", "fusion.html", BEATS.FUSION_END);
 await showSlide("fusion-mechanics slide", "fusion-mechanics.html", BEATS.MECH_END);
+await showSlide("payables slide", "payables.html", BEATS.AP_END);
 await showSlide("architecture slide", "architecture.html", BEATS.ARCH_END);
 await showSlide("eval-method slide", "eval-method.html", BEATS.EVALM_END);
 await showSlide("results slide", "results.html", BEATS.RESULTS_END);
@@ -165,7 +169,7 @@ await showSlide("validation slide", "validation.html", BEATS.VALID_END);
 await showSlide("reproducibility slide", "reproducibility.html", BEATS.REPRO_END);
 
 // ============================================================================
-// 300s–end — CTA (slide); hold until the clock reaches TARGET.
+// 340s–end — CTA (slide); hold until the clock reaches TARGET.
 // ============================================================================
 await showSlide("cta slide", "cta.html", TARGET);
 
