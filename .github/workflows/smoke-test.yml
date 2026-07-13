@@ -54,6 +54,43 @@ jobs:
           path: coverage.xml
           if-no-files-found: ignore
 
+  readiness:
+    # Machine-checkable submission readiness against the six equal Nebius
+    # judging criteria. scripts/readiness.py verifies REAL evidence — the cited
+    # symbol is wired into the cited file AND the cited offline test passes —
+    # plus an in-process reproduction of the headline EUR 133,381.71 figure.
+    # Fails the PR if automatable completeness < 95%. Live-endpoint checks are
+    # probed as user-gated only (skipped here with --skip-live), never scored.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install all Python deps (backend + extraction + analysis)
+        run: |
+          pip install -r backend/requirements.txt
+          pip install -r jobs/extraction/requirements.txt
+          pip install -r jobs/analysis/requirements-dev.txt
+
+      - name: Run readiness gate (offline; fails under 95%)
+        run: python scripts/readiness.py --skip-live
+
+      - name: Readiness gate e2e test (asserts the gate runs + offline >= 95%)
+        run: python -m pytest scripts/tests/test_readiness_gate.py -q
+
+      - name: Upload readiness.json
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readiness-report
+          path: readiness.json
+          if-no-files-found: warn
+
   smoke-test:
     runs-on: ubuntu-latest
     timeout-minutes: 45

@@ -78,6 +78,8 @@ The backend endpoint (write path) and the extraction Job (read path) both reach 
 - **Public repo:** https://github.com/upgradedev/archon_nebius
 - **Nebius services used:** AI Endpoint, AI Jobs, Inference API, Object Storage, Managed PostgreSQL, Container Registry
 - **Local run:** `docker compose up --build`
+- **One-command reproducibility (offline, €0, no API key):** `bash scripts/verify-reproducible.sh` reproduces the headline €133,381.71 / ~72% figure from the corpus, runs every offline agent suite, and prints the readiness gate — see [Reproduce it in one command](#reproduce-it-in-one-command).
+- **Readiness gate:** `python scripts/readiness.py` scores this submission against the 6 Nebius judging criteria with real evidence (wiring + passing tests) and writes `readiness.json` — see [Readiness gate](#readiness-gate).
 - **Core invariant (worked example):** linked payroll events use the full employer cost, not the bank-net transfer — one instance of Archon reconciling a source against its supporting documents, here surfacing the workforce-cost gap the bank transfer hides (measured at **~72% over the net transfer**, of which the employer's own social-security contribution is **~35%** — see [`eval/BASELINE.md`](eval/BASELINE.md)).
 
 ---
@@ -125,6 +127,8 @@ flowchart TB
 The design isn't arbitrary; each decision answers a specific problem in SMB finance. If you're building something similar, these are the load-bearing choices.
 
 **Why fuse three documents into one event.** A single payroll run produces a bank confirmation, a payroll register, and individual payslips — and each reports a *different* number. The bank confirmation shows the **net** transfer; the register shows **gross + employer contributions** (the true cost); the payslips sit in between. Reading any one alone is wrong: bank-only understates the real cost of employing a team by roughly **72%** over the net transfer (the employer's own social-security contribution alone is ~35%), and that is usually the largest cost centre in the business. So the `EventLinkerAgent` groups the three by company + period into one `PayrollEvent`, and downstream the P&L reads the register's employer cost while cash flow reads the bank transfer — the same event counted once, correctly, from two angles. This is the general shape Archon applies everywhere: *reconcile what left the bank against the documents that explain it, and refuse to report a number the documents don't support.*
+
+**Why reconcile vendor statements against the invoices we hold.** Fusing payroll answers *"is this number right?"*; the `ReconciliationAgent` answers the other completeness question — *"is a document missing?"*. A vendor's statement of account lists every invoice they billed you; Archon holds the invoices you actually uploaded. The agent (`jobs/analysis/agents/reconciliation_agent.py`) matches the two per vendor and surfaces the gap — "their statement says 4 invoices, we have 3; here is the missing one" — plus any totals discrepancy. Account statements are deliberately kept **out** of the P&L and cash flow (they'd double-count what the invoices already booked); they exist purely as an external reference to catch what never made it into the ledger. It is the same discipline as the payroll fusion, pointed at completeness instead of amount.
 
 **Why a chain of single-responsibility agents** rather than one big prompt. Each agent does one job and is independently testable: `Extractor` (file → structured JSON), `Classifier` (deterministic doc-type refinement, no LLM — keeps model misclassifications out of the accounting layer), `EventLinker` (fusion), `Validator` (named cross-document rules). Small agents mean a failure is localised and every step is assertable in CI — which is why the evaluation harness below can score each agent in isolation.
 
@@ -370,6 +374,44 @@ real Qwen2.5-VL extractor on Nebius ([`eval/LIVE_EXTRACTION.md`](eval/LIVE_EXTRA
   All four rules are active and correct.
   See [`eval/BASELINE.md`](eval/BASELINE.md) §3 for the file:line evidence and the
   one-prompt-change fix.
+
+---
+
+## Reproduce it in one command
+
+A judge or CI can run a single script — **no cloud credentials, no network, €0** —
+and watch the headline claims reproduce from source:
+
+```bash
+bash scripts/verify-reproducible.sh
+```
+
+It (1) re-scores the 40-case corpus and asserts the naive bank-only floor
+understates workforce cost by **€133,381.71 (~72%)**, (2) runs every **offline**
+agent suite (the extraction and analysis pipelines end-to-end against
+deterministic Fake/mocked clients — no Inference API, S3 or Postgres), and
+(3) runs the readiness gate below. Exit code `0` means the repo reproduced its
+own numbers and passed its offline suites.
+
+## Readiness gate
+
+The submission's completeness is itself machine-checked. `scripts/readiness.py`
+encodes the **six equal Nebius judging criteria** as concrete checks backed by
+**real evidence** — not "does a file exist", but "is the cited symbol wired into
+the cited file **and** does the cited offline test actually pass", plus an
+in-process reproduction of the €133,381.71 figure:
+
+```bash
+python scripts/readiness.py            # per-criterion report + readiness.json
+python scripts/readiness.py --skip-live  # fully offline (skip the live probe)
+```
+
+Each check resolves to **pass / fail / user-gated**; live-deployment checks
+(`/api/health` 200, the signed-in E2E) are *probed but never counted* against
+the automatable score — they are the user's to confirm on the live site. The
+gate prints a weighted completeness % over the six criteria, writes
+`readiness.json`, and **fails CI if automatable completeness < 95%**. It runs on
+every push (the `readiness` job in [`.github/workflows/smoke-test.yml`](.github/workflows/smoke-test.yml)).
 
 ---
 
