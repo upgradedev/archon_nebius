@@ -159,51 +159,71 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
     setUploadPct(0)
     setWarmWaited(0)
     setUploadPhase('sending')
-    try {
-      const files = fileList.map(f => f.originFileObj as File)
-      const fileNames = fileList.map(f => f.name)
 
-      // Warm-before-write: the Nebius endpoint scales to zero when idle. Firing
-      // the upload into a cold endpoint times out (~65s) behind a silent bar, and
-      // an imperative write cannot auto-resume the way a react-query read does.
-      // So probe /api/health first; if cold, show an explicit, self-updating
-      // "starting up" state and poll until warm, THEN upload exactly once. A warm
-      // endpoint skips this instantly (getHealth resolves true with no delay).
+    const files = fileList.map(f => f.originFileObj as File)
+    const fileNames = fileList.map(f => f.name)
+    const startedAt = Date.now()
+    const MAX_MS = 6 * 60_000
+
+    // A scaled-to-zero endpoint answers 502/503 (incl. ADR-009 capacity) for the
+    // upload OR the job submission — sometimes even just after /api/health went
+    // warm. So we don't warm only once: on ANY cold-start error we drop back into
+    // the self-updating "starting up" state, poll /api/health, and RETRY the whole
+    // submit automatically. This is the visible retry — the user never lands on a
+    // dead-end "warming up" message and never has to click again.
+    const isCold = (err: unknown) =>
+      [502, 503].includes((err as { response?: { status?: number } })?.response?.status ?? 0)
+    const waitUntilWarm = async (): Promise<boolean> => {
+      setUploadPhase('warming')
+      for (;;) {
+        let warm = false
+        try { warm = await api.getHealth() } catch { warm = false }
+        if (warm) return true
+        if (Date.now() - startedAt > MAX_MS) return false
+        await new Promise((r) => setTimeout(r, 6_000))
+        setWarmWaited(Math.round((Date.now() - startedAt) / 1000))
+      }
+    }
+
+    try {
+      // Proactive warm so the first write rarely hits a cold endpoint at all.
       let warm = false
       try { warm = await api.getHealth() } catch { warm = false }
-      if (!warm) {
-        setUploadPhase('warming')
-        const warmStart = Date.now()
-        const WARM_MAX_MS = 6 * 60_000
-        while (!warm && Date.now() - warmStart < WARM_MAX_MS) {
-          await new Promise((r) => setTimeout(r, 6_000))
-          setWarmWaited(Math.round((Date.now() - warmStart) / 1000))
-          try { warm = await api.getHealth() } catch { warm = false }
-        }
-        if (!warm) {
-          setError('The analysis service is still starting up after being idle. Please try again in a minute.')
-          setSubmitting(false)
-          return
-        }
-        setUploadPhase('sending')
+      if (!warm && !(await waitUntilWarm())) {
+        setError('The analysis service is still starting up after being idle. Please try again in a minute.')
+        return
       }
 
-      // period is the client-side fallback — the backend still auto-detects per
-      // document and returns the resolved period; use that for the pipeline.
-      const { uploadId, period: detectedPeriod } = await api.upload(
-        files, period || undefined,
-        // Once the bytes are all sent, the request is waiting on the server —
-        // flip to the 'processing' state so the UI stops implying it's stuck.
-        (pct) => { setUploadPct(pct); if (pct >= 100) setUploadPhase('processing') },
-        fileNames,
-      )
-      setUploadPhase('processing')
-      setPeriod(detectedPeriod)
-      const job = await api.submitJob(uploadId, detectedPeriod)
-      setJobId(job.id)
-      setStep(1)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
+      for (;;) {
+        try {
+          setUploadPct(0)
+          setUploadPhase('sending')
+          // period is the client-side fallback — the backend still auto-detects
+          // per document and returns the resolved period; use that downstream.
+          const { uploadId, period: detectedPeriod } = await api.upload(
+            files, period || undefined,
+            // Once the bytes are all sent, the request is waiting on the server —
+            // flip to 'processing' so the UI stops implying it's stuck.
+            (pct) => { setUploadPct(pct); if (pct >= 100) setUploadPhase('processing') },
+            fileNames,
+          )
+          setUploadPhase('processing')
+          setPeriod(detectedPeriod)
+          const job = await api.submitJob(uploadId, detectedPeriod)
+          setJobId(job.id)
+          setStep(1)
+          return
+        } catch (err: unknown) {
+          if (isCold(err) && Date.now() - startedAt < MAX_MS) {
+            // Cold-start on upload or submit → warm again, then retry the submit.
+            if (await waitUntilWarm()) continue
+            setError('The analysis service is still starting up after being idle. Please try again in a minute.')
+            return
+          }
+          setError(err instanceof Error ? err.message : 'Upload failed')
+          return
+        }
+      }
     } finally {
       setSubmitting(false)
     }
