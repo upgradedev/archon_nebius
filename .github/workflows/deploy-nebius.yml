@@ -153,7 +153,19 @@ jobs:
         env:
           NEBIUS_IAM_TOKEN_SECRET: ${{ secrets.NEBIUS_IAM_TOKEN }}
         run: |
-          TOKEN="${NEBIUS_DEPLOY_IAM_TOKEN:-${NEBIUS_FRESH_IAM_TOKEN:-$NEBIUS_IAM_TOKEN_SECRET}}"
+          # Owner (NEBIUS_IAM_TOKEN) FIRST, then SA-derived tokens as fallback.
+          # Root cause of every failed deploy Jul 9–13: commit 7d56133 flipped
+          # this to SA-token-first. The service account can CREATE the endpoint
+          # (control plane accepts it) but the endpoint's backing compute never
+          # provisions under the SA identity — the endpoint hangs in
+          # PROVISIONING until the CLI times out. Owner-token creates provision
+          # to RUNNING in ~5 min (proven: Jul-8 deploy + 3 manual owner creates
+          # on 2026-07-13 all RUNNING; every SA-token create 0/N). The SA most
+          # likely lacks a compute/provision role (INFERRED, not yet verified —
+          # durable follow-up: grant it and re-enable SA-first). Owner tokens
+          # expire ~12h, so refresh the NEBIUS_IAM_TOKEN secret before a deploy
+          # (WSL: nebius iam get-access-token, filtered — see CLAUDE.md).
+          TOKEN="${NEBIUS_IAM_TOKEN_SECRET:-${NEBIUS_DEPLOY_IAM_TOKEN:-$NEBIUS_FRESH_IAM_TOKEN}}"
           if [ -z "$TOKEN" ]; then
             echo "A deploy-capable Nebius token is required for endpoint create/delete permissions." >&2
             exit 1
