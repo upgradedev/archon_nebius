@@ -68,14 +68,14 @@ jobs:
         run: |
           set -euo pipefail
           # The scripted tour's CTA opens at CTA_START and must hold for CTA_HOLD.
-          # These MUST match scripts/demo-tour.mjs BEATS (CTA opens at REPRO_END=300)
-          # and the default TARGET (300+14=314). The final length is driven by the
+          # These MUST match scripts/demo-tour.mjs BEATS (CTA opens at REPRO_END=340)
+          # and the default TARGET (340+20=360). The final length is driven by the
           # VOICEOVER, but is FLOORED at CTA_START+CTA_HOLD so a voiceover that lands
           # slightly short can never trim away the reproducibility + CTA beats. There
           # is NO upper cap here: the Nebius video target is 3–10 min, and this
           # analytical cut runs ~5–6 min — comfortably inside that window.
-          CTA_START=300
-          CTA_HOLD=14
+          CTA_START=340
+          CTA_HOLD=20
           AUDIO=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 archon-voiceover.mp3)
           echo "audio duration: ${AUDIO}s"
           TARGET=$(python3 -c "print(round(max(float('${AUDIO}')+4, ${CTA_START}+${CTA_HOLD}),1))")
@@ -149,8 +149,14 @@ jobs:
           while IFS='|' read -r s e text || [ -n "$s" ]; do
             [ -z "$s" ] && continue
             text="${text%$'\r'}" # strip a trailing CR if the file was checked out CRLF
-            printf '%s' "$text" > "caps/cap_$i.txt"
-            FILTER="$FILTER,drawtext=fontfile=$FONT:textfile=caps/cap_$i.txt:expansion=none:fontsize=40:fontcolor=white:line_spacing=8:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=h-130:enable='between(t,$s,$e)'"
+            # WORD-WRAP every caption to <=50 chars per line. drawtext does NOT
+            # wrap: a single line wider than the frame makes x=(w-text_w)/2 go
+            # negative and the caption spills off both edges of the 1920px frame
+            # (the bug this fixes). fold -s breaks only at spaces, so every line
+            # stays well within width; real newlines render as stacked lines.
+            # (captions.txt is kept single-line per beat — no literal "\n".)
+            printf '%s' "$text" | fold -s -w 50 | sed 's/[[:space:]]*$//' > "caps/cap_$i.txt"
+            FILTER="$FILTER,drawtext=fontfile=$FONT:textfile=caps/cap_$i.txt:expansion=none:fontsize=40:fontcolor=white:line_spacing=8:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=h-150:enable='between(t,$s,$e)'"
             i=$((i+1))
           done < scripts/captions.txt
           echo "built $i caption clauses"

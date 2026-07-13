@@ -77,8 +77,7 @@ Perfect read of the fields the current prompt emits → the **real**
 
 The fusion result is the load-bearing positive: under perfect extraction the
 `PnLAgent` reports the **employer cost** (gross + employer social-security), not
-the bank net transfer, to the cent across 40 diverse cases — the core "the bank number
-understates payroll" thesis is verified, not asserted.
+the bank net transfer, to the cent across 40 diverse cases — the core "the bank transfer alone is only the net-wages component" thesis is verified, not asserted.
 
 Validation-outcome is now **100%** — perfect extraction reproduces domain truth
 on all four rules. It used to sit at 95.83% / 96.88% because R4 was dormant and
@@ -137,15 +136,15 @@ The owner who books the bank salary transfer as "the payroll cost":
 |---|---|---|
 | Total bank-only (the wrong number) | EUR 36,355.30 | EUR 185,543.72 |
 | Total true employer cost | EUR 62,503.72 | EUR 318,925.43 |
-| **Total understatement recovered** | **EUR 26,148.42** | **EUR 133,381.71** |
-| Mean understatement, % of true cost | 41.37% | 41.84% |
-| Mean understatement, % over the bank figure | 70.65% | 71.97% |
+| **Total reconciled beyond bank net** | **EUR 26,148.42** | **EUR 133,381.71** |
+| Mean reconciled amount, % of true cost | 41.37% | 41.84% |
+| Mean reconciled amount, % over bank net | 70.65% | 71.97% |
 | Mean employer social-security wedge, % over bank | 35.22% | 35.49% |
 
 **Two numbers, reported separately on purpose.** The **~35%** figure is the
 *employer social-security wedge only* (employer social-security ÷ bank net) —
 what the register adds on top of the transfer purely from the employer's own
-contribution. The **~72%** figure is the *full* understatement (true employer
+contribution. The **~72%** figure is the *full* reconciliation delta (true employer
 cost ÷ bank net − 1): it also folds in the withheld employee social-security and
 income tax the bank transfer nets out, so it is roughly double. Both are honest
 and measured from `truth{}`; they answer different questions, and every

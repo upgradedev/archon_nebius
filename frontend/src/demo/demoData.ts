@@ -1,8 +1,9 @@
 // Seeded sample report for demo mode (see demoMode.ts). Figures are illustrative
 // but internally consistent and aligned with the demo narration / slides:
 //   bank transfer (net) ~EUR 10,700 · true employer cost ~EUR 18,400
-//   → +72% understatement over the bank figure (the employer's own social-security
-//     contribution is ~35% of it; employee withholdings the rest)
+//   → the bank net is only the net-wages component; adding withheld payroll taxes
+//     + the employer's own contributions (~35% over the transfer) reconciles to the
+//     register's true cost, ~72% more, every euro tied to a source document
 //   R1–R4 all pass — R2/R4 now ACTIVE (the register's employer-cost / headcount
 //     fields are extracted; this was the harness's keystone finding, now fixed)
 // No real customer data — synthetic SMB figures for a single month.
@@ -55,7 +56,8 @@ const report: FinancialReport = {
     avgInvoiceValue: 3_570,
     collectionRatePct: 92.4,
   },
-  // The core insight: the bank transfer understates true payroll cost.
+  // Payroll reconciliation: the bank net is the net-wages component; withheld
+  // taxes + employer contributions reconcile up to the register's true cost.
   payrollGap: {
     bankTransferNet: 10_700,
     trueEmployerCost: 18_400,
@@ -74,12 +76,12 @@ const report: FinancialReport = {
   ],
   executiveSummary:
     'January closed with revenue of EUR 96,400 and a net profit of EUR 24,550 — a 25.5% ' +
-    'operating margin, up 6.8% on the prior month. The month\'s defining correction is payroll: ' +
-    'the bank moved EUR 10,700 in net transfers, but Archon\'s Event Linker fused the bank ' +
-    'confirmation, payroll register, and payslips into a single event and recovered the true ' +
-    'employer cost of EUR 18,400 — about a 72% understatement that a bank-only close would have ' +
-    'booked as the whole payroll line; about half of that gap is the employer\'s own ' +
-    'social-security contribution (~35% over the transfer), the rest employee withholdings. ' +
+    'operating margin, up 6.8% on the prior month. The month\'s defining reconciliation is payroll: ' +
+    'the bank moved EUR 10,700 in net wages, and Archon\'s Event Linker fused the bank ' +
+    'confirmation, payroll register, and payslips into a single event to confirm the register\'s ' +
+    'true employer cost of EUR 18,400 — about 72% more, once the withheld payroll taxes and the ' +
+    'employer\'s own social-security contributions (~35% over the transfer) are reconciled back to ' +
+    'source documents, so every component the register says is owed is accounted for. ' +
     'All four cross-document rules passed: R1 (bank net vs payslip sum) and ' +
     'R3 (payment date), plus R2 (employer-cost ratio) and R4 (headcount), which read register ' +
     'fields the extractor now populates. Cash generation stayed healthy at EUR 11,900 net, with ' +

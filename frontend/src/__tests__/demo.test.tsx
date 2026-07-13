@@ -28,7 +28,7 @@ describe('demo fixtures', () => {
     const g = DEMO_REPORT.report.payrollGap!
     expect(g).toBeTruthy()
     expect(g.bankTransferNet).toBeLessThan(g.trueEmployerCost)
-    // full understatement of true employer cost over the bank net transfer
+    // true employer cost reconciles to ~72% over the bank net transfer
     expect(Math.round(g.gapPct)).toBe(72)
   })
 
@@ -64,7 +64,7 @@ describe('AskPanel', () => {
     // All six questions are answerable from DEMO_REPORT.
     expect(screen.getByRole('button', { name: 'What was the net profit this period?' })).toBeTruthy()
     expect(screen.getByRole('button', { name: "What's the total employer cost?" })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'How much did the bank transfer understate the true payroll cost?' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'How does the bank transfer reconcile to the true payroll cost?' })).toBeTruthy()
   })
 
   it('answers each question with the exact figure grounded in the report (no LLM, no 28%)', () => {
@@ -73,10 +73,10 @@ describe('AskPanel', () => {
     fireEvent.click(getByRole('button', { name: "What's the total employer cost?" }))
     expect(getByTestId('ask-answer').textContent).toContain('€18,400')
 
-    fireEvent.click(getByRole('button', { name: 'How much did the bank transfer understate the true payroll cost?' }))
+    fireEvent.click(getByRole('button', { name: 'How does the bank transfer reconcile to the true payroll cost?' }))
     const gapText = getByTestId('ask-answer').textContent ?? ''
     expect(gapText).toContain('€10,700')
-    expect(gapText).toContain('72% understatement')
+    expect(gapText).toContain('72% more')
     expect(gapText).not.toContain('28%')
   })
 })

@@ -27,13 +27,13 @@ difficulty: advanced
 [![Nebius Serverless](https://img.shields.io/badge/Nebius-Serverless%20AI-green)](https://nebius.com)
 [![#NebiusServerlessChallenge](https://img.shields.io/badge/%23NebiusServerlessChallenge-2026-orange)](https://nebius.com)
 
-> **Measured impact.** Booking only the bank salary transfer as "the payroll cost" — what most SMB bookkeeping does — understates the true employer cost by **€133,381.71 on the corpus, ~72% over the bank figure** (of which the employer's own social-security wedge is ~35%). Archon fuses the bank confirmation, payroll register, and payslips into one event and reports the number the documents actually support. Measured offline against a 40-case labelled corpus — **€0, no API key** ([`eval/BASELINE.md`](eval/BASELINE.md)).
+> **Measured impact.** The bank salary transfer is only the net-wages component; the register's true employer cost adds the withheld payroll taxes and the employer's own contributions — **€133,381.71 more on the corpus, ~72% over the bank figure** (of which the employer's own social-security contribution is ~35%). Archon fuses the bank confirmation, payroll register, and payslips into one event and reconciles every component back to a source document, so nothing the register says is owed can slip through. Measured offline against a 40-case labelled corpus — **€0, no API key** ([`eval/BASELINE.md`](eval/BASELINE.md)).
 
 ---
 
 ## What is Archon?
 
-Archon is a **unified financial intelligence platform** for SMBs. It consolidates a business's financial documents — sales and purchase invoices, orders and receipts, bank statements, payments, payroll, and expenses — into one environment and produces a consolidated, period-over-period view: P&L, EBITDA, per-period metrics, the true cost of the workforce, and cash. It then cross-checks the whole picture to surface what is missing or does not reconcile — for example, a bank payment with no matching invoice, or a bank transfer that understates the true cost of employing a team. It supports **multilingual documents**, handles every common file format, and writes an LLM-authored executive summary.
+Archon is a **unified financial intelligence platform** for SMBs. It consolidates a business's financial documents — sales and purchase invoices, orders and receipts, bank statements, payments, payroll, and expenses — into one environment and produces a consolidated, period-over-period view: P&L, EBITDA, per-period metrics, the true cost of the workforce, and cash. It then cross-checks the whole picture to surface what is missing or does not reconcile — for example, a bank payment with no matching invoice, or a bank transfer that reflects only the net-wages component of the true cost of employing a team. It supports **multilingual documents**, handles every common file format, and writes an LLM-authored executive summary.
 
 Built entirely on **Nebius Serverless AI** — a FastAPI orchestration backend running as a **CPU AI Endpoint**, plus two on-demand **CPU AI Jobs** for document extraction and financial analysis. Frontier vision and language models are called over the **Nebius Inference API**, so the containers stay cheap CPU instances and the GPU lives in the inference layer. The React frontend is hosted on Firebase.
 
@@ -126,9 +126,9 @@ flowchart TB
 
 The design isn't arbitrary; each decision answers a specific problem in SMB finance. If you're building something similar, these are the load-bearing choices.
 
-**Why fuse three documents into one event.** A single payroll run produces a bank confirmation, a payroll register, and individual payslips — and each reports a *different* number. The bank confirmation shows the **net** transfer; the register shows **gross + employer contributions** (the true cost); the payslips sit in between. Reading any one alone is wrong: bank-only understates the real cost of employing a team by roughly **72%** over the net transfer (the employer's own social-security contribution alone is ~35%), and that is usually the largest cost centre in the business. So the `EventLinkerAgent` groups the three by company + period into one `PayrollEvent`, and downstream the P&L reads the register's employer cost while cash flow reads the bank transfer — the same event counted once, correctly, from two angles. This is the general shape Archon applies everywhere: *reconcile what left the bank against the documents that explain it, and refuse to report a number the documents don't support.*
+**Why fuse three documents into one event.** A single payroll run produces a bank confirmation, a payroll register, and individual payslips — and each reports a *different* number. The bank confirmation shows the **net** transfer; the register shows **gross + employer contributions** (the true cost); the payslips sit in between. Reading any one alone is incomplete: the bank transfer is only the net-wages component — the register's true cost of employing a team is roughly **72%** more over the net transfer (the employer's own social-security contribution alone is ~35%), and that is usually the largest cost centre in the business. So the `EventLinkerAgent` groups the three by company + period into one `PayrollEvent`, and downstream the P&L reads the register's employer cost while cash flow reads the bank transfer — the same event counted once, correctly, from two angles. This is the general shape Archon applies everywhere: *reconcile what left the bank against the documents that explain it, and refuse to report a number the documents don't support.*
 
-**Why reconcile vendor statements against the invoices we hold.** Fusing payroll answers *"is this number right?"*; the `ReconciliationAgent` answers the other completeness question — *"is a document missing?"*. A vendor's statement of account lists every invoice they billed you; Archon holds the invoices you actually uploaded. The agent (`jobs/analysis/agents/reconciliation_agent.py`) matches the two per vendor and surfaces the gap — "their statement says 4 invoices, we have 3; here is the missing one" — plus any totals discrepancy. Account statements are deliberately kept **out** of the P&L and cash flow (they'd double-count what the invoices already booked); they exist purely as an external reference to catch what never made it into the ledger. It is the same discipline as the payroll fusion, pointed at completeness instead of amount.
+**Why reconcile vendor statements against the invoices we hold.** Fusing payroll answers *"is this number right?"*; the `ReconciliationAgent` answers the other completeness question — *"is a document missing?"*. A vendor's statement of account lists every invoice they billed you; Archon holds the invoices you actually uploaded. The agent (`jobs/analysis/agents/reconciliation_agent.py`) matches the two per vendor and surfaces what's missing — "their statement says 4 invoices, we have 3; here is the missing one" — plus any totals discrepancy. Account statements are deliberately kept **out** of the P&L and cash flow (they'd double-count what the invoices already booked); they exist purely as an external reference to catch what never made it into the ledger. It is the same discipline as the payroll fusion, pointed at completeness instead of amount.
 
 **Why a chain of single-responsibility agents** rather than one big prompt. Each agent does one job and is independently testable: `Extractor` (file → structured JSON), `Classifier` (deterministic doc-type refinement, no LLM — keeps model misclassifications out of the accounting layer), `EventLinker` (fusion), `Validator` (named cross-document rules). Small agents mean a failure is localised and every step is assertable in CI — which is why the evaluation harness below can score each agent in isolation.
 
@@ -381,8 +381,9 @@ real Qwen2.5-VL extractor on Nebius ([`eval/LIVE_EXTRACTION.md`](eval/LIVE_EXTRA
 - **Positive result:** under perfect extraction the `PnLAgent` reports the
   *employer cost* (gross + employer social-security contributions), not the bank
   net, to the cent across 40 diverse cases — the core thesis is verified, and the
-  **naive bank-only floor understates workforce cost by EUR 133,381 (~72% over the
-  bank figure)** on the corpus.
+  **register's true employer cost reconciles to EUR 133,381 more than the naive
+  bank-only floor (~72% over the bank figure)** on the corpus, every euro tied to a
+  source document.
 - **Keystone finding (the harness earns its place):** validation rules **R2 and
   R4 were DORMANT — they fired 0/37 times** because no extractor populated the
   `employer_cost_total` / `net_pay_total` / `employee_count` fields they read.
@@ -404,8 +405,8 @@ and watch the headline claims reproduce from source:
 bash scripts/verify-reproducible.sh
 ```
 
-It (1) re-scores the 40-case corpus and asserts the naive bank-only floor
-understates workforce cost by **€133,381.71 (~72%)**, (2) runs every **offline**
+It (1) re-scores the 40-case corpus and asserts the register's true employer cost
+reconciles to **€133,381.71 more than the naive bank-only floor (~72%)**, (2) runs every **offline**
 agent suite (the extraction and analysis pipelines end-to-end against
 deterministic Fake/mocked clients — no Inference API, S3 or Postgres), and
 (3) runs the readiness gate below. Exit code `0` means the repo reproduced its
