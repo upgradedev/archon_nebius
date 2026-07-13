@@ -4,7 +4,7 @@ from botocore.exceptions import ClientError
 from fastapi import APIRouter, HTTPException, Path
 from pydantic import BaseModel, Field
 
-from services import nebius, storage
+from services import nebius, pg_sync, storage
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -47,9 +47,22 @@ def get_analysis_job(job_id: str):
 
 @router.get("/reports/{period}")
 def get_report(period: str = Path(..., pattern=_PERIOD_PATTERN)):
-    """Fetch a completed financial report for a period (reads from Object Storage)."""
+    """Fetch a completed financial report for a period (reads from Object Storage).
+
+    Object Storage is the source of truth. On a successful read we also mirror
+    the report's relational data into PostgreSQL (best-effort — never blocks or
+    fails the response), keeping the read-model tables in sync with the report
+    served here.
+    """
     try:
-        return storage.download_json(f"reports/{period}/report.json")
+        report = storage.download_json(f"reports/{period}/report.json")
+        # Best-effort relational mirror. Isolated so a DB hiccup can never turn a
+        # good report read into an error.
+        try:
+            pg_sync.materialize_report(period, report)
+        except Exception:
+            logger.warning("PG materialization raised for %s — ignoring", period, exc_info=True)
+        return report
     except ClientError as exc:
         code = exc.response["Error"]["Code"]
         if code in ("NoSuchKey", "404"):
