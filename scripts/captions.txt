@@ -1,11 +1,11 @@
 2|13|Every month a small business closes its books — the truth scattered across dozens of documents
-13|24|Archon consolidates every source into one\nfinancial picture — and flags what won't reconcile
+13|24|Archon consolidates every source into one financial picture — and flags what won't reconcile
 24|36|One worked example — the workforce: a payroll event leaves three documents
 36|48|Bank confirmation  ·  payroll register  ·  payslips  →  one fused event
-48|60|Bank net is only the net wages — register's\ntrue employer cost reconciles to ~72% more
+48|60|Bank net is only the net wages — register's true employer cost reconciles to ~72% more
 60|72|Walk the bank transfer up to the true cost of employment
 72|84|+~35% employer social-security  ·  +~36% employee withholdings
-84|96|Every euro tied to a source document —\nEUR 133,381 reconciled across the corpus
+84|96|Every euro tied to a source document — EUR 133,381 reconciled across the corpus
 96|108|Built entirely on Nebius Serverless AI
 108|122|2 on-demand CPU Jobs (extract + analyze)  ·  1 CPU AI Endpoint
 122|138|Inference API: Qwen2.5-VL-72B vision  ·  Llama-3.3-70B analysis
