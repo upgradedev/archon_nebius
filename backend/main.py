@@ -70,3 +70,38 @@ def health():
 @app.get("/api/health")
 def api_health():
     return {"status": "ok", "service": "archon-backend"}
+
+
+def _db_health() -> dict:
+    """Report live PostgreSQL reachability from THIS process (the backend Endpoint).
+
+    Exists because the read-model mirror (services/pg_sync.py) is best-effort and
+    silently no-ops when it cannot reach PG — which hid, for a long time, that the
+    Endpoint could not connect at all (first: DATABASE_URL never injected; then: the
+    public PG host blocked the Endpoint's egress). This turns that invisible
+    condition into an explicit signal a deploy pipeline can gate on. Returns a
+    reachable flag rather than raising, so it is a pure probe. No data is exposed.
+    """
+    try:
+        from db.client import get_db_connection
+
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+        finally:
+            conn.close()
+        return {"db": "ok", "reachable": True}
+    except Exception as exc:
+        return {"db": "unreachable", "reachable": False, "detail": f"{type(exc).__name__}: {exc}"[:300]}
+
+
+@app.get("/health/db")
+def health_db():
+    return _db_health()
+
+
+@app.get("/api/health/db")
+def api_health_db():
+    return _db_health()
