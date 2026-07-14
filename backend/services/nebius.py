@@ -822,6 +822,8 @@ def submit_extraction_job(upload_id: str, period: str) -> dict:
     """Submit a document extraction job and return job metadata."""
     if JOB_RUNNER_BACKEND == "nebius":
         return _submit_nebius_job(upload_id, period)
+    if JOB_RUNNER_BACKEND == "inline":
+        return _submit_inline_job(upload_id, period)
     if JOB_RUNNER_BACKEND == "local":
         return _submit_local_job(upload_id, period)
     raise NotImplementedError(f"Job runner '{JOB_RUNNER_BACKEND}' not implemented yet")
@@ -976,8 +978,14 @@ def _get_nebius_job_status(job_id: str) -> dict:
 
 def get_job_status(job_id: str) -> dict:
     """Poll job status from the underlying runner."""
+    # Inline job ids are self-identifying, so their status resolves the same way
+    # regardless of the configured backend (robust to a mid-flight backend switch).
+    if job_id.startswith("inline-"):
+        return _get_inline_job_status(job_id)
     if JOB_RUNNER_BACKEND == "nebius":
         return _get_nebius_job_status(job_id)
+    if JOB_RUNNER_BACKEND == "inline":
+        return _get_inline_job_status(job_id)
     if JOB_RUNNER_BACKEND == "local":
         return _get_local_job_status(job_id)
     raise NotImplementedError(f"Job runner '{JOB_RUNNER_BACKEND}' not implemented yet")
@@ -987,6 +995,8 @@ def submit_analysis_job(period: str) -> dict:
     """Submit an analysis job and return job metadata."""
     if JOB_RUNNER_BACKEND == "nebius":
         return _submit_nebius_analysis_job(period)
+    if JOB_RUNNER_BACKEND == "inline":
+        return _submit_inline_analysis_job(period)
     if JOB_RUNNER_BACKEND == "local":
         return _submit_local_analysis_job(period)
     raise NotImplementedError(f"Job runner '{JOB_RUNNER_BACKEND}' not implemented yet")
@@ -1090,4 +1100,98 @@ def _get_local_job_status(job_id: str) -> dict:
         "progress": 100 if status == "completed" else 50,
         "completedAt": data.get("completed_at"),
         "errorMessage": data.get("error") if status == "failed" else None,
+    }
+
+
+# ── Inline runner (JOB_RUNNER_BACKEND=inline) ─────────────────────────────────
+# Runs the extraction/analysis pipelines IN the backend Endpoint instead of
+# submitting Nebius AI Jobs. Rationale: cpu-d3 AI-Jobs quota is a hard 0 tenant-wide
+# (verified empirically across eu-west1/eu-north1/uk-south1; the capacity advisor
+# covers only VM compute, never Jobs), so a Job is accepted but never provisions.
+# Inline execution keeps the pipeline working end-to-end while a quota grant is
+# pending. It uses SUBPROCESS isolation (not in-process import) because the two job
+# packages have colliding top-level module names (both define `agents` and `models`
+# with different contents and no __init__.py); a subprocess gives each its own
+# sys.modules and reuses the job entrypoints unchanged (`python main.py`, reading
+# UPLOAD_ID/PERIOD from env exactly as the Nebius Job does). Status is tracked in
+# Object Storage so the existing poll endpoints work across the async run.
+
+INLINE_EXTRACTION_DIR = os.getenv("INLINE_EXTRACTION_DIR", "/app/jobs/extraction")
+INLINE_ANALYSIS_DIR = os.getenv("INLINE_ANALYSIS_DIR", "/app/jobs/analysis")
+_INLINE_TIMEOUT_SECS = int(os.getenv("INLINE_JOB_TIMEOUT_SECS", "1800"))
+
+
+def _inline_status_key(job_id: str) -> str:
+    return f"jobs/inline/{job_id}.json"
+
+
+def _write_inline_status(job_id: str, status: str, period: str, error: str | None = None) -> None:
+    from services import storage
+    try:
+        storage.put_json(_inline_status_key(job_id), {
+            "id": job_id, "status": status, "period": period,
+            "errorMessage": error,
+            "updatedAt": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception:
+        logger.warning("Could not write inline status for %s (status=%s)", job_id, status)
+
+
+def _run_inline(job_id: str, job_dir: str, extra_env: dict, period: str) -> None:
+    """Run a job entrypoint as an isolated subprocess; record the outcome to S3."""
+    import subprocess
+    import sys as _sys
+    try:
+        env = {**os.environ, **extra_env}
+        proc = subprocess.run(
+            [_sys.executable, "main.py"], cwd=job_dir, env=env,
+            capture_output=True, text=True, timeout=_INLINE_TIMEOUT_SECS,
+        )
+        if proc.returncode == 0:
+            logger.info("Inline job %s completed (%s)", job_id, job_dir)
+            _write_inline_status(job_id, "completed", period)
+        else:
+            tail = (proc.stderr or proc.stdout or "")[-800:]
+            logger.error("Inline job %s failed (rc=%s): %s", job_id, proc.returncode, tail)
+            _write_inline_status(job_id, "failed", period, tail or f"exit {proc.returncode}")
+    except Exception as exc:
+        logger.exception("Inline job %s crashed", job_id)
+        _write_inline_status(job_id, "failed", period, str(exc)[-800:])
+
+
+def _spawn_inline(job_id: str, job_dir: str, extra_env: dict, period: str) -> None:
+    _write_inline_status(job_id, "running", period)
+    threading.Thread(target=_run_inline, args=(job_id, job_dir, extra_env, period), daemon=True).start()
+
+
+def _submit_inline_job(upload_id: str, period: str) -> dict:
+    job_id = f"inline-ext-{uuid.uuid4().hex[:12]}"
+    _spawn_inline(job_id, INLINE_EXTRACTION_DIR, {"UPLOAD_ID": upload_id, "PERIOD": period}, period)
+    return {"id": job_id, "status": "running", "period": period,
+            "documentsCount": 0, "createdAt": datetime.now(timezone.utc).isoformat(),
+            "nebius_job_name": job_id}
+
+
+def _submit_inline_analysis_job(period: str) -> dict:
+    job_id = f"inline-ana-{uuid.uuid4().hex[:12]}"
+    _spawn_inline(job_id, INLINE_ANALYSIS_DIR, {"PERIOD": period, "JOB_ID": job_id}, period)
+    return {"id": job_id, "status": "running", "period": period,
+            "documentsCount": 0, "createdAt": datetime.now(timezone.utc).isoformat()}
+
+
+def _get_inline_job_status(job_id: str) -> dict:
+    from services import storage
+    try:
+        marker = storage.download_json(_inline_status_key(job_id))
+    except Exception:
+        # No marker yet (thread not started) => still pending, never an error.
+        return {"id": job_id, "status": "pending", "progress": 10,
+                "completedAt": None, "errorMessage": None}
+    status = (marker or {}).get("status", "pending")
+    return {
+        "id": job_id,
+        "status": status,
+        "progress": 100 if status == "completed" else (60 if status == "running" else 10),
+        "completedAt": marker.get("updatedAt") if status in ("completed", "failed") else None,
+        "errorMessage": marker.get("errorMessage") if status == "failed" else None,
     }
