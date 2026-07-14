@@ -39,14 +39,14 @@ except Exception as e:
 PYEOF
 fi
 
-# Update DuckDNS record to this container's public IP on startup
-if [ -n "$DUCKDNS_TOKEN" ] && [ -n "$DUCKDNS_SUBDOMAIN" ]; then
-  IP=$(curl -sf https://api.ipify.org || true)
-  if [ -n "$IP" ]; then
-    curl -sf "https://www.duckdns.org/update?domains=${DUCKDNS_SUBDOMAIN}&token=${DUCKDNS_TOKEN}&ip=${IP}" || true
-    echo "DuckDNS updated: ${DUCKDNS_SUBDOMAIN}.duckdns.org -> ${IP}"
-  fi
-fi
+# DuckDNS is pointed at the endpoint by the DEPLOY workflow ("repoint DuckDNS at
+# the ingress IP"), which reads the authoritative INGRESS IP from
+# status.public_endpoints. This container must NOT touch DuckDNS: api.ipify.org
+# returns the NAT EGRESS IP, which differs from the ingress IP clients connect to,
+# so the old in-container update repeatedly overwrote the correct record with an
+# unreachable address (the recurring "app is up but BFF gets 502/000" incident).
+# Intentionally left as a no-op.
+echo "DuckDNS is managed by the deploy workflow (ingress IP); container does not update it."
 
 # On exit, upload the cert store back to S3
 _upload_certs() {
