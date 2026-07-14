@@ -88,10 +88,26 @@ export default function ColdStartOverlay() {
     if (runningRef.current) return // already recovering — ignore duplicate signals
     runningRef.current = true
     startedAtRef.current = Date.now()
-    setActive(true)
     setGaveUp(false)
     setAttempt(0)
-    void tick()
+    // Confirm the endpoint is actually cold BEFORE surfacing the "starting up"
+    // message. A 502/503 can come from a single failed request while the endpoint
+    // is warm; showing the cold-start banner then is misleading. Only show it if
+    // /api/health also fails — otherwise this was not a cold start.
+    void (async () => {
+      let warm = false
+      try {
+        warm = await api.getHealth()
+      } catch {
+        /* health call failed → treat as cold */
+      }
+      if (warm) {
+        runningRef.current = false // not a cold start; stay silent
+        return
+      }
+      setActive(true)
+      void tick()
+    })()
   }, [tick])
 
   useEffect(() => {

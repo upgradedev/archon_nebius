@@ -48,6 +48,11 @@ def build_summary(report: FinancialReport) -> str:
 def _build_prompt(report: FinancialReport) -> str:
     top_categories = ", ".join(e.category for e in report.expenseBreakdown[:3])
     reconciliation = _reconciliation_context(report)
+    # These are None when not derivable from a single period; render N/A so the
+    # narrator is told the truth instead of a fabricated number.
+    km = report.keyMetrics
+    growth = f"{km.revenueGrowthPct:.1f}%" if km.revenueGrowthPct is not None else "N/A (single period)"
+    collection = f"{km.collectionRatePct:.1f}%" if km.collectionRatePct is not None else "N/A (no A/R aging data)"
 
     return f"""You are a CFO-level financial analyst. Write a concise executive summary (3-4 sentences, plain English, no bullet points) for the following monthly financial data.
 
@@ -59,11 +64,11 @@ Expenses: €{report.pnl.expenses:,.2f}
 Net Profit: €{report.pnl.netProfit:,.2f}
 Gross Margin: {report.pnl.grossMarginPct:.1f}%
 Operating Margin: {report.pnl.operatingMarginPct:.1f}%
-Revenue Growth MoM: {report.keyMetrics.revenueGrowthPct:.1f}%
+Revenue Growth MoM: {growth}
 Expense Ratio: {report.keyMetrics.expenseRatioPct:.1f}%
 Invoice Count: {report.keyMetrics.invoiceCount}
 Avg Invoice Value: €{report.keyMetrics.avgInvoiceValue:,.2f}
-Collection Rate: {report.keyMetrics.collectionRatePct:.1f}%
+Collection Rate: {collection}
 Top Expense Categories: {top_categories}{reconciliation}
 
 Write the summary now. After the summary, output a blank line, then a single line that begins exactly with "Sources: " and lists the specific inputs you drew from — payroll registers/periods, bank confirmations, validation rules, or accounting standards — separated by " · " (space, middle-dot, space). Example: "Sources: payroll register 2026-01 · bank confirmation · validation R1 · IAS 19". Only cite inputs that appear in the data above."""

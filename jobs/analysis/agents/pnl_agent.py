@@ -74,18 +74,25 @@ def build_vendor_summary(docs: list[ExtractedDoc]) -> list[VendorSummary]:
     ]
 
 
+_INVOICE_DOC_TYPES = {"invoice", "sales", "expense"}
+
+
 def build_key_metrics(docs: list[ExtractedDoc], revenue: float, expenses: float) -> KeyMetrics:
-    invoices = [d for d in docs if d.doc_type == "sales"]
+    # "Invoices" counts every invoice document (sales AND purchase/expense), not only
+    # sales — an uploaded expense invoice must register, otherwise the tile reads 0.
+    invoices = [d for d in docs if d.doc_type in _INVOICE_DOC_TYPES]
     invoice_count = len(invoices)
     avg_invoice = (sum(d.total_amount for d in invoices) / invoice_count) if invoice_count else 0.0
 
     return KeyMetrics(
-        revenueGrowthPct=0.0,
+        # No prior period / no A/R aging in a single-period run → report None (N/A),
+        # never a fabricated growth or collection figure.
+        revenueGrowthPct=None,
         expenseRatioPct=round(expenses / revenue * 100, 1) if revenue else 0.0,
         cashBurnRate=round(expenses / 30, 2),
         invoiceCount=invoice_count,
         avgInvoiceValue=round(avg_invoice, 2),
-        collectionRatePct=95.0,
+        collectionRatePct=None,
     )
 
 

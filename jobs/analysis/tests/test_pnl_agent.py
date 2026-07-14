@@ -140,10 +140,15 @@ def test_key_metrics_invoice_stats(doc):
         doc(source_file="e.pdf", doc_type="expense", total_amount=1_000),
     ]
     m = pnl_agent.build_key_metrics(docs, revenue=4_000, expenses=1_000)
-    assert m.invoiceCount == 2
-    assert m.avgInvoiceValue == 2_000.0
+    # "Invoices" counts EVERY invoice document (sales AND expense/purchase), not
+    # only sales — an uploaded expense invoice must register.
+    assert m.invoiceCount == 3
+    assert m.avgInvoiceValue == round((1_000 + 3_000 + 1_000) / 3, 2)
     assert m.expenseRatioPct == 25.0
     assert m.cashBurnRate == round(1_000 / 30, 2)
+    # Not derivable from a single period → None (rendered as N/A), never fabricated.
+    assert m.revenueGrowthPct is None
+    assert m.collectionRatePct is None
 
 
 def test_key_metrics_no_revenue_no_div_error(doc):
