@@ -322,6 +322,15 @@ jobs:
           fi
           echo "Selected Subnet ID: $SUBNET_ID"
 
+          # Reach Managed PostgreSQL over its PRIVATE, in-VPC hostname. The Endpoint
+          # and the PG cluster share VPC vpcnetwork-e01pngnyyg0sx90n7j, so private-rw
+          # is directly reachable and needs NO public-IP allowlist — unlike public-rw,
+          # whose allowlist blocked the Endpoint's (per-deploy-changing) egress IP and
+          # silently disabled the read-model mirror (empirically: TCP timeout to
+          # public-rw:5432). Swap the host in-place so the secret's password is reused
+          # verbatim; a secret already on private-rw is left unchanged.
+          DATABASE_URL_PRIVATE="${DATABASE_URL/public-rw/private-rw}"
+
           # Bounded create: a healthy endpoint returns in ~3-8 min. If the CLI
           # is still blocked after 15 min the endpoint is wedged — dump status
           # + container logs for diagnosis and fail instead of eating the
@@ -361,7 +370,7 @@ jobs:
             --env "JOB_PROVISION_PROBE_SECS=25" \
             --env "JOB_QUOTA_PREFLIGHT=${JOB_QUOTA_PREFLIGHT:-}" \
             --env "NEBIUS_TENANT_ID=${NEBIUS_TENANT_ID:-}" \
-            --env "DATABASE_URL=${DATABASE_URL:-}" \
+            --env "DATABASE_URL=${DATABASE_URL_PRIVATE:-}" \
             --env "CORS_ORIGINS=https://archon-pnl.web.app,http://localhost:3000" \
             --env "JOB_RUNNER_BACKEND=nebius" \
             --env "DOC_ENCRYPTION_ENABLED=$DOC_ENCRYPTION_ENABLED" \
@@ -475,6 +484,28 @@ jobs:
           echo "Endpoint: $ENDPOINT_NAME  ingress IP: $INGRESS_IP (port 443)"
           echo "Public HTTPS URL: https://archon-api.duckdns.org"
           echo "========================================================"
+
+          # PostgreSQL reachability gate. The read-model mirror (services/pg_sync.py)
+          # is best-effort and no-ops when it cannot reach PG, which twice hid a dead
+          # mirror (missing DATABASE_URL; then public-rw allowlist blocking the egress
+          # — now fixed by connecting over private-rw). Surface it explicitly on every
+          # deploy so it can never regress invisibly again. NON-fatal: PG is a
+          # non-critical read-model (S3 is the source of truth), so a PG hiccup must
+          # not block the backend deploy — but it is loudly reported + summarised.
+          echo "--- PostgreSQL reachability from the new Endpoint ---"
+          DB_JSON=""
+          for i in 1 2 3; do
+            DB_JSON=$(curl -sk --max-time 25 "https://${INGRESS_IP}/health/db" || echo '{}')
+            echo "  attempt $i: /health/db -> $DB_JSON"
+            echo "$DB_JSON" | grep -q '"reachable": *true' && break
+            sleep 8
+          done
+          if echo "$DB_JSON" | grep -q '"reachable": *true'; then
+            echo "✅ PostgreSQL reachable from the Endpoint (private-rw) — read-model mirror will write." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::PostgreSQL NOT reachable from the Endpoint — read-model mirror will no-op (best-effort). $DB_JSON"
+            echo "⚠️ PostgreSQL NOT reachable from the Endpoint — read-model mirror will no-op. Detail: $DB_JSON" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Clean up superseded backend endpoints
         run: |
