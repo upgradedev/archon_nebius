@@ -1,10 +1,11 @@
 import logging
 
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path
 from pydantic import BaseModel, Field
 
-from services import nebius, pg_sync, storage
+from auth import verify_firebase_token
+from services import job_audit, nebius, pg_sync, storage
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -17,10 +18,13 @@ class AnalyzeRequest(BaseModel):
 
 
 @router.post("/analyze")
-def trigger_analysis(req: AnalyzeRequest):
+def trigger_analysis(req: AnalyzeRequest, identity: dict = Depends(verify_firebase_token)):
     """Submit an on-demand analysis job and return its ID for polling."""
     try:
-        return nebius.submit_analysis_job(req.period)
+        job = nebius.submit_analysis_job(req.period)
+        # Best-effort audit trail — never blocks the submission.
+        job_audit.record_job_run(job, "analysis", identity)
+        return job
     except nebius.ComputeCapacityUnavailable as exc:
         # Every compute preset failed to provision — actionable 503, not a 500.
         raise HTTPException(status_code=503, detail=str(exc)) from exc

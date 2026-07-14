@@ -1,11 +1,25 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from services import nebius
+
+from auth import verify_firebase_token
+from services import job_audit, nebius
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Our own accounts, excluded from the "third-party live-test" view so what remains
+# is external (e.g. judge) activity. Override via JOB_AUDIT_KNOWN_IDENTITIES (comma
+# separated uids/emails).
+import os
+
+_KNOWN_IDENTITIES = [
+    e.strip() for e in os.getenv(
+        "JOB_AUDIT_KNOWN_IDENTITIES",
+        "ci@archon.local,e2e-test@archon-pnl.web.app,judge@archon-pnl.web.app",
+    ).split(",") if e.strip()
+]
 
 _PERIOD_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
 
@@ -27,9 +41,11 @@ class JobResponse(BaseModel):
 
 
 @router.post("/jobs", response_model=JobResponse)
-def submit_job(req: JobRequest):
+def submit_job(req: JobRequest, identity: dict = Depends(verify_firebase_token)):
     try:
         job = nebius.submit_extraction_job(req.uploadId, req.period)
+        # Best-effort audit trail — never blocks the submission.
+        job_audit.record_job_run(job, "extraction", identity)
         return JobResponse(**job)
     except nebius.ComputeCapacityUnavailable as exc:
         # Every compute preset failed to provision — surface an actionable 503
@@ -63,6 +79,24 @@ def get_job(job_id: str):
             status_code=500,
             detail=f"Failed to get job status: {type(exc).__name__}",
         ) from exc
+
+
+@router.get("/job-runs")
+def list_job_runs(
+    limit: int = Query(100, ge=1, le=500),
+    since_hours: int | None = Query(None, ge=1),
+    third_party_only: bool = Query(False),
+):
+    """Audit trail of AI-Job submissions (newest first), read from PostgreSQL.
+
+    `third_party_only=true` excludes our own test/judge accounts, so the result is
+    submissions by external identities — the signal that someone (e.g. a judge) ran
+    a live test. Degrades to an empty list if the DB is unreachable (never 500s).
+    """
+    exclude = _KNOWN_IDENTITIES if third_party_only else None
+    runs = job_audit.list_recent_job_runs(limit=limit, since_hours=since_hours,
+                                          exclude_identities=exclude)
+    return {"count": len(runs), "third_party_only": third_party_only, "runs": runs}
 
 
 @router.delete("/jobs/{job_id}", status_code=204)
