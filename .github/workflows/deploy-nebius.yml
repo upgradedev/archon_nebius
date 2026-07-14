@@ -15,6 +15,17 @@ on:
         required: false
         default: ''
 
+# Serialize deploys. Each deploy creates a uniquely-named endpoint and then a
+# cleanup step deletes every OTHER archon-backend-r* generation. Two deploys
+# running at once therefore delete each other's fresh endpoint — a real incident
+# (three concurrent runs, from two merge-pushes + a manual dispatch, left ZERO
+# endpoints and took the app down). This guard queues deploys so only one mutates
+# the endpoint set at a time; cancel-in-progress is false so a mid-flight
+# create/cleanup is never interrupted.
+concurrency:
+  group: deploy-nebius
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Build & Deploy
