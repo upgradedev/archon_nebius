@@ -139,6 +139,78 @@ def test_signed_in_upload_and_job_submit(base_url, auth_session, period):
     assert st.json().get("status") in {"pending", "running", "completed", "failed"}
 
 
+# How long to wait for each Job to actually finish. A healthy Nebius Job provisions
+# in ~5 min; a zero-quota Job is accepted but never gets an instance, so a generous
+# bound distinguishes "slow" from "walled". Opt-in / scheduled only (this whole
+# module is), never a per-PR gate — a capacity wall is an infra state, not a code
+# regression, so it must not block merges.
+_PROVISION_TIMEOUT_S = int(os.environ.get("E2E_PROVISION_TIMEOUT_S", "600"))
+_POLL_S = int(os.environ.get("E2E_PROVISION_POLL_S", "15"))
+
+
+def _poll_to_completion(session, url, kind):
+    """Poll a job status URL until it completes; fail LOUDLY on a capacity wall.
+
+    This is the assertion the thin '200 + status is pending' check never made, the
+    gap that let a zero-quota wall (and, earlier, a stopped database) pass unseen.
+    """
+    import time
+
+    deadline = time.monotonic() + _PROVISION_TIMEOUT_S
+    last = None
+    while time.monotonic() < deadline:
+        r = session.get(url, timeout=30)
+        assert r.status_code == 200, r.text
+        last = r.json().get("status")
+        if last == "completed":
+            return
+        if last == "failed":
+            pytest.fail(f"{kind} job FAILED after provisioning: {r.json().get('errorMessage')}")
+        time.sleep(_POLL_S)
+    pytest.fail(
+        f"CAPACITY WALL: {kind} job never completed within {_PROVISION_TIMEOUT_S}s "
+        f"(last status={last!r}). The job was accepted but almost certainly never "
+        f"got compute — AI-Jobs quota for cpu-d3 is 0. Fix: request AI-Jobs quota in "
+        f"the Nebius console, or set JOB_RUNNER_BACKEND=inline to run the pipeline in "
+        f"the endpoint. (Offline demo path unaffected: /?demo=1.)"
+    )
+
+
+@requires_creds
+def test_signed_in_pipeline_completes_or_flags_wall(base_url, auth_session, period):
+    """Drive the WHOLE live pipeline as a signed-in user and assert it FINISHES.
+
+    upload -> extraction job -> (wait to completion) -> analyze -> (wait) -> report
+    with real relational data. Unlike test_signed_in_upload_and_job_submit (which
+    only checks the submit returns 200), this fails loudly if a job never provisions
+    or the report has no data — the early-warning that catches a capacity wall or a
+    stopped database automatically instead of by manual inspection.
+    """
+    pdfs = _sample_pdfs()
+    files = [("files", (p.name, p.read_bytes(), "application/pdf")) for p in pdfs]
+    up = auth_session.post(f"{base_url}/api/upload", files=files, timeout=120)
+    assert up.status_code == 200, up.text
+    upload_id = up.json()["uploadId"]
+
+    ext = auth_session.post(f"{base_url}/api/jobs",
+                            json={"uploadId": upload_id, "period": period}, timeout=60)
+    assert ext.status_code == 200, ext.text
+    ext_id = ext.json()["id"]
+    _poll_to_completion(auth_session, f"{base_url}/api/jobs/{ext_id}", "extraction")
+
+    ana = auth_session.post(f"{base_url}/api/analyze",
+                            json={"period": period}, timeout=90)
+    assert ana.status_code == 200, ana.text
+    ana_id = ana.json()["id"]
+    _poll_to_completion(auth_session, f"{base_url}/api/analyze/{ana_id}", "analysis")
+
+    rep = auth_session.get(f"{base_url}/api/reports/{period}", timeout=90)
+    assert rep.status_code == 200, rep.text
+    report = rep.json().get("report", rep.json())
+    counts = {k: len(report.get(k) or []) for k in ("payrollEvents", "employeeSummaries", "validationResults")}
+    assert any(counts.values()), f"report rendered but has no relational data: {counts}"
+
+
 def test_unauthenticated_upload_is_rejected(base_url):
     # Belt-and-suspenders: no token -> 401 (not a 502/500).
     r = requests.post(
