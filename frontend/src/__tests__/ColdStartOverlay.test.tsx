@@ -58,10 +58,13 @@ describe('ColdStartOverlay', () => {
   })
 
   it('automatically resumes and calls invalidateQueries when health becomes warm', async () => {
+    // begin() now probes /api/health FIRST and only shows the banner when the
+    // endpoint is genuinely cold. Keep it cold for the first two probes (the
+    // pre-show check + one poll) so the overlay is reliably visible, then warm.
     let callCount = 0
     mocks.getHealth.mockImplementation(async () => {
       callCount++
-      return callCount > 1
+      return callCount > 2
     })
 
     const { container } = render(<ColdStartOverlay />, { wrapper: Wrapper })
