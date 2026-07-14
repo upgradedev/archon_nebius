@@ -83,6 +83,7 @@ def _load_documents(period: str) -> list[ExtractedDoc]:
     prefix = f"extracted/{period}/"
     paginator = _s3().get_paginator("list_objects_v2")
     docs: list[ExtractedDoc] = []
+    skipped = 0
     for page in paginator.paginate(Bucket=BUCKET, Prefix=prefix):
         for obj in page.get("Contents", []):
             key = obj["Key"]
@@ -93,7 +94,15 @@ def _load_documents(period: str) -> list[ExtractedDoc]:
                     try:
                         docs.append(ExtractedDoc(**d))
                     except Exception as exc:
-                        log.warning("Skipping malformed document: %s", exc)
+                        skipped += 1
+                        log.warning("Skipping malformed document (%s): %s",
+                                    d.get("source_file", "?"), exc)
+    if skipped:
+        # Loud, because silently dropping documents zeroes the P&L. If this fires,
+        # the extraction schema drifted from ExtractedDoc — reconcile, do not ignore.
+        log.error("Loaded %d documents, SKIPPED %d as unparseable (~%.0f%% of the period). "
+                  "P&L totals will be understated.", len(docs), skipped,
+                  100.0 * skipped / max(1, len(docs) + skipped))
     return docs
 
 
