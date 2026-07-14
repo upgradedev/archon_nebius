@@ -2,25 +2,31 @@ from pydantic import BaseModel
 
 
 class ExtractedDoc(BaseModel):
+    # ADR-006: every optional field carries an explicit default. Pydantic v2 treats
+    # `x: T | None` WITHOUT a default as REQUIRED (accepts None but must be present),
+    # so a document written by an older/leaner extraction schema that omits any of
+    # these keys fails validation and `_load_documents` silently DROPS it. That bug
+    # discarded 13 of 20 real documents on a live period (all revenue + most
+    # expenses), zeroing the P&L. Defaults make the loader tolerant to schema drift.
     source_file: str
     doc_type: str
-    detected_language: str
-    issue_date: str | None
-    vendor_name: str | None
-    vendor_tax_id: str | None
-    recipient_name: str | None
-    currency: str
+    detected_language: str = "unknown"
+    issue_date: str | None = None
+    vendor_name: str | None = None
+    vendor_tax_id: str | None = None
+    recipient_name: str | None = None
+    currency: str = "EUR"
     original_currency: str | None = None
     original_amount: float | None = None
-    subtotal: float | None
-    vat_amount: float | None
-    vat_rate_pct: float | None
+    subtotal: float | None = None
+    vat_amount: float | None = None
+    vat_rate_pct: float | None = None
     vat_treatment: str | None = None
-    total_amount: float
-    payment_due_date: str | None
-    invoice_number: str | None
-    notes: str | None
-    confidence: float
+    total_amount: float = 0.0
+    payment_due_date: str | None = None
+    invoice_number: str | None = None
+    notes: str | None = None
+    confidence: float = 0.0
     # Payroll-specific
     employee_count: int | None = None
     gross_pay_total: float | None = None
