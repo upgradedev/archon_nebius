@@ -101,8 +101,10 @@ const QUESTIONS: QA[] = [
     q: 'How much cash did the business generate?',
     available: (r) => !!r.cashFlow,
     answer: (r) =>
-      `Net cash generated was ${fmt(r.cashFlow.net)} (operating ${fmt(r.cashFlow.operating)}), ` +
-      `with a ${pct(r.keyMetrics.collectionRatePct)} collection rate.`,
+      `Net cash generated was ${fmt(r.cashFlow.net)} (operating ${fmt(r.cashFlow.operating)})` +
+      (r.keyMetrics.collectionRatePct !== null
+        ? `, with a ${pct(r.keyMetrics.collectionRatePct)} collection rate.`
+        : '.'),
   },
 ]
 

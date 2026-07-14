@@ -72,12 +72,15 @@ class VendorSummary(BaseModel):
 
 
 class KeyMetrics(BaseModel):
-    revenueGrowthPct: float
+    # revenueGrowthPct needs a prior period and collectionRatePct needs A/R aging /
+    # payment data — neither is available in a single-period run, so they are None
+    # (rendered as N/A) rather than a fabricated constant. Honesty over a fake KPI.
+    revenueGrowthPct: float | None = None
     expenseRatioPct: float
     cashBurnRate: float
     invoiceCount: int
     avgInvoiceValue: float
-    collectionRatePct: float
+    collectionRatePct: float | None = None
 
 
 class EmployeeSummary(BaseModel):

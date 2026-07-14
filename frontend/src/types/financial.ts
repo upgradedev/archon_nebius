@@ -81,12 +81,14 @@ export interface VendorSummary {
 }
 
 export interface KeyMetrics {
-  revenueGrowthPct: number
+  // null when not derivable from a single period (no prior period / no A/R aging),
+  // rendered as "—" rather than a fabricated figure.
+  revenueGrowthPct: number | null
   expenseRatioPct: number
   cashBurnRate: number
   invoiceCount: number
   avgInvoiceValue: number
-  collectionRatePct: number
+  collectionRatePct: number | null
 }
 
 // Payroll reconciliation — the bank transfer is only the net-wages component;

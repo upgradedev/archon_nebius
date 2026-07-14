@@ -109,7 +109,7 @@ const DOC_COLUMNS = [
 // carry a definition tooltip.
 export default function MetricsCards({ report, period, documents }: Props) {
   const { keyMetrics: metrics, pnl } = report
-  const growthPositive = metrics.revenueGrowthPct >= 0
+  const growthPositive = (metrics.revenueGrowthPct ?? 0) >= 0
   const [activeTile, setActiveTile] = useState<string | null>(null)
 
   const isDrillable = (label: string): boolean => label in TILE_DOC_TYPES
@@ -209,14 +209,22 @@ export default function MetricsCards({ report, period, documents }: Props) {
         </Col>
         <Col xs={12} sm={8} md={4}>
           <Card size="small" {...tileProps('Revenue Growth')}>
-            <Statistic
-              title={tileTitle('Revenue Growth')}
-              value={Math.abs(metrics.revenueGrowthPct)}
-              precision={1}
-              suffix="%"
-              prefix={growthPositive ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-              valueStyle={{ color: growthPositive ? '#22c55e' : '#f43f5e' }}
-            />
+            {metrics.revenueGrowthPct === null ? (
+              <Statistic
+                title={tileTitle('Revenue Growth')}
+                value="—"
+                valueStyle={{ color: '#64748b' }}
+              />
+            ) : (
+              <Statistic
+                title={tileTitle('Revenue Growth')}
+                value={Math.abs(metrics.revenueGrowthPct)}
+                precision={1}
+                suffix="%"
+                prefix={growthPositive ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                valueStyle={{ color: growthPositive ? '#22c55e' : '#f43f5e' }}
+              />
+            )}
           </Card>
         </Col>
         <Col xs={12} sm={8} md={4}>
@@ -233,13 +241,21 @@ export default function MetricsCards({ report, period, documents }: Props) {
         </Col>
         <Col xs={12} sm={8} md={4}>
           <Card size="small" {...tileProps('Collection Rate')}>
-            <Statistic
-              title={tileTitle('Collection Rate')}
-              value={metrics.collectionRatePct}
-              precision={1}
-              suffix="%"
-              valueStyle={{ color: metrics.collectionRatePct >= 90 ? '#22c55e' : '#f97316' }}
-            />
+            {metrics.collectionRatePct === null ? (
+              <Statistic
+                title={tileTitle('Collection Rate')}
+                value="—"
+                valueStyle={{ color: '#64748b' }}
+              />
+            ) : (
+              <Statistic
+                title={tileTitle('Collection Rate')}
+                value={metrics.collectionRatePct}
+                precision={1}
+                suffix="%"
+                valueStyle={{ color: metrics.collectionRatePct >= 90 ? '#22c55e' : '#f97316' }}
+              />
+            )}
           </Card>
         </Col>
       </Row>
