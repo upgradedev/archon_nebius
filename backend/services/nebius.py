@@ -327,6 +327,61 @@ def _preflight_jobs_quota(project_id: str, platform: str) -> None:
     logger.info("Quota pre-flight for %s in %s: %s (proceeding)", platform, region, state)
 
 
+def _preflight_enabled() -> bool:
+    return os.getenv("JOB_QUOTA_PREFLIGHT", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _route_projects_by_quota(
+    projects: list[str], presets: list[tuple[str, str]], region: str
+) -> tuple[list[str], dict[tuple[str, str], str]]:
+    """Active quota-driven routing across the project ladder (opt-in).
+
+    Supersedes the single-project `_preflight_jobs_quota` gate for the submit path:
+    instead of only raising on the FIRST project's confirmed zero (which would kill
+    a submission that could succeed on a later project), it queries the quota API
+    for every (project, ladder-platform) pair and:
+
+      * ORDERS projects available-first, then unknown;
+      * DROPS a project that is a confirmed hard-zero on EVERY ladder platform
+        (submitting there only PROVISIONS-then-FAILs for ~30 min);
+      * returns a per-(project, platform) verdict so the submit loop can also SKIP
+        a single zero rung inside an otherwise-viable project.
+
+    Returns (ordered_projects, verdict). When the pre-flight is disabled it returns
+    (projects, {}) and performs NO quota lookups — behaviour identical to before.
+    FAIL-OPEN by contract: any 'unknown' verdict keeps the project/rung in play, so
+    a quota API that is missing, unauthorized, or silent can only ever REORDER, and
+    can drop a rung only on a *confirmed* zero.
+    """
+    if not _preflight_enabled():
+        return list(projects), {}
+
+    platforms = list(dict.fromkeys(pl for pl, _ in presets))
+    verdict: dict[tuple[str, str], str] = {}
+    for project_id in projects:
+        for platform in platforms:
+            verdict[(project_id, platform)] = _jobs_quota_state(project_id, region, platform)[0]
+
+    def rank(project_id: str) -> int:
+        states = [verdict[(project_id, pl)] for pl in platforms]
+        if any(s == "available" for s in states):
+            return 0
+        if any(s == "unknown" for s in states):
+            return 1
+        return 2  # confirmed zero on every ladder platform
+
+    ordered = [p for p in sorted(projects, key=rank) if rank(p) < 2]
+    dropped = [p for p in projects if rank(p) >= 2]
+    if dropped:
+        logger.warning(
+            "Quota routing: dropping project(s) %s — confirmed 0 AI-Jobs quota in %s "
+            "on every ladder platform (%s)", dropped, region, ", ".join(platforms),
+        )
+    if ordered:
+        logger.info("Quota routing: trying projects in order %s (region=%s)", ordered, region)
+    return ordered, verdict
+
+
 def _parse_ladder_env() -> list[tuple[str, str]]:
     """Parse JOB_PRESET_LADDER ('platform:preset,platform:preset,...') defensively.
 
@@ -539,20 +594,39 @@ def _submit_job_with_failover(name_prefix, period, default_platform, default_pre
     from nebius.api.nebius.ai.v1 import JobServiceClient, CreateJobRequest
     from nebius.api.nebius.common.v1 import ResourceMetadata
 
-    projects = _project_ladder()
+    candidate_projects = _project_ladder()
     presets = _preset_ladder(default_platform, default_preset)
+    region = _target_region()
 
-    # Deterministic pre-flight: if AI-Jobs quota is a hard 0 for this platform,
-    # the submission would only PROVISION-then-FAIL (~30 min). Refuse up front
-    # with an instant, named 503. Opt-in + fail-open (see _preflight_jobs_quota).
-    _preflight_jobs_quota(projects[0] if projects else "", default_platform)
+    # Active quota-driven routing (opt-in via JOB_QUOTA_PREFLIGHT, fail-open):
+    # order projects available-first, drop projects that are a confirmed hard 0 on
+    # every ladder platform, and yield a per-(project, platform) verdict so the loop
+    # can skip a single zero rung. A submission to zero-quota compute only
+    # PROVISIONS-then-FAILs (~30 min); routing turns that into an instant answer.
+    # No-op + no quota lookups when disabled — identical behaviour to before.
+    projects, quota_verdict = _route_projects_by_quota(candidate_projects, presets, region)
+    if _preflight_enabled() and candidate_projects and not projects:
+        # Every candidate project is a confirmed hard 0 on every ladder platform —
+        # instant, named 503 instead of a 30-minute doomed provision.
+        raise NoJobsQuota(default_platform, region, 0)
 
     attempts: list[str] = []
+    submitted_any = False
 
     for project_id in projects:
         _delete_nebius_error_jobs(period, name_prefix, project_id)
 
         for idx, (platform, preset) in enumerate(presets, start=1):
+            if quota_verdict.get((project_id, platform)) == "zero":
+                # Viable project on another platform, but THIS rung is a confirmed
+                # zero — skip it rather than spend ~30 min provisioning-then-failing.
+                logger.info(
+                    "Skipping %s:%s in project=%s — confirmed 0 AI-Jobs quota (pre-flight)",
+                    platform, preset, project_id,
+                )
+                attempts.append(f"{project_id}:{platform}:{preset} skipped-zero-quota")
+                continue
+            submitted_any = True
             job_name = f"{name_prefix}-{period}-{uuid.uuid4().hex[:6]}"
             logger.info("Submitting %s in project=%s on platform=%s preset=%s (preset %d/%d)",
                         job_name, project_id, platform, preset, idx, len(presets))
@@ -634,6 +708,12 @@ def _submit_job_with_failover(name_prefix, period, default_platform, default_pre
                 _safe_delete_job(service, job_id)
             finally:
                 sdk.sync_close()
+
+    # If routing left at least one viable project but every rung in it was skipped
+    # as a confirmed zero, that is still a quota-zero outcome — surface the named
+    # 503, not a generic capacity error.
+    if _preflight_enabled() and projects and not submitted_any:
+        raise NoJobsQuota(default_platform, region, 0)
 
     # Reconstruct the representation of what was tried for the exception message
     ladder_repr = [(p, pr) for p in projects for (pl, pr) in presets]

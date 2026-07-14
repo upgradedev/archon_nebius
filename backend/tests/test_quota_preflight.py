@@ -99,3 +99,70 @@ def test_preflight_proceeds_when_unknown_fail_open(monkeypatch):
     monkeypatch.setenv("JOB_QUOTA_PREFLIGHT", "1")
     with patch("services.nebius._jobs_quota_state", return_value=("unknown", None)):
         nebius._preflight_jobs_quota("proj", "cpu-d3")  # no raise
+
+
+# ── _route_projects_by_quota (active selector) ────────────────────────────────
+
+_PRESETS = [("cpu-d3", "4vcpu-16gb"), ("cpu-d3", "8vcpu-32gb")]
+
+
+def test_routing_noop_and_no_lookups_when_disabled(monkeypatch):
+    monkeypatch.delenv("JOB_QUOTA_PREFLIGHT", raising=False)
+    # Disabled => projects returned verbatim, verdict empty, quota API never touched.
+    with patch("services.nebius._jobs_quota_state", side_effect=AssertionError("should not run")):
+        ordered, verdict = nebius._route_projects_by_quota(["p1", "p2"], _PRESETS, "eu-west1")
+    assert ordered == ["p1", "p2"]
+    assert verdict == {}
+
+
+def test_routing_drops_confirmed_zero_project(monkeypatch):
+    monkeypatch.setenv("JOB_QUOTA_PREFLIGHT", "1")
+
+    def fake(project, region, platform):
+        return ("zero", 0) if project == "zero-proj" else ("available", 16)
+
+    with patch("services.nebius._jobs_quota_state", side_effect=fake):
+        ordered, verdict = nebius._route_projects_by_quota(["zero-proj", "ok-proj"], _PRESETS, "eu-west1")
+    assert ordered == ["ok-proj"]  # zero project dropped up front
+    assert verdict[("zero-proj", "cpu-d3")] == "zero"
+
+
+def test_routing_orders_available_before_unknown(monkeypatch):
+    monkeypatch.setenv("JOB_QUOTA_PREFLIGHT", "1")
+    states = {"a": ("unknown", None), "b": ("available", 8)}
+
+    with patch("services.nebius._jobs_quota_state", side_effect=lambda p, r, pl: states[p]):
+        ordered, _ = nebius._route_projects_by_quota(["a", "b"], _PRESETS, "eu-west1")
+    assert ordered == ["b", "a"]  # available-first
+
+
+def test_routing_keeps_unknown_fail_open(monkeypatch):
+    monkeypatch.setenv("JOB_QUOTA_PREFLIGHT", "1")
+    with patch("services.nebius._jobs_quota_state", return_value=("unknown", None)):
+        ordered, verdict = nebius._route_projects_by_quota(["p1"], _PRESETS, "eu-west1")
+    assert ordered == ["p1"]  # never dropped on uncertainty
+    assert verdict[("p1", "cpu-d3")] == "unknown"
+
+
+def test_submit_raises_nojobsquota_when_every_project_zero(monkeypatch):
+    """The whole point of the selector: a confirmed all-zero tenant yields an
+    INSTANT named 503, never a 30-minute provision-then-FAIL — and no job is
+    ever created."""
+    monkeypatch.setenv("JOB_QUOTA_PREFLIGHT", "1")
+    monkeypatch.setenv("NEBIUS_PROJECT_ID", "only-proj")
+    monkeypatch.delenv("NEBIUS_PROJECT_ID_LADDER", raising=False)
+    monkeypatch.delenv("JOB_PRESET_LADDER", raising=False)
+
+    created = MagicMock()
+    with patch("services.nebius._jobs_quota_state", return_value=("zero", 0)), \
+         patch("services.nebius._delete_nebius_error_jobs") as sweep:
+        with pytest.raises(nebius.NoJobsQuota):
+            nebius._submit_job_with_failover(
+                name_prefix="archon-extract",
+                period="2026-03",
+                default_platform="cpu-d3",
+                default_preset="4vcpu-16gb",
+                build_spec=lambda pl, pr: created,
+            )
+    # No project survived routing => the submit loop (and its error-sweep) never ran.
+    sweep.assert_not_called()
