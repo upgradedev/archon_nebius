@@ -305,6 +305,16 @@ jobs:
           DOC_ENCRYPTION_ENABLED: ${{ vars.DOC_ENCRYPTION_ENABLED }}
           DOC_ENCRYPTION_KMS_KEY_ID: ${{ vars.DOC_ENCRYPTION_KMS_KEY_ID }}
           NEBIUS_PROJECT_ID_LADDER: ${{ vars.NEBIUS_PROJECT_ID_LADDER }}
+          # Managed PostgreSQL connection string. The backend Endpoint is the ONLY
+          # component in-VPC that can reach the IP-allowlisted PG cluster, so it is
+          # the writer for the relational read-model mirror (services/pg_sync.py).
+          # Without this the mirror silently no-ops (best-effort) and the tables
+          # stay empty. Must use port 5432 (direct) — 6432 (pgBouncer) is firewalled.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Opt-in AI-Jobs quota pre-flight/selector (repo VARIABLE, default off).
+          # Set to "1" once the quota resource name is confirmed on the live tenant.
+          JOB_QUOTA_PREFLIGHT: ${{ vars.JOB_QUOTA_PREFLIGHT }}
+          NEBIUS_TENANT_ID: ${{ vars.NEBIUS_TENANT_ID }}
         run: |
           SUBNET_ID="vpcsubnet-e01x810n0mmhj19k9b"
           if [ "$NEBIUS_PROJECT_ID" = "project-e00cncsmpr00e8p6knyvdq" ]; then
@@ -349,6 +359,9 @@ jobs:
             --env "ANALYSIS_JOB_PRESET=8vcpu-32gb" \
             --env "JOB_PRESET_LADDER=cpu-d3:8vcpu-32gb,cpu-d3:16vcpu-64gb,cpu-d3:32vcpu-128gb" \
             --env "JOB_PROVISION_PROBE_SECS=25" \
+            --env "JOB_QUOTA_PREFLIGHT=${JOB_QUOTA_PREFLIGHT:-}" \
+            --env "NEBIUS_TENANT_ID=${NEBIUS_TENANT_ID:-}" \
+            --env "DATABASE_URL=${DATABASE_URL:-}" \
             --env "CORS_ORIGINS=https://archon-pnl.web.app,http://localhost:3000" \
             --env "JOB_RUNNER_BACKEND=nebius" \
             --env "DOC_ENCRYPTION_ENABLED=$DOC_ENCRYPTION_ENABLED" \

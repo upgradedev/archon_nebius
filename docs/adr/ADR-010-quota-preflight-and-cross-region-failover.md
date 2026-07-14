@@ -30,25 +30,39 @@ Two facts shape the fix:
 
 ## Decision
 
-### Part A — Quota pre-flight (Active, opt-in)
+### Part A — Quota pre-flight, now an active routing SELECTOR (Active, opt-in)
 
-Before submitting, `_submit_job_with_failover` calls `_preflight_jobs_quota`,
-which reads the AI-Jobs quota for the target platform + `NEBIUS_REGION` via
-`QuotaAllowanceService.List`. On a **confirmed** `limit == 0` it raises
-`NoJobsQuota` (a `ComputeCapacityUnavailable` subclass → **HTTP 503**) *before*
-submitting — an instant, named error ("no AI-Jobs quota for cpu-d3 in region
-eu-west1") instead of a 30-minute doomed provision.
+Before submitting, `_submit_job_with_failover` calls `_route_projects_by_quota`,
+which reads the AI-Jobs quota for every `(project, ladder-platform)` pair via
+`QuotaAllowanceService.List` and actively **routes** the submission rather than
+merely gating it:
+
+- projects are **ordered** quota-available-first, then unknown;
+- a project that is a **confirmed** hard 0 on *every* ladder platform is
+  **dropped** (submitting there only provisions ~30 min then FAILs);
+- a single confirmed-zero `(project, platform)` rung inside an otherwise-viable
+  project is **skipped** in the submit loop;
+- if **every** candidate is a confirmed 0, the request fails up front with
+  `NoJobsQuota` (a `ComputeCapacityUnavailable` subclass → **HTTP 503**) — an
+  instant, named error ("no AI-Jobs quota for cpu-d3 in region eu-west1") instead
+  of a 30-minute doomed provision.
+
+This supersedes the earlier single-project `_preflight_jobs_quota` gate for the
+submit path: the gate raised on the *first* project's zero, which would have
+killed a submission that could still succeed on a later project in the ladder.
+The gate function is retained as a standalone tested utility.
 
 Two guardrails make this safe to ship on a live submission:
 
 - **Opt-in** via `JOB_QUOTA_PREFLIGHT` (default off). The exact quota resource
   name must be confirmed against a live tenant with real credentials before the
-  check can short-circuit; until then behaviour is identical to today.
+  selector can drop/reorder; until then it performs no lookups and behaviour is
+  identical to today.
 - **Fail-open** by contract. `_jobs_quota_state` returns `"unknown"` on any
   uncertainty — no matching quota row, an SDK build without the quotas API, or a
-  lookup error — and `"unknown"` proceeds to submit. The check can only ever
-  convert a *doomed* submission into a fast 503; it can never block one that
-  might have succeeded.
+  lookup error — and `"unknown"` is never dropped (kept, ordered after
+  available). The selector can only ever convert a *doomed* submission into a fast
+  503 or reorder the ladder; it can never block one that might have succeeded.
 
 ### Part B — Cross-region failover (Proposed / future work)
 
@@ -63,11 +77,15 @@ the lever is captured, not lost.
 
 ## Consequences
 
-- Part A ships as pure upside behind a flag: instant, region-named 503 on
-  confirmed-zero quota once enabled; no behaviour change while off. Covered by
-  `backend/tests/test_quota_preflight.py` (state matching + gate + fail-open).
-  Adds `JOB_QUOTA_PREFLIGHT`, `NEBIUS_TENANT_ID` env knobs (`NEBIUS_REGION`
-  already existed).
+- Part A ships as pure upside behind a flag: quota-ordered routing across the
+  project ladder, zero-quota projects/rungs skipped, and an instant region-named
+  503 when everything is a confirmed 0 — all once enabled; no behaviour change and
+  no quota lookups while off. Covered by `backend/tests/test_quota_preflight.py`
+  (state matching + gate + selector ordering/drop/fail-open + all-zero submit
+  raises `NoJobsQuota` without creating a job). Adds `JOB_QUOTA_PREFLIGHT`,
+  `NEBIUS_TENANT_ID` env knobs (`NEBIUS_REGION` already existed). `DATABASE_URL`
+  is now injected into the backend Endpoint at deploy so the PG read-model mirror
+  actually writes (was previously unset → silent no-op).
 - Part B is deferred, not declined, because it is a real infrastructure lift and
   **untestable locally** (no reachable multi-region infra, IP-allowlisted PG):
   - Each candidate region needs its own subnet, a registry image it can pull
