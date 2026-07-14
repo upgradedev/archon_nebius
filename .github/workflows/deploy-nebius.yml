@@ -238,7 +238,9 @@ jobs:
         run: |
           IMAGE="ghcr.io/${{ github.repository }}/archon-backend:latest"
           IMAGE_LOWER=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
-          docker build -f backend/Dockerfile.https -t "$IMAGE_LOWER" backend/
+          # Context is the repo ROOT so the image also carries jobs/ (the inline
+          # runner executes the pipelines as subprocesses when JOB_RUNNER_BACKEND=inline).
+          docker build -f backend/Dockerfile.https -t "$IMAGE_LOWER" .
           docker push "$IMAGE_LOWER"
           echo "GHCR_BACKEND_IMAGE=$IMAGE_LOWER" >> $GITHUB_ENV
 
@@ -315,6 +317,11 @@ jobs:
           # Set to "1" once the quota resource name is confirmed on the live tenant.
           JOB_QUOTA_PREFLIGHT: ${{ vars.JOB_QUOTA_PREFLIGHT }}
           NEBIUS_TENANT_ID: ${{ vars.NEBIUS_TENANT_ID }}
+          # Job execution backend (repo VARIABLE). Default "nebius" submits AI Jobs;
+          # set to "inline" to run extraction/analysis as subprocesses inside the
+          # Endpoint (fallback when cpu-d3 AI-Jobs quota is 0). The image carries the
+          # job pipelines either way.
+          JOB_RUNNER_BACKEND: ${{ vars.JOB_RUNNER_BACKEND }}
         run: |
           SUBNET_ID="vpcsubnet-e01x810n0mmhj19k9b"
           if [ "$NEBIUS_PROJECT_ID" = "project-e00cncsmpr00e8p6knyvdq" ]; then
@@ -374,7 +381,7 @@ jobs:
             --env "NEBIUS_TENANT_ID=${NEBIUS_TENANT_ID:-}" \
             --env "DATABASE_URL=${DATABASE_URL_PRIVATE:-}" \
             --env "CORS_ORIGINS=https://archon-pnl.web.app,http://localhost:3000" \
-            --env "JOB_RUNNER_BACKEND=nebius" \
+            --env "JOB_RUNNER_BACKEND=${JOB_RUNNER_BACKEND:-nebius}" \
             --env "DOC_ENCRYPTION_ENABLED=$DOC_ENCRYPTION_ENABLED" \
             --env "DOC_ENCRYPTION_KMS_KEY_ID=$DOC_ENCRYPTION_KMS_KEY_ID" \
             --env "NEBIUS_PROJECT_ID_LADDER=$NEBIUS_PROJECT_ID_LADDER" \

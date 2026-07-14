@@ -1,7 +1,13 @@
+# Backend Endpoint image. Build context is the REPO ROOT (not backend/) so the
+# image can also carry the two job pipelines: when JOB_RUNNER_BACKEND=inline the
+# backend runs extraction/analysis in-process (as isolated subprocesses) instead of
+# submitting Nebius AI Jobs — a fallback for when cpu-d3 AI-Jobs quota is 0.
+#
+#   docker build -f backend/Dockerfile.https -t <img> .
+
 # Stage 1 — copy the official Caddy runtime binary.
 # The Caddyfile uses `tls internal`; DuckDNS is updated by start.sh via HTTPS
-# and does not require the caddy-dns/duckdns module. Avoiding xcaddy removes a
-# fragile external Go module download from the deployment path.
+# and does not require the caddy-dns/duckdns module.
 FROM caddy:2 AS caddy-runtime
 
 # Stage 2 — final image
@@ -15,10 +21,18 @@ COPY --from=caddy-runtime /usr/bin/caddy /usr/bin/caddy
 # Install curl (for DuckDNS IP update on startup)
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Backend deps + both job pipelines' deps (the inline runner executes the pipelines
+# as subprocesses inside this image). The three requirement files pin identical
+# versions of the shared libraries (pydantic/boto3/nebius/cryptography), verified,
+# so pip resolves one consistent set.
+COPY backend/requirements.txt /app/requirements.txt
+COPY jobs/extraction/requirements.txt /app/req-extraction.txt
+COPY jobs/analysis/requirements.txt /app/req-analysis.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt -r /app/req-extraction.txt -r /app/req-analysis.txt
 
-COPY . .
+# Backend app at /app, the two job pipelines at /app/jobs/* (INLINE_*_DIR defaults).
+COPY backend/ /app/
+COPY jobs/ /app/jobs/
 
 RUN chmod +x start.sh
 

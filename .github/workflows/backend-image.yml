@@ -1,0 +1,36 @@
+name: Backend image build
+
+# Validates that the backend Endpoint image builds — the repo-root context that
+# also carries the job pipelines (for JOB_RUNNER_BACKEND=inline) and the merged
+# backend+extraction+analysis dependency set. The deploy workflow is the only place
+# this image is otherwise built, so without this a Dockerfile/deps break would only
+# surface at deploy time. Build only, no push.
+
+on:
+  pull_request:
+    branches: [master, main]
+    paths:
+      - "backend/**"
+      - "jobs/**"
+      - ".dockerignore"
+      - ".github/workflows/backend-image.yml"
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+concurrency:
+  group: backend-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image (Dockerfile.https, repo-root context)
+        run: docker build -f backend/Dockerfile.https -t archon-backend:ci .
+      - name: Assert the job pipelines are present in the image
+        run: |
+          docker run --rm --entrypoint sh archon-backend:ci -c \
+            "test -f /app/main.py && test -f /app/jobs/extraction/main.py && test -f /app/jobs/analysis/main.py && echo 'inline layout OK'"
