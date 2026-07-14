@@ -322,19 +322,16 @@ jobs:
           fi
           echo "Selected Subnet ID: $SUBNET_ID"
 
-          # Reach Managed PostgreSQL over its PRIVATE, in-VPC hostname AND the
-          # pgBouncer pooler port. The Endpoint and the PG cluster share VPC
+          # Reach Managed PostgreSQL over its PRIVATE, in-VPC hostname on the DIRECT
+          # port 5432. The Endpoint and the PG cluster share VPC
           # vpcnetwork-e01pngnyyg0sx90n7j, so private-rw is routable with NO public-IP
-          # allowlist — unlike public-rw, whose allowlist blocked the Endpoint's
-          # (per-deploy-changing) egress IP (empirically: TCP timeout to public-rw:5432).
-          # Ports are INVERTED between the two paths: externally the pooler port 6432 is
-          # firewalled so the public path uses direct 5432; internally the cluster
-          # serves pgBouncer (pooler_config.pooling_mode=TRANSACTION) on 6432 and direct
-          # 5432 is refused (empirically: "Connection refused" on private-rw:5432). So
-          # switch BOTH host public-rw->private-rw AND port 5432->6432. The secret's
-          # password is reused verbatim; a secret already private/6432 is left unchanged.
+          # allowlist. Use direct 5432 (open); the pgBouncer pooler port 6432 is
+          # firewalled and times out even in-VPC on a running cluster (verified
+          # 2026-07-14). Only the HOST is swapped (public-rw->private-rw); the secret's
+          # :5432 and password are reused verbatim. NB: the earlier "Connection refused"
+          # on private-rw:5432 was the cluster being STOPPED, not a wrong port — always
+          # confirm cluster state (nebius msp postgresql v1alpha1 cluster get) first.
           DATABASE_URL_PRIVATE="${DATABASE_URL/public-rw/private-rw}"
-          DATABASE_URL_PRIVATE="${DATABASE_URL_PRIVATE/:5432/:6432}"
 
           # Bounded create: a healthy endpoint returns in ~3-8 min. If the CLI
           # is still blocked after 15 min the endpoint is wedged — dump status
