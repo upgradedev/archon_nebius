@@ -1,0 +1,87 @@
+name: Seed PG read-model report (manual)
+
+# Proves the PostgreSQL read-model mirror (backend/services/pg_sync.py) end-to-end
+# WITHOUT needing AI-Jobs compute quota. It seeds a valid NEW-shape report into
+# Object Storage for a sentinel period, then triggers the backend's authenticated
+# GET /api/reports/<period>, which runs materialize_report on the in-VPC Endpoint
+# (the only writer that can reach the IP-allowlisted PostgreSQL cluster).
+#
+# The seeded period defaults to 2099-12 so it never clobbers a real reporting
+# period. Manual only.
+#
+# PG-write confirmation itself is in the backend Endpoint logs
+# (`nebius ai endpoint logs <id> | grep 'PG materialization committed'`) — the CI
+# runner is not in the PG allowlist, so this workflow proves seed + serve + mirror
+# trigger, and the log line is checked out-of-band.
+
+on:
+  workflow_dispatch:
+    inputs:
+      period:
+        description: "Sentinel period to seed (YYYY-MM). Default 2099-12."
+        required: false
+        default: "2099-12"
+
+concurrency:
+  group: seed-pg-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install boto3 requests -q
+
+      - name: Seed report into Object Storage
+        env:
+          SEED_PERIOD: ${{ github.event.inputs.period }}
+          NEBIUS_BUCKET_NAME: archon-bucket
+          STORAGE_ENDPOINT_URL: https://storage.eu-west1.nebius.cloud
+          NEBIUS_REGION: eu-west1
+          AWS_ACCESS_KEY_ID: ${{ secrets.NEBIUS_STORAGE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.NEBIUS_STORAGE_SECRET_KEY }}
+        run: python scripts/seed_pg_report.py
+
+      - name: Trigger the mirror (authenticated GET /api/reports) and assert served
+        env:
+          PERIOD: ${{ github.event.inputs.period }}
+          API_BASE: ${{ vars.E2E_API_BASE || 'https://archon-pnl.web.app/api' }}
+          E2E_FIREBASE_API_KEY: ${{ secrets.E2E_FIREBASE_API_KEY }}
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import os, sys, requests
+          key = os.environ["E2E_FIREBASE_API_KEY"]
+          email = os.environ["E2E_EMAIL"]; pw = os.environ["E2E_PASSWORD"]
+          period = (os.environ.get("PERIOD") or "2099-12").strip()
+          base = os.environ["API_BASE"].rstrip("/")
+
+          r = requests.post(
+              f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={key}",
+              json={"email": email, "password": pw, "returnSecureToken": True}, timeout=30)
+          r.raise_for_status()
+          tok = r.json()["idToken"]
+
+          # This GET runs materialize_report on the backend Endpoint (best-effort PG write).
+          g = requests.get(f"{base}/reports/{period}",
+                           headers={"Authorization": f"Bearer {tok}"}, timeout=90)
+          print("GET /reports HTTP", g.status_code)
+          g.raise_for_status()
+          rep = g.json().get("report", g.json())
+          counts = {k: len(rep.get(k) or []) for k in ("payrollEvents", "employeeSummaries", "validationResults")}
+          print("served relational counts:", counts)
+          assert all(v > 0 for v in counts.values()), f"seeded report missing relational sections: {counts}"
+          print(f"OK — seeded report for {period} is served with relational data; the mirror was triggered.")
+          print("Confirm the PG write in the backend Endpoint logs: "
+                "`nebius ai endpoint logs <id> | grep 'PG materialization committed'`.")
+          PY
