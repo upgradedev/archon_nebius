@@ -79,3 +79,7 @@ logs/
 # Claude Code local worktrees/settings (never commit)
 .claude/
 demo/archon-nebius-blog.html
+
+# Firebase local deploy cache
+frontend/.firebase/
+.firebase/
