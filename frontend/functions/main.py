@@ -1,20 +1,23 @@
 """
 Firebase Cloud Function (Gen 2) — BFF proxy for the Archon backend.
 
-Forwards /api/** from Firebase Hosting to the Nebius backend so that TLS
-termination lives at Firebase (Google-managed cert, no Let's Encrypt rate
-limits). The Nebius container's Caddy TLS cert is only used for the
-server-to-server hop, which is not browser-visible.
+Forwards /api/** from Firebase Hosting to the Nebius backend. Both hops are now
+real HTTPS with trusted certificates: Firebase terminates TLS at the browser edge
+(Google-managed cert), and the backend is reached over the Nebius Serverless
+Endpoint's **managed HTTPS URL** (status.public_endpoints — a platform-managed
+cert), so this hop verifies the certificate (verify=True). This replaced the
+earlier chain (raw public IP via archon-api.duckdns.org → in-container Caddy
+`tls internal` self-signed cert → verify=False), which was the source of the
+recurring 502s (a NAT egress-vs-ingress DuckDNS mismatch and a flaky public IP
+that dropped inbound SYNs).
 
-Reliability note: the Nebius endpoint is reached over its raw public IP
-(via archon-api.duckdns.org). That IP intermittently drops inbound TCP SYN
-packets, so a single connect attempt can hang ~20s and then fail with a
-connect error even though the backend app itself is healthy (a direct curl
-returns 200 /health and 401 on a protected route). A single failed attempt
-surfaced to the browser as an HTTP 502. We therefore retry connect-layer
-failures on a fresh connection with a short connect timeout: a flaky attempt
-is cheap to abandon and a healthy attempt wins well within the function's
-120s budget.
+The connect-layer retry below is kept as cheap defence for cold-start / transient
+reachability blips: a failed attempt is abandoned in ~4s and a healthy attempt
+wins well within the function's 120s budget.
+
+Config: NEBIUS_BACKEND_URL must be set on the function to the endpoint's managed
+HTTPS URL. It is intentionally required (no dead default) — a misconfigured proxy
+should fail loudly, not silently target a hostname that no longer exists.
 """
 
 import json
@@ -24,9 +27,7 @@ import time
 import httpx
 from firebase_functions import https_fn
 
-BACKEND_URL = os.environ.get(
-    "NEBIUS_BACKEND_URL", "https://archon-api.duckdns.org"
-).rstrip("/")
+BACKEND_URL = os.environ.get("NEBIUS_BACKEND_URL", "").rstrip("/")
 
 # Short connect timeout so a dropped-SYN attempt is abandoned quickly; generous
 # read/write so real upload + analysis work can finish. More short attempts are
@@ -74,6 +75,12 @@ def _is_public(method: str, path: str) -> bool:
 
 @https_fn.on_request(timeout_sec=120, memory=256, region="us-central1")
 def archon_proxy(req: https_fn.Request) -> https_fn.Response:
+    if not BACKEND_URL:
+        return https_fn.Response(
+            response=json.dumps({"error": "NEBIUS_BACKEND_URL is not configured"}),
+            status=503,
+            headers={"Content-Type": "application/json"},
+        )
     if not req.headers.get("authorization") and not _is_public(req.method, req.path):
         return https_fn.Response(
             response=json.dumps({"detail": "Missing bearer token"}),
@@ -99,7 +106,7 @@ def archon_proxy(req: https_fn.Request) -> https_fn.Response:
                 url=url,
                 headers=fwd_headers,
                 content=body,
-                verify=False,   # server-to-server: staging cert is fine
+                verify=True,   # Nebius managed HTTPS URL → trusted platform cert
                 timeout=_TIMEOUT,
                 follow_redirects=False,
             )

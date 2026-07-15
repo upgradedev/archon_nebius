@@ -251,7 +251,7 @@ jobs:
           IMAGE_LOWER=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
           # Context is the repo ROOT so the image also carries jobs/ (the inline
           # runner executes the pipelines as subprocesses when JOB_RUNNER_BACKEND=inline).
-          docker build -f backend/Dockerfile.https -t "$IMAGE_LOWER" .
+          docker build -f backend/Dockerfile.endpoint -t "$IMAGE_LOWER" .
           docker push "$IMAGE_LOWER"
           echo "GHCR_BACKEND_IMAGE=$IMAGE_LOWER" >> $GITHUB_ENV
 
@@ -287,8 +287,8 @@ jobs:
           PYEOF
 
       # Blue/green: each deploy creates a UNIQUELY NAMED endpoint and only
-      # deletes the previous one after the new one is RUNNING and DNS points
-      # at it. Never reuse an endpoint name: re-creating a name whose previous
+      # deletes the previous one after the new one is RUNNING and its managed
+      # URL resolves. Never reuse an endpoint name: re-creating a name whose previous
       # endpoint died in ERROR/PROVISIONING wedges the platform-side backing
       # application — every subsequent create with that name hangs in
       # PROVISIONING or goes ERROR while identical specs under a fresh name
@@ -307,7 +307,6 @@ jobs:
           NEBIUS_STORAGE_ACCESS_KEY_ID: ${{ secrets.NEBIUS_STORAGE_ACCESS_KEY_ID }}
           NEBIUS_STORAGE_SECRET_KEY: ${{ secrets.NEBIUS_STORAGE_SECRET_KEY }}
           NEBIUS_INFERENCE_API_KEY: ${{ secrets.NEBIUS_INFERENCE_API_KEY }}
-          DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
           NEBIUS_REGISTRY_PASSWORD: ${{ secrets.NEBIUS_REGISTRY_PASSWORD }}
           # Document-at-rest KMS envelope encryption. OFF by default. To enable:
           # create a Nebius KMS symmetric key (`nebius kms symmetric-key create
@@ -360,11 +359,10 @@ jobs:
             --name "$ENDPOINT_NAME" \
             --parent-id "$NEBIUS_PROJECT_ID" \
             --image "$GHCR_BACKEND_IMAGE" \
-            --container-port 443 \
+            --container-port 8000 \
             --platform cpu-d3 \
             --preset 4vcpu-16gb \
             --subnet-id "$SUBNET_ID" \
-            --public \
             --env "NEBIUS_SA_KEY_B64=$NEBIUS_SA_KEY_B64" \
             --env "NEBIUS_SA_KEY_ID=$NEBIUS_SA_KEY_ID" \
             --env "NEBIUS_SA_ID=$NEBIUS_SA_ID" \
@@ -395,10 +393,7 @@ jobs:
             --env "JOB_RUNNER_BACKEND=${JOB_RUNNER_BACKEND:-nebius}" \
             --env "DOC_ENCRYPTION_ENABLED=$DOC_ENCRYPTION_ENABLED" \
             --env "DOC_ENCRYPTION_KMS_KEY_ID=$DOC_ENCRYPTION_KMS_KEY_ID" \
-            --env "NEBIUS_PROJECT_ID_LADDER=$NEBIUS_PROJECT_ID_LADDER" \
-            --env "DUCKDNS_TOKEN=$DUCKDNS_TOKEN" \
-            --env "DUCKDNS_SUBDOMAIN=archon-api" \
-            --env "CADDY_DOMAIN=archon-api.duckdns.org"
+            --env "NEBIUS_PROJECT_ID_LADDER=$NEBIUS_PROJECT_ID_LADDER"
           CREATE_STATUS=$?
           set -e
           if [ "$CREATE_STATUS" -ne 0 ]; then
@@ -450,16 +445,16 @@ jobs:
               sys.exit(1)
           PYEOF
 
-      - name: Wait for RUNNING and repoint DuckDNS at the ingress IP
-        env:
-          DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
+      - name: Wait for RUNNING and resolve the managed HTTPS URL
         run: |
-          # start.sh's in-container ipify update reports the EGRESS IP, which
-          # can differ from the ingress IP clients connect to. Take the
-          # authoritative ingress IP from status.public_endpoints instead.
-          INGRESS_IP=""
+          # A Serverless Endpoint exposes its HTTP container port through a
+          # platform-managed HTTPS URL in status.public_endpoints (trusted cert —
+          # this replaced the DuckDNS + in-container Caddy self-signed chain).
+          # Newer endpoints show `https://<host>`; some legacy endpoints show
+          # `IP:port`, so accept either and normalise to an https:// URL.
+          BACKEND_URL=""
           for i in $(seq 1 20); do
-            STATE_AND_IP=$(nebius ai endpoint list \
+            STATE_AND_URL=$(nebius ai endpoint list \
               --parent-id "$NEBIUS_PROJECT_ID" \
               --format json 2>/dev/null | \
               python3 -c "
@@ -468,19 +463,20 @@ jobs:
           for ep in data.get('items', []):
               if ep.get('metadata', {}).get('name') == os.environ['ENDPOINT_NAME']:
                   st = ep.get('status', {})
-                  ip = ''
+                  url = ''
                   for pe in st.get('public_endpoints', []) or []:
-                      m = re.match(r'^([0-9.]+):\\d+$', pe)
-                      if m:
-                          ip = m.group(1)
-                          break
-                  print((st.get('state') or '') + ' ' + ip)
+                      pe = str(pe).strip()
+                      if pe.startswith('http://') or pe.startswith('https://'):
+                          url = pe.rstrip('/'); break
+                      if re.match(r'^[0-9.]+:\\d+$', pe):
+                          url = 'https://' + pe.split(':')[0]; break
+                  print((st.get('state') or '') + ' ' + url)
                   break
           " 2>/dev/null || true)
-            STATE=$(echo "$STATE_AND_IP" | cut -d' ' -f1)
-            INGRESS_IP=$(echo "$STATE_AND_IP" | cut -d' ' -f2)
-            echo "  $ENDPOINT_NAME state=$STATE ip=${INGRESS_IP:-<none>} (attempt $i/20)"
-            if [ "$STATE" = "RUNNING" ] && [ -n "$INGRESS_IP" ]; then
+            STATE=$(echo "$STATE_AND_URL" | cut -d' ' -f1)
+            BACKEND_URL=$(echo "$STATE_AND_URL" | cut -d' ' -f2)
+            echo "  $ENDPOINT_NAME state=$STATE url=${BACKEND_URL:-<none>} (attempt $i/20)"
+            if [ "$STATE" = "RUNNING" ] && [ -n "$BACKEND_URL" ]; then
               break
             fi
             if [ "$STATE" = "ERROR" ]; then
@@ -489,21 +485,23 @@ jobs:
             fi
             sleep 15
           done
-          if [ "$STATE" != "RUNNING" ] || [ -z "$INGRESS_IP" ]; then
-            echo "Endpoint did not reach RUNNING with a public IP in time." >&2
+          if [ "$STATE" != "RUNNING" ] || [ -z "$BACKEND_URL" ]; then
+            echo "Endpoint did not reach RUNNING with a managed public URL in time." >&2
             exit 1
           fi
-          RESP=$(curl -sS "https://www.duckdns.org/update?domains=archon-api&token=${DUCKDNS_TOKEN}&ip=${INGRESS_IP}")
-          if [ "$RESP" != "OK" ]; then
-            echo "DuckDNS update failed: $RESP" >&2
-            exit 1
-          fi
+          echo "BACKEND_URL=$BACKEND_URL" >> "$GITHUB_ENV"
           echo ""
           echo "========================================================"
           echo "Backend deployed successfully!"
-          echo "Endpoint: $ENDPOINT_NAME  ingress IP: $INGRESS_IP (port 443)"
-          echo "Public HTTPS URL: https://archon-api.duckdns.org"
+          echo "Endpoint: $ENDPOINT_NAME"
+          echo "Managed HTTPS URL: $BACKEND_URL"
           echo "========================================================"
+          {
+            echo "### Backend endpoint is live"
+            echo ""
+            echo "- Managed HTTPS URL: \`$BACKEND_URL\`"
+            echo "- **Action:** set \`NEBIUS_BACKEND_URL=$BACKEND_URL\` on the Firebase function (\`frontend/functions\`) and \`firebase deploy --only functions\` so the BFF forwards \`/api/**\` here."
+          } >> "$GITHUB_STEP_SUMMARY"
 
           # PostgreSQL reachability gate. The read-model mirror (services/pg_sync.py)
           # is best-effort and no-ops when it cannot reach PG, which twice hid a dead
@@ -515,7 +513,7 @@ jobs:
           echo "--- PostgreSQL reachability from the new Endpoint ---"
           DB_JSON=""
           for i in 1 2 3; do
-            DB_JSON=$(curl -sk --max-time 25 "https://${INGRESS_IP}/health/db" || echo '{}')
+            DB_JSON=$(curl -s --max-time 25 "${BACKEND_URL}/health/db" || echo '{}')
             echo "  attempt $i: /health/db -> $DB_JSON"
             echo "$DB_JSON" | grep -q '"reachable": *true' && break
             sleep 8
@@ -529,7 +527,7 @@ jobs:
 
       - name: Clean up superseded backend endpoints
         run: |
-          # Only after the new endpoint is RUNNING and DNS points at it.
+          # Only after the new endpoint is RUNNING and its managed URL resolves.
           # Sweeps the legacy fixed-name endpoint and older archon-backend-r*
           # generations (including ERROR leftovers from failed deploys).
           nebius ai endpoint list \

@@ -90,6 +90,9 @@ def _install_backend(monkeypatch, status_code=200, content=b'{"status":"ok"}'):
         return _FakeBackendResponse(status_code, content)
 
     monkeypatch.setattr(main.httpx, "request", _fake_request)
+    # The proxy requires NEBIUS_BACKEND_URL; tests configure a stand-in so they
+    # exercise the forwarding path rather than the 503 misconfig guard.
+    monkeypatch.setattr(main, "BACKEND_URL", "https://backend.example")
     return calls
 
 
@@ -100,7 +103,22 @@ def test_health_forwarded_without_auth(monkeypatch):
     resp = main.archon_proxy(req)
     assert len(calls) == 1, "health must reach the backend (httpx.request called)"
     assert calls[0]["url"].endswith("/api/health")
+    # The backend is now reached over Nebius's managed HTTPS URL (trusted cert),
+    # so the server-to-server hop verifies TLS. This is the whole point of the
+    # native-HTTPS migration — never regress to verify=False.
+    assert calls[0]["verify"] is True
     assert resp.status == 200
+
+
+def test_missing_backend_url_returns_503(monkeypatch):
+    """A function deployed without NEBIUS_BACKEND_URL fails loudly (503), never
+    silently targets a dead hostname."""
+    calls = []
+    monkeypatch.setattr(main.httpx, "request", lambda **k: calls.append(k))
+    monkeypatch.setattr(main, "BACKEND_URL", "")
+    resp = main.archon_proxy(_FakeRequest("GET", "/api/health"))
+    assert resp.status == 503
+    assert calls == [], "must not attempt a request when the backend URL is unset"
 
 
 def test_health_forwards_cold_status_not_synthesized(monkeypatch):

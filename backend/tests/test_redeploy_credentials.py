@@ -16,6 +16,15 @@ def test_redeploy_sh_uses_registry_password():
     # 1. Verify file content statically first
     content = redeploy_sh_path.read_text(encoding="utf-8")
     assert '--registry-password "${NEBIUS_REGISTRY_PASSWORD:-$RUNTIME_IAM_TOKEN}"' in content
+    # Native-HTTPS contract: plain uvicorn image on 8000, TLS terminated by Nebius.
+    # No Caddy image, no DuckDNS repoint, no self-signed chain.
+    assert "backend/Dockerfile.endpoint" in content
+    assert "Dockerfile.https" not in content
+    assert "--container-port 8000" in content
+    assert "duckdns.org" not in content
+    assert "CADDY_DOMAIN" not in content
+    # Reads the managed HTTPS URL from status.public_endpoints (not a raw public IP).
+    assert "public_endpoints" in content
 
     # 2. Run execution integration test with mocked CLI
     # Backup existing .env if present
@@ -75,7 +84,7 @@ if [[ "$*" == *"iam get-access-token"* ]]; then
 elif [[ "$*" == *"endpoint list"* ]]; then
   echo "[]"
 elif [[ "$*" == *"endpoint get-by-name"* ]]; then
-  echo '{{"status": {{"instances": [{{"public_ip": "1.2.3.4"}}]}}}}'
+  echo '{{"status": {{"public_endpoints": ["https://ep-test.eu-west1.nebius.cloud"]}}}}'
 fi
 """
         with open(mock_sh_path, "w", encoding="utf-8", newline="\n") as f:
@@ -117,6 +126,14 @@ fi
             # Ensure our mock static-key password was passed instead of the temporary IAM token fallback
             assert "--registry-password static-key-token-999" in create_call
             assert "--registry-username iam" in create_call
+            # Native-HTTPS deploy contract: HTTP port 8000, no public IP, no DuckDNS/Caddy env.
+            assert "--container-port 8000" in create_call
+            assert "--public" not in create_call
+            assert "DUCKDNS" not in create_call
+            assert "CADDY_DOMAIN" not in create_call
+
+            # The managed HTTPS URL was read from status.public_endpoints.
+            assert any("endpoint get-by-name" in c for c in calls), "managed URL was never read"
         finally:
             # Cleanup: Restore original .env and delete test log
             if env_path.exists():
