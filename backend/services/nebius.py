@@ -17,6 +17,7 @@ import tempfile
 import threading
 import time
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import httpx
@@ -194,6 +195,21 @@ _NEVER_PROVISIONED = "never_provisioned"
 _APP_FAILURE = "app_failure"
 
 
+@dataclass(frozen=True)
+class _ProjectConfig:
+    """Project-local resources required to place a Serverless AI Job."""
+
+    project_id: str
+    region: str
+    subnet_id: str
+
+
+_REQUIRED_COMPUTE_QUOTAS = (
+    "compute.instance.count",
+    "compute.instance.non-gpu.vcpu",
+)
+
+
 class ComputeCapacityUnavailable(RuntimeError):
     """Every preset in the failover ladder failed to provision.
 
@@ -238,23 +254,23 @@ class NoJobsQuota(ComputeCapacityUnavailable):
 
 
 def _target_region() -> str:
-    """Region the Jobs run in. Single-region today (one hardcoded subnet); the
-    cross-region failover ladder is a documented future item (see ADR-010)."""
+    """Legacy/default region used when per-project configuration is absent."""
     return os.getenv("NEBIUS_REGION", "eu-west1").strip() or "eu-west1"
 
 
 def _jobs_quota_state(project_id: str, region: str, platform: str) -> tuple[str, object]:
-    """Best-effort deterministic quota lookup for AI Jobs on `platform`/`region`.
+    """Best-effort compute quota lookup for a project and region.
 
     Returns (state, limit) where state is:
-      * "zero"      — a matching quota was found with limit == 0 (never launches)
-      * "available" — a matching quota was found with limit > 0
-      * "unknown"   — no matching quota found, or the lookup failed / SDK missing
+      * "zero"      — either required quota has no remaining allowance;
+      * "available" — both required quotas have explicit positive headroom;
+      * "unknown"   — a quota is defaulted/absent, or lookup failed.
 
-    FAIL-OPEN by contract: any uncertainty returns "unknown" so the caller
-    proceeds to submit exactly as before. This check can only ever convert a
-    would-be 30-minute FAILED into an instant 503 — it never blocks a submission
-    that might otherwise succeed.
+    Serverless CPU Jobs consume both ``compute.instance.count`` and
+    ``compute.instance.non-gpu.vcpu``. A quota allowance whose ``spec.limit`` is
+    ``None`` represents the provider default, not a confirmed zero, so it is
+    deliberately classified as unknown. Explicit limits account for current
+    ``status.usage``. Any uncertainty remains fail-open.
     """
     try:
         from nebius.api.nebius.quotas.v1 import (
@@ -265,14 +281,16 @@ def _jobs_quota_state(project_id: str, region: str, platform: str) -> tuple[str,
         logger.info("Quota pre-flight unavailable (SDK): %s", exc)
         return "unknown", None
 
-    # Quota allowances may be scoped to the tenant; prefer an explicit tenant id.
-    parent_id = os.getenv("NEBIUS_TENANT_ID", "").strip() or project_id
-    platform_l = platform.lower()
     try:
         sdk = _make_sdk()
         svc = QuotaAllowanceServiceClient(sdk)
-        resp = svc.list(ListQuotaAllowancesRequest(parent_id=parent_id)).wait()
-        best = None
+        # Quota routing is project-specific. Querying the tenant for each project
+        # would return the same allowance list and make the project ladder unable
+        # to distinguish where capacity actually exists.
+        resp = svc.list(ListQuotaAllowancesRequest(parent_id=project_id)).wait()
+        observations: dict[str, list[tuple[str, int | None]]] = {
+            name: [] for name in _REQUIRED_COMPUTE_QUOTAS
+        }
         for item in getattr(resp, "items", []) or []:
             spec = getattr(item, "spec", None)
             status = getattr(item, "status", None)
@@ -280,30 +298,68 @@ def _jobs_quota_state(project_id: str, region: str, platform: str) -> tuple[str,
                 continue
             if (getattr(spec, "region", "") or "") != region:
                 continue
-            # Match the compute-Jobs quota heuristically across name/service/desc.
-            hay = " ".join(
-                str(x).lower() for x in (
-                    getattr(getattr(item, "metadata", None), "name", ""),
-                    getattr(status, "service", ""),
-                    getattr(status, "description", ""),
-                )
+
+            raw_name = str(getattr(getattr(item, "metadata", None), "name", "") or "").strip().lower()
+            quota_name = next(
+                (
+                    required
+                    for required in _REQUIRED_COMPUTE_QUOTAS
+                    if raw_name == required or raw_name.endswith(f"/{required}")
+                ),
+                None,
             )
-            is_jobs = ("job" in hay) or ("compute" in hay and platform_l in hay) or (platform_l in hay)
-            if not is_jobs:
+            if quota_name is None:
                 continue
+
             limit = getattr(spec, "limit", None)
             if limit is None:
+                # An omitted limit means "provider default" in the allowance API.
+                # It must never be interpreted as the protobuf scalar default 0.
+                observations[quota_name].append(("unknown", None))
                 continue
-            # A confirmed zero is decisive; keep scanning only to prefer a >0 match.
-            if limit == 0:
-                return "zero", 0
-            best = ("available", limit)
-        if best is not None:
-            return best
+
+            try:
+                explicit_limit = int(limit)
+                usage = getattr(status, "usage", 0) if status is not None else 0
+                explicit_usage = int(usage or 0)
+            except (TypeError, ValueError):
+                observations[quota_name].append(("unknown", None))
+                continue
+
+            remaining = max(explicit_limit - explicit_usage, 0)
+            observations[quota_name].append(
+                ("available" if remaining > 0 else "zero", remaining)
+            )
+
+        quota_states: dict[str, str] = {}
+        headroom: dict[str, int] = {}
+        for quota_name, rows in observations.items():
+            # Ambiguous duplicate rows fail open: a positive explicit allowance
+            # wins, followed by an unknown/default row, and only unanimous explicit
+            # exhaustion is a confirmed zero.
+            available = [remaining for state, remaining in rows if state == "available"]
+            if available:
+                quota_states[quota_name] = "available"
+                headroom[quota_name] = max(available)
+            elif any(state == "unknown" for state, _ in rows) or not rows:
+                quota_states[quota_name] = "unknown"
+            else:
+                quota_states[quota_name] = "zero"
+
+        if any(state == "zero" for state in quota_states.values()):
+            return "zero", 0
+        if all(quota_states.get(name) == "available" for name in _REQUIRED_COMPUTE_QUOTAS):
+            return "available", min(headroom.values())
         return "unknown", None
     except Exception as exc:
-        logger.info("Quota pre-flight failed (fail-open): %s", exc)
+        logger.info(
+            "Quota pre-flight failed for project=%s region=%s platform=%s (fail-open): %s",
+            project_id, region, platform, exc,
+        )
         return "unknown", None
+    finally:
+        if "sdk" in locals():
+            sdk.sync_close()
 
 
 def _preflight_jobs_quota(project_id: str, platform: str) -> None:
@@ -316,7 +372,7 @@ def _preflight_jobs_quota(project_id: str, platform: str) -> None:
     """
     if os.getenv("JOB_QUOTA_PREFLIGHT", "").strip().lower() not in ("1", "true", "yes", "on"):
         return
-    region = _target_region()
+    region = _project_config_for(project_id).region
     state, limit = _jobs_quota_state(project_id, region, platform)
     if state == "zero":
         logger.warning(
@@ -332,7 +388,7 @@ def _preflight_enabled() -> bool:
 
 
 def _route_projects_by_quota(
-    projects: list[str], presets: list[tuple[str, str]], region: str
+    projects: list[str], presets: list[tuple[str, str]], region: str | None = None
 ) -> tuple[list[str], dict[tuple[str, str], str]]:
     """Active quota-driven routing across the project ladder (opt-in).
 
@@ -357,10 +413,16 @@ def _route_projects_by_quota(
         return list(projects), {}
 
     platforms = list(dict.fromkeys(pl for pl, _ in presets))
+    project_regions = {
+        project_id: _project_config_for(project_id, fallback_region=region).region
+        for project_id in projects
+    }
     verdict: dict[tuple[str, str], str] = {}
     for project_id in projects:
         for platform in platforms:
-            verdict[(project_id, platform)] = _jobs_quota_state(project_id, region, platform)[0]
+            verdict[(project_id, platform)] = _jobs_quota_state(
+                project_id, project_regions[project_id], platform
+            )[0]
 
     def rank(project_id: str) -> int:
         states = [verdict[(project_id, pl)] for pl in platforms]
@@ -374,11 +436,15 @@ def _route_projects_by_quota(
     dropped = [p for p in projects if rank(p) >= 2]
     if dropped:
         logger.warning(
-            "Quota routing: dropping project(s) %s — confirmed 0 AI-Jobs quota in %s "
-            "on every ladder platform (%s)", dropped, region, ", ".join(platforms),
+            "Quota routing: dropping project(s) %s — confirmed exhausted compute "
+            "quota in their configured regions on every ladder platform (%s)",
+            [f"{p}@{project_regions[p]}" for p in dropped], ", ".join(platforms),
         )
     if ordered:
-        logger.info("Quota routing: trying projects in order %s (region=%s)", ordered, region)
+        logger.info(
+            "Quota routing: trying projects in order %s",
+            [f"{p}@{project_regions[p]}" for p in ordered],
+        )
     return ordered, verdict
 
 
@@ -408,16 +474,81 @@ def _parse_ladder_env() -> list[tuple[str, str]]:
     return entries
 
 
-def _project_ladder() -> list[str]:
-    """Parse NEBIUS_PROJECT_ID_LADDER (comma-separated list of project IDs) defensively.
-
-    If empty or unset, falls back to [os.environ["NEBIUS_PROJECT_ID"]].
-    """
+def _legacy_project_ladder() -> list[str]:
+    """Return the legacy project-id-only ladder, preserving order."""
     raw = os.getenv("NEBIUS_PROJECT_ID_LADDER", "").strip()
     if not raw:
         default_id = os.getenv("NEBIUS_PROJECT_ID", "").strip()
         return [default_id] if default_id else []
-    return [p.strip() for p in raw.split(",") if p.strip()]
+    return list(dict.fromkeys(p.strip() for p in raw.split(",") if p.strip()))
+
+
+def _parse_project_configs() -> list[_ProjectConfig]:
+    """Parse ``project=region=subnet`` entries from NEBIUS_PROJECT_CONFIGS.
+
+    Malformed or duplicate entries are ignored with a warning. Returning an empty
+    list lets callers fall back to the legacy single-region environment contract.
+    """
+    raw = os.getenv("NEBIUS_PROJECT_CONFIGS", "").strip()
+    if not raw:
+        return []
+
+    configs: list[_ProjectConfig] = []
+    seen: set[str] = set()
+    for raw_entry in raw.split(","):
+        entry = raw_entry.strip()
+        if not entry:
+            continue
+        parts = [part.strip() for part in entry.split("=")]
+        if len(parts) != 3 or not all(parts):
+            logger.warning(
+                "Ignoring malformed NEBIUS_PROJECT_CONFIGS entry %r "
+                "(expected project=region=subnet)",
+                entry,
+            )
+            continue
+        project_id, region, subnet_id = parts
+        if project_id in seen:
+            logger.warning(
+                "Ignoring duplicate NEBIUS_PROJECT_CONFIGS project %r", project_id
+            )
+            continue
+        seen.add(project_id)
+        configs.append(_ProjectConfig(project_id, region, subnet_id))
+    return configs
+
+
+def _project_configs() -> list[_ProjectConfig]:
+    """Return explicit project-local configs or synthesize the legacy layout."""
+    explicit = _parse_project_configs()
+    if explicit:
+        return explicit
+
+    region = _target_region()
+    subnet_id = os.getenv("NEBIUS_SUBNET_ID", "").strip()
+    return [
+        _ProjectConfig(project_id, region, subnet_id)
+        for project_id in _legacy_project_ladder()
+    ]
+
+
+def _project_ladder() -> list[str]:
+    """Return configured project IDs in routing order."""
+    return [config.project_id for config in _project_configs()]
+
+
+def _project_config_for(
+    project_id: str, fallback_region: str | None = None
+) -> _ProjectConfig:
+    """Resolve a project's local region/subnet with legacy env compatibility."""
+    for config in _project_configs():
+        if config.project_id == project_id:
+            return config
+    return _ProjectConfig(
+        project_id=project_id,
+        region=fallback_region or _target_region(),
+        subnet_id=os.getenv("NEBIUS_SUBNET_ID", "").strip(),
+    )
 
 
 def _preset_ladder(default_platform: str, default_preset: str) -> list[tuple[str, str]]:
@@ -571,11 +702,38 @@ def _safe_delete_job(service, job_id: str) -> None:
         logger.warning("Could not delete never-provisioned job %s — continuing", job_id)
 
 
+def _build_spec_for_project(build_spec, project_id: str, platform: str, preset: str):
+    """Call the project-aware builder while retaining old demo/test adapters.
+
+    Production builders receive all three values. The signature check keeps the
+    published two-argument offline failover demo working without catching a
+    TypeError raised *inside* a real builder.
+    """
+    import inspect
+
+    try:
+        parameters = inspect.signature(build_spec).parameters.values()
+    except (TypeError, ValueError):
+        return build_spec(project_id, platform, preset)
+    positional = [
+        parameter for parameter in parameters
+        if parameter.kind in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        )
+    ]
+    if not any(parameter.kind == inspect.Parameter.VAR_POSITIONAL for parameter in parameters) \
+            and len(positional) < 3:
+        logger.debug("Calling legacy two-argument JobSpec builder")
+        return build_spec(platform, preset)
+    return build_spec(project_id, platform, preset)
+
+
 def _submit_job_with_failover(name_prefix, period, default_platform, default_preset, build_spec, on_created=None) -> dict:
     """Submit a Nebius AI Job, failing over across projects and compute preset ladders on
     never-provisioned outcomes only.
 
-    build_spec(platform, preset) -> JobSpec. on_created(job_dict), if given, is
+    build_spec(project_id, platform, preset) -> JobSpec. on_created(job_dict), if given, is
     invoked the INSTANT a job is created (right after create succeeds, BEFORE the
     provisioning probe) with {id, nebius_job_name, period, createdAt} — used to
     persist the idempotency marker immediately so a retry that races the still-open
@@ -596,7 +754,6 @@ def _submit_job_with_failover(name_prefix, period, default_platform, default_pre
 
     candidate_projects = _project_ladder()
     presets = _preset_ladder(default_platform, default_preset)
-    region = _target_region()
 
     # Active quota-driven routing (opt-in via JOB_QUOTA_PREFLIGHT, fail-open):
     # order projects available-first, drop projects that are a confirmed hard 0 on
@@ -604,11 +761,14 @@ def _submit_job_with_failover(name_prefix, period, default_platform, default_pre
     # can skip a single zero rung. A submission to zero-quota compute only
     # PROVISIONS-then-FAILs (~30 min); routing turns that into an instant answer.
     # No-op + no quota lookups when disabled — identical behaviour to before.
-    projects, quota_verdict = _route_projects_by_quota(candidate_projects, presets, region)
+    projects, quota_verdict = _route_projects_by_quota(candidate_projects, presets)
     if _preflight_enabled() and candidate_projects and not projects:
         # Every candidate project is a confirmed hard 0 on every ladder platform —
         # instant, named 503 instead of a 30-minute doomed provision.
-        raise NoJobsQuota(default_platform, region, 0)
+        regions = ",".join(
+            dict.fromkeys(_project_config_for(project_id).region for project_id in candidate_projects)
+        )
+        raise NoJobsQuota(default_platform, regions or _target_region(), 0)
 
     attempts: list[str] = []
     submitted_any = False
@@ -643,7 +803,9 @@ def _submit_job_with_failover(name_prefix, period, default_platform, default_pre
                                 parent_id=project_id,
                                 name=job_name,
                             ),
-                            spec=build_spec(platform, preset),
+                            spec=_build_spec_for_project(
+                                build_spec, project_id, platform, preset
+                            ),
                         ),
                     ).wait()
                 except Exception as exc:
@@ -713,7 +875,10 @@ def _submit_job_with_failover(name_prefix, period, default_platform, default_pre
     # as a confirmed zero, that is still a quota-zero outcome — surface the named
     # 503, not a generic capacity error.
     if _preflight_enabled() and projects and not submitted_any:
-        raise NoJobsQuota(default_platform, region, 0)
+        regions = ",".join(
+            dict.fromkeys(_project_config_for(project_id).region for project_id in projects)
+        )
+        raise NoJobsQuota(default_platform, regions or _target_region(), 0)
 
     # Reconstruct the representation of what was tried for the exception message
     ladder_repr = [(p, pr) for p in projects for (pl, pr) in presets]
@@ -799,10 +964,14 @@ def _write_job_marker(marker_key: str, job: dict) -> None:
 
 
 def check_nebius_permissions() -> dict:
-    """Smoke-test SA credentials at startup. Returns {"ok": True} or {"ok": False, "error": "..."}."""
+    """Smoke-test SA Job-list permissions across every configured project."""
     if JOB_RUNNER_BACKEND != "nebius":
         return {"ok": True, "backend": JOB_RUNNER_BACKEND}
     from nebius.api.nebius.ai.v1 import JobServiceClient, ListJobsRequest
+
+    projects = _project_ladder()
+    if not projects:
+        return {"ok": False, "error": "no Nebius projects configured"}
 
     try:
         sdk = _make_sdk()
@@ -810,8 +979,16 @@ def check_nebius_permissions() -> dict:
         return {"ok": False, "error": str(exc)}
     try:
         svc = JobServiceClient(sdk)
-        svc.list(ListJobsRequest(parent_id=os.environ["NEBIUS_PROJECT_ID"])).wait()
-        return {"ok": True}
+        for project_id in projects:
+            try:
+                svc.list(ListJobsRequest(parent_id=project_id)).wait()
+            except Exception as exc:
+                return {
+                    "ok": False,
+                    "error": f"project {project_id}: {exc}",
+                    "project": project_id,
+                }
+        return {"ok": True, "projects": projects}
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
     finally:
@@ -844,12 +1021,15 @@ def _submit_nebius_job(upload_id: str, period: str) -> dict:
     # short-lived IAM token; the whole failover completes well within its TTL).
     token = _get_registry_token()
 
-    def build_spec(platform: str, preset: str):
+    def build_spec(project_id: str, platform: str, preset: str):
+        project = _project_config_for(project_id)
+        if not project.subnet_id:
+            raise RuntimeError(f"no subnet configured for Nebius project {project_id}")
         return JobSpec(
             image=os.environ["EXTRACTION_JOB_IMAGE"],
             platform=platform,
             preset=preset,
-            subnet_id=os.environ["NEBIUS_SUBNET_ID"],
+            subnet_id=project.subnet_id,
             disk=JobSpec.DiskSpec(
                 type=1,  # NETWORK_SSD
                 size_bytes=30 * 1024 * 1024 * 1024,  # 30 GB
@@ -1016,12 +1196,15 @@ def _submit_nebius_analysis_job(period: str) -> dict:
     job_id_env = uuid.uuid4().hex[:8]
     token = _get_registry_token()
 
-    def build_spec(platform: str, preset: str):
+    def build_spec(project_id: str, platform: str, preset: str):
+        project = _project_config_for(project_id)
+        if not project.subnet_id:
+            raise RuntimeError(f"no subnet configured for Nebius project {project_id}")
         return JobSpec(
             image=os.environ["ANALYSIS_JOB_IMAGE"],
             platform=platform,
             preset=preset,
-            subnet_id=os.environ["NEBIUS_SUBNET_ID"],
+            subnet_id=project.subnet_id,
             disk=JobSpec.DiskSpec(
                 type=1,  # NETWORK_SSD
                 size_bytes=20 * 1024 * 1024 * 1024,  # 20 GB

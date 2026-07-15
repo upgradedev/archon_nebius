@@ -352,6 +352,34 @@ def test_submit_extraction_job_passes_registry_credentials(monkeypatch):
     assert creds.password == "test-token"
 
 
+def test_submit_extraction_job_uses_project_mapped_subnet(monkeypatch):
+    monkeypatch.setenv("NEBIUS_PROJECT_ID", "legacy-project")
+    monkeypatch.setenv("NEBIUS_SUBNET_ID", "legacy-subnet")
+    monkeypatch.setenv(
+        "NEBIUS_PROJECT_CONFIGS", "project-north=eu-north1=subnet-north"
+    )
+    monkeypatch.setenv("EXTRACTION_JOB_IMAGE", "cr.test/archon-extraction:latest")
+    monkeypatch.setenv("NEBIUS_INFERENCE_BASE_URL", "https://api.test")
+    monkeypatch.setenv("NEBIUS_INFERENCE_API_KEY", "key")
+
+    sdk, service = _make_sdk_and_service()
+    FakeJobSpec = _make_jobspec_class()
+    captured_specs = []
+
+    class CapturingJobSpec(FakeJobSpec):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            captured_specs.append(self)
+
+    with _patch_nebius_imports(sdk, service, CapturingJobSpec):
+        from services.nebius import _submit_nebius_job
+        _submit_nebius_job("upload-abc", "2025-01")
+
+    assert captured_specs[0].subnet_id == "subnet-north"
+    request = service.create.call_args.args[0]
+    assert request.metadata.parent_id == "project-north"
+
+
 # ── _submit_nebius_analysis_job ───────────────────────────────────────────────
 
 def _patch_analysis_imports(sdk, service, FakeJobSpec, stub_idempotency=True):
@@ -510,6 +538,49 @@ def test_preset_ladder_dedups_preserving_order(monkeypatch):
     assert ladder.count(("cpu-d3", "8vcpu-32gb")) == 1
 
 
+# ── Project/region/subnet configuration ──────────────────────────────────────
+
+def test_parse_project_configs_valid_and_ordered(monkeypatch):
+    monkeypatch.setenv(
+        "NEBIUS_PROJECT_CONFIGS",
+        "p-west=eu-west1=subnet-west, p-north=eu-north1=subnet-north",
+    )
+    from services.nebius import _parse_project_configs
+
+    configs = _parse_project_configs()
+    assert [(c.project_id, c.region, c.subnet_id) for c in configs] == [
+        ("p-west", "eu-west1", "subnet-west"),
+        ("p-north", "eu-north1", "subnet-north"),
+    ]
+
+
+def test_parse_project_configs_skips_malformed_and_duplicate(monkeypatch):
+    monkeypatch.setenv(
+        "NEBIUS_PROJECT_CONFIGS",
+        "bad,p1=eu-west1=subnet-1,p1=eu-north1=subnet-2,=eu-west1=x",
+    )
+    from services.nebius import _parse_project_configs
+
+    configs = _parse_project_configs()
+    assert [(c.project_id, c.region, c.subnet_id) for c in configs] == [
+        ("p1", "eu-west1", "subnet-1"),
+    ]
+
+
+def test_project_configs_preserve_legacy_single_region_subnet(monkeypatch):
+    monkeypatch.delenv("NEBIUS_PROJECT_CONFIGS", raising=False)
+    monkeypatch.setenv("NEBIUS_PROJECT_ID_LADDER", "p1,p2")
+    monkeypatch.setenv("NEBIUS_REGION", "eu-west1")
+    monkeypatch.setenv("NEBIUS_SUBNET_ID", "legacy-subnet")
+    from services.nebius import _project_configs
+
+    configs = _project_configs()
+    assert [(c.project_id, c.region, c.subnet_id) for c in configs] == [
+        ("p1", "eu-west1", "legacy-subnet"),
+        ("p2", "eu-west1", "legacy-subnet"),
+    ]
+
+
 def test_is_provisioning_error_matches_quota_and_precondition():
     from services.nebius import _is_provisioning_error
     assert _is_provisioning_error(RuntimeError("FAILED_PRECONDITION: no capacity"))
@@ -522,6 +593,7 @@ def test_is_provisioning_error_matches_quota_and_precondition():
 def _failover_env(monkeypatch, image_key="EXTRACTION_JOB_IMAGE"):
     monkeypatch.setenv("NEBIUS_PROJECT_ID", "project-test")
     monkeypatch.delenv("NEBIUS_PROJECT_ID_LADDER", raising=False)
+    monkeypatch.delenv("NEBIUS_PROJECT_CONFIGS", raising=False)
     monkeypatch.setenv("NEBIUS_SUBNET_ID", "subnet-test")
     monkeypatch.setenv(image_key, "cr.test/img:latest")
     monkeypatch.setenv("NEBIUS_INFERENCE_BASE_URL", "https://api.test")
@@ -1022,6 +1094,31 @@ def test_check_nebius_permissions_returns_dict_on_sdk_error():
     assert isinstance(result, dict)
     assert result.get("ok") is False
     assert "error" in result
+
+
+def test_check_nebius_permissions_checks_every_ladder_project(monkeypatch):
+    import services.nebius as svc
+
+    monkeypatch.setenv(
+        "NEBIUS_PROJECT_CONFIGS",
+        "p1=eu-west1=subnet-1,p2=eu-north1=subnet-2",
+    )
+    sdk = MagicMock()
+    service = MagicMock()
+    service.list.return_value.wait.return_value = MagicMock()
+    original = svc.JOB_RUNNER_BACKEND
+    svc.JOB_RUNNER_BACKEND = "nebius"
+    try:
+        with patch("services.nebius._make_sdk", return_value=sdk), \
+             patch("nebius.api.nebius.ai.v1.JobServiceClient", return_value=service), \
+             patch("nebius.api.nebius.ai.v1.ListJobsRequest", side_effect=lambda **kw: MagicMock(**kw)):
+            result = svc.check_nebius_permissions()
+    finally:
+        svc.JOB_RUNNER_BACKEND = original
+
+    assert result == {"ok": True, "projects": ["p1", "p2"]}
+    assert [call.args[0].parent_id for call in service.list.call_args_list] == ["p1", "p2"]
+    sdk.sync_close.assert_called_once()
 
 
 def test_get_nebius_job_status_uses_pysdk_wrapper_shape(monkeypatch):

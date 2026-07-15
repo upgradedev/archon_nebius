@@ -14,12 +14,35 @@ import pytest
 from services import nebius
 
 
-def _item(region, name="", service="", desc="", limit=0):
+def _item(region, name="", service="", desc="", limit=0, usage=0):
     return SimpleNamespace(
         metadata=SimpleNamespace(name=name),
         spec=SimpleNamespace(region=region, limit=limit),
-        status=SimpleNamespace(service=service, description=desc),
+        status=SimpleNamespace(service=service, description=desc, usage=usage),
     )
+
+
+def _compute_quota_pair(
+    region="eu-west1",
+    count_limit=4,
+    count_usage=0,
+    vcpu_limit=16,
+    vcpu_usage=0,
+):
+    return [
+        _item(
+            region,
+            name="compute.instance.count",
+            limit=count_limit,
+            usage=count_usage,
+        ),
+        _item(
+            region,
+            name="compute.instance.non-gpu.vcpu",
+            limit=vcpu_limit,
+            usage=vcpu_usage,
+        ),
+    ]
 
 
 def _patched_client(items):
@@ -39,7 +62,7 @@ pytest.importorskip("nebius.api.nebius.quotas.v1")
 # ── _jobs_quota_state ─────────────────────────────────────────────────────────
 
 def test_quota_state_zero_when_matching_limit_zero():
-    items = [_item("eu-west1", name="compute.jobs.cpu-d3", limit=0)]
+    items = _compute_quota_pair(count_limit=0)
     p_sdk, p_cli = _patched_client(items)
     with p_sdk, p_cli:
         state, limit = nebius._jobs_quota_state("proj", "eu-west1", "cpu-d3")
@@ -48,16 +71,45 @@ def test_quota_state_zero_when_matching_limit_zero():
 
 
 def test_quota_state_available_when_limit_positive():
-    items = [_item("eu-west1", service="compute-jobs cpu-d3", limit=16)]
+    items = _compute_quota_pair(count_limit=4, vcpu_limit=16)
     p_sdk, p_cli = _patched_client(items)
     with p_sdk, p_cli:
         state, limit = nebius._jobs_quota_state("proj", "eu-west1", "cpu-d3")
     assert state == "available"
-    assert limit == 16
+    assert limit == 4
+
+
+def test_quota_state_accounts_for_current_usage():
+    items = _compute_quota_pair(count_limit=4, count_usage=4)
+    p_sdk, p_cli = _patched_client(items)
+    with p_sdk, p_cli:
+        state, remaining = nebius._jobs_quota_state("proj", "eu-west1", "cpu-d3")
+    assert state == "zero"
+    assert remaining == 0
+
+
+def test_quota_state_default_limit_is_unknown_never_zero():
+    items = _compute_quota_pair(count_limit=None)
+    p_sdk, p_cli = _patched_client(items)
+    with p_sdk, p_cli:
+        state, remaining = nebius._jobs_quota_state("proj", "eu-west1", "cpu-d3")
+    assert state == "unknown"
+    assert remaining is None
+
+
+def test_quota_state_requires_both_named_compute_quotas():
+    # The old broad "jobs/cpu-d3" heuristic must not turn an unrelated row into
+    # a confirmed zero.
+    items = [_item("eu-west1", name="compute.jobs.cpu-d3", limit=0)]
+    p_sdk, p_cli = _patched_client(items)
+    with p_sdk, p_cli:
+        state, remaining = nebius._jobs_quota_state("proj", "eu-west1", "cpu-d3")
+    assert state == "unknown"
+    assert remaining is None
 
 
 def test_quota_state_unknown_for_other_region():
-    items = [_item("eu-north1", name="compute.jobs.cpu-d3", limit=0)]
+    items = _compute_quota_pair(region="eu-north1", count_limit=0)
     p_sdk, p_cli = _patched_client(items)
     with p_sdk, p_cli:
         state, _ = nebius._jobs_quota_state("proj", "eu-west1", "cpu-d3")
@@ -68,6 +120,23 @@ def test_quota_state_fail_open_on_exception():
     with patch("services.nebius._make_sdk", side_effect=RuntimeError("no creds")):
         state, _ = nebius._jobs_quota_state("proj", "eu-west1", "cpu-d3")
     assert state == "unknown"
+
+
+def test_quota_state_queries_the_candidate_project_not_tenant(monkeypatch):
+    monkeypatch.setenv("NEBIUS_TENANT_ID", "tenant-should-not-be-used")
+    sdk = MagicMock()
+    client = MagicMock()
+    client.list.return_value.wait.return_value = SimpleNamespace(
+        items=_compute_quota_pair()
+    )
+    with patch("services.nebius._make_sdk", return_value=sdk), \
+         patch("nebius.api.nebius.quotas.v1.QuotaAllowanceServiceClient", return_value=client):
+        state, _ = nebius._jobs_quota_state("candidate-project", "eu-west1", "cpu-d3")
+
+    assert state == "available"
+    request = client.list.call_args.args[0]
+    assert request.parent_id == "candidate-project"
+    sdk.sync_close.assert_called_once()
 
 
 # ── _preflight_jobs_quota (gate + raise) ──────────────────────────────────────
@@ -136,6 +205,28 @@ def test_routing_orders_available_before_unknown(monkeypatch):
     assert ordered == ["b", "a"]  # available-first
 
 
+def test_routing_uses_each_projects_configured_region(monkeypatch):
+    monkeypatch.setenv("JOB_QUOTA_PREFLIGHT", "1")
+    monkeypatch.setenv(
+        "NEBIUS_PROJECT_CONFIGS",
+        "p-west=eu-west1=subnet-west,p-north=eu-north1=subnet-north",
+    )
+    calls = []
+
+    def fake(project, region, platform):
+        calls.append((project, region, platform))
+        return ("available", 1)
+
+    with patch("services.nebius._jobs_quota_state", side_effect=fake):
+        ordered, _ = nebius._route_projects_by_quota(
+            ["p-west", "p-north"], _PRESETS
+        )
+
+    assert ordered == ["p-west", "p-north"]
+    assert ("p-west", "eu-west1", "cpu-d3") in calls
+    assert ("p-north", "eu-north1", "cpu-d3") in calls
+
+
 def test_routing_keeps_unknown_fail_open(monkeypatch):
     monkeypatch.setenv("JOB_QUOTA_PREFLIGHT", "1")
     with patch("services.nebius._jobs_quota_state", return_value=("unknown", None)):
@@ -151,6 +242,7 @@ def test_submit_raises_nojobsquota_when_every_project_zero(monkeypatch):
     monkeypatch.setenv("JOB_QUOTA_PREFLIGHT", "1")
     monkeypatch.setenv("NEBIUS_PROJECT_ID", "only-proj")
     monkeypatch.delenv("NEBIUS_PROJECT_ID_LADDER", raising=False)
+    monkeypatch.delenv("NEBIUS_PROJECT_CONFIGS", raising=False)
     monkeypatch.delenv("JOB_PRESET_LADDER", raising=False)
 
     created = MagicMock()
@@ -162,7 +254,7 @@ def test_submit_raises_nojobsquota_when_every_project_zero(monkeypatch):
                 period="2026-03",
                 default_platform="cpu-d3",
                 default_preset="4vcpu-16gb",
-                build_spec=lambda pl, pr: created,
+                build_spec=lambda project, pl, pr: created,
             )
     # No project survived routing => the submit loop (and its error-sweep) never ran.
     sweep.assert_not_called()
