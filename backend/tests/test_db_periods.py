@@ -51,27 +51,56 @@ def test_delete_period_db_success():
     mock_conn.commit.assert_called_once()
 
 
-def test_get_documents_db_success():
+def test_get_documents_pg_fallback_when_s3_empty():
+    # S3 is authoritative and read first; PostgreSQL is only a fallback when S3 has
+    # nothing for the period.
     client = TestClient(app)
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
     mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    
-    # Mock SELECT output
     mock_cursor.fetchall.return_value = [
         ("inv.pdf", "invoice", "el", "2026-03-01", "Vendor A", "12345", None, "EUR", 100.0, 24.0, 24.0, 124.0, "REF1", 1.0, "upload1")
     ]
-    
-    with patch("db.client.get_db_connection", return_value=mock_conn):
+
+    with patch("services.storage.list_keys", return_value=[]), \
+         patch("db.client.get_db_connection", return_value=mock_conn):
         resp = client.get("/api/documents/2026-03")
-        
+
     assert resp.status_code == 200
     docs = resp.json()
     assert len(docs) == 1
     assert docs[0]["source_file"] == "inv.pdf"
-    assert docs[0]["doc_type"] == "invoice"
     assert docs[0]["total_amount"] == 124.0
-    assert docs[0]["vendor_name"] == "Vendor A"
+
+
+def test_get_documents_fresh_s3_wins_over_stale_pg():
+    # Regression for the data-loss bug: a freshly-uploaded document is written to S3
+    # but NOT to PostgreSQL. get_documents MUST return the fresh S3 document, never
+    # the stale PG mirror — otherwise the review screen hides the new upload and the
+    # review PUT deletes it. If PG were consulted first this test would return "old".
+    client = TestClient(app)
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+    # Stale PG mirror still holds only the OLD document.
+    mock_cursor.fetchall.return_value = [
+        ("old.pdf", "expense", "el", "2026-03-01", "Old Vendor", "1", None, "EUR", None, None, None, 90.0, "OLD", 1.0, "up-old")
+    ]
+    # Fresh S3 has the NEW uploaded document.
+    fresh = {"documents": [{"source_file": "new.pdf", "doc_type": "invoice",
+                            "total_amount": 10.0, "vendor_name": "Anthropic"}]}
+
+    with patch("services.storage.list_keys",
+               return_value=["extracted/2026-03/up-new/documents.json"]), \
+         patch("services.storage.download_json", return_value=fresh), \
+         patch("db.client.get_db_connection", return_value=mock_conn):
+        resp = client.get("/api/documents/2026-03")
+
+    assert resp.status_code == 200
+    docs = resp.json()
+    files = {d["source_file"] for d in docs}
+    assert "new.pdf" in files, "fresh S3 upload must be returned"
+    assert "old.pdf" not in files, "stale PG must NOT shadow the fresh S3 document"
 
 
 def test_update_documents_db_success():
