@@ -28,8 +28,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Build backend image (Dockerfile.https, repo-root context)
-        run: docker build -f backend/Dockerfile.https -t archon-backend:ci .
+      - name: Build backend image (Dockerfile.endpoint, repo-root context)
+        run: docker build -f backend/Dockerfile.endpoint -t archon-backend:ci .
       - name: Assert the job pipelines are present in the image
         run: |
           docker run --rm --entrypoint sh archon-backend:ci -c \

@@ -84,17 +84,16 @@ if [[ "$BUILD" == "true" ]]; then
       "$(dirname "$SCRIPT_DIR")/jobs/analysis"
     docker push "$REGISTRY/archon-analysis:latest"
 
-    # Backend endpoint image: Caddy (tls internal) on 443 + uvicorn on 8000.
-    # The LIVE path is the Firebase BFF (frontend/functions/main.py) →
-    # https://archon-api.duckdns.org (verify=False) → the endpoint's Caddy on :443;
-    # start.sh updates the DuckDNS A-record to the endpoint's current IP on boot, so
-    # the BFF target stays stable across redeploys. (The Nebius public tunnel URL is
-    # NOT used by the BFF — do NOT switch to a plain image; that removes Caddy/443/
-    # DuckDNS and breaks the live path.)
+    # Backend endpoint image: plain uvicorn on 8000. Nebius terminates TLS at the
+    # Endpoint's managed HTTPS URL, so there is no in-container Caddy/DuckDNS/self-
+    # signed cert. The LIVE path is the Firebase BFF (frontend/functions/main.py) →
+    # the managed HTTPS URL (verify=True), which is read from status.public_endpoints
+    # below. Build context is the REPO ROOT so the image also carries the job
+    # pipelines for JOB_RUNNER_BACKEND=inline.
     echo "  Building archon-backend..."
-    docker build -f "$(dirname "$SCRIPT_DIR")/backend/Dockerfile.https" \
+    docker build -f "$(dirname "$SCRIPT_DIR")/backend/Dockerfile.endpoint" \
       -t "$REGISTRY/archon-backend:latest" \
-      "$(dirname "$SCRIPT_DIR")/backend"
+      "$(dirname "$SCRIPT_DIR")"
     docker push "$REGISTRY/archon-backend:latest"
 
     echo "  Images pushed."
@@ -123,10 +122,9 @@ nebius ai endpoint create \
   --parent-id "$NEBIUS_PROJECT_ID" \
   --subnet-id "$NEBIUS_SUBNET_ID" \
   --image "$REGISTRY/archon-backend:latest" \
-  --container-port 443 \
+  --container-port 8000 \
   --platform cpu-d3 \
   --preset 4vcpu-16gb \
-  --public \
   --registry-username iam \
   --registry-password "${NEBIUS_REGISTRY_PASSWORD:-$RUNTIME_IAM_TOKEN}" \
   --env "NEBIUS_SA_KEY_B64=${NEBIUS_SA_KEY_B64:-}" \
@@ -155,34 +153,37 @@ nebius ai endpoint create \
   --env "JOB_RUNNER_BACKEND=nebius" \
   --env "DOC_ENCRYPTION_ENABLED=${DOC_ENCRYPTION_ENABLED:-false}" \
   --env "DOC_ENCRYPTION_KMS_KEY_ID=${DOC_ENCRYPTION_KMS_KEY_ID:-}" \
-  --env "NEBIUS_PROJECT_ID_LADDER=${NEBIUS_PROJECT_ID_LADDER:-}" \
-  --env "DUCKDNS_TOKEN=${DUCKDNS_TOKEN:-}" \
-  --env "DUCKDNS_SUBDOMAIN=archon-api" \
-  --env "CADDY_DOMAIN=archon-api.duckdns.org"
+  --env "NEBIUS_PROJECT_ID_LADDER=${NEBIUS_PROJECT_ID_LADDER:-}"
 
-# ── Step 4: Repoint DuckDNS at the endpoint's real ingress IP ──────────────────
-# The in-container start.sh updates DuckDNS via api.ipify.org, which returns the
-# EGRESS/NAT IP — that can differ from the INGRESS public IP clients connect to,
-# which is the recurring root cause of the 502 (stale A-record). Here we read the
-# authoritative ingress IP from the Nebius API and update DuckDNS directly.
-if [[ -n "${DUCKDNS_TOKEN:-}" ]]; then
-  echo "[4/4] Repointing DuckDNS at the endpoint's ingress IP..."
-  PUBLIC_IP=""
-  for _ in $(seq 1 40); do
-    PUBLIC_IP=$(nebius ai endpoint get-by-name --name archon-backend \
-      --parent-id "$NEBIUS_PROJECT_ID" --format json 2>/dev/null \
-      | python3 -c "import sys,json;d=json.load(sys.stdin);i=d.get('status',{}).get('instances',[]);print(i[0]['public_ip'] if i and i[0].get('public_ip') else '')" 2>/dev/null || echo "")
-    [[ -n "$PUBLIC_IP" ]] && break
-    sleep 3
-  done
-  if [[ -n "$PUBLIC_IP" ]]; then
-    RESP=$(curl -sS "https://www.duckdns.org/update?domains=archon-api&token=${DUCKDNS_TOKEN}&ip=${PUBLIC_IP}" || echo "ERR")
-    echo "    DuckDNS: archon-api.duckdns.org -> ${PUBLIC_IP} (response: ${RESP})"
-  else
-    echo "    WARNING: could not read endpoint public IP; run the 'Update DuckDNS A-record' GitHub workflow manually." >&2
-  fi
+# ── Step 4: Read the endpoint's managed HTTPS URL ──────────────────────────────
+# A Serverless Endpoint's HTTP container port is exposed through a platform-managed
+# HTTPS URL in status.public_endpoints (trusted cert — no DuckDNS/Caddy). Newer
+# endpoints show `https://<host>`; some legacy endpoints show `IP:port` instead, so
+# accept either and normalise to an https:// URL. Set the result as NEBIUS_BACKEND_URL
+# on the Firebase function so the BFF forwards /api/** to it.
+echo "[4/4] Reading the endpoint's managed HTTPS URL..."
+BACKEND_URL=""
+for _ in $(seq 1 40); do
+  BACKEND_URL=$(nebius ai endpoint get-by-name --name archon-backend \
+    --parent-id "$NEBIUS_PROJECT_ID" --format json 2>/dev/null \
+    | python3 -c "
+import sys, json, re
+d = json.load(sys.stdin)
+for pe in d.get('status', {}).get('public_endpoints', []) or []:
+    pe = str(pe).strip()
+    if pe.startswith('http://') or pe.startswith('https://'):
+        print(pe.rstrip('/')); break
+    if re.match(r'^[0-9.]+:\d+$', pe):
+        print('https://' + pe.split(':')[0]); break
+" 2>/dev/null || echo "")
+  [[ -n "$BACKEND_URL" ]] && break
+  sleep 3
+done
+if [[ -n "$BACKEND_URL" ]]; then
+  echo "    Managed backend URL: $BACKEND_URL"
+  echo "    → set it on the Firebase function:  NEBIUS_BACKEND_URL=$BACKEND_URL"
 else
-  echo "[4/4] DUCKDNS_TOKEN not set — skipping DuckDNS update. Run the 'Update DuckDNS A-record' GitHub workflow with the endpoint IP." >&2
+  echo "    WARNING: could not read the endpoint's public URL yet; check 'nebius ai endpoint get-by-name --name archon-backend --format json' → status.public_endpoints." >&2
 fi
 
 echo ""
@@ -197,7 +198,7 @@ echo ""
 echo "Check endpoint status:"
 echo "  nebius ai endpoint list --parent-id $NEBIUS_PROJECT_ID"
 echo ""
-echo "Get backend public IP:"
+echo "Get backend managed HTTPS URL (status.public_endpoints):"
 echo "  nebius ai endpoint get --name archon-backend --parent-id $NEBIUS_PROJECT_ID --format json"
 echo ""
 echo "Tear down when done:  bash nebius/teardown.sh"

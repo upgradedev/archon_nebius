@@ -18,18 +18,19 @@ default suite. TWO ways to supply an identity (headless-friendly first):
        E2E_EMAIL   (or NEBIUS_E2E_USER)      sign-in email (the e2e-test account)
        E2E_PASSWORD (or NEBIUS_E2E_PASSWORD) sign-in password
 
-  BACKEND_URL             backend base url (default from conftest; use the
-                          live https://archon-api.duckdns.org for a live run)
+  BACKEND_URL             backend base url (default from conftest; use the live
+                          endpoint's managed HTTPS URL from status.public_endpoints
+                          for a live run, e.g. https://<id>.<region>.nebius.cloud)
 
 One-command runbook (headless, once you hold a token or the test account):
 
   # Path A — you already have an ID token:
-  NEBIUS_E2E_SESSION=<id_token> BACKEND_URL=https://archon-api.duckdns.org \
+  NEBIUS_E2E_SESSION=<id_token> BACKEND_URL=https://<endpoint>.nebius.cloud \
     python -m pytest e2e/test_05_signed_in.py -v
 
   # Path B — email/password (the test mints the token):
   E2E_FIREBASE_API_KEY=<web_api_key> NEBIUS_E2E_USER=<email> \
-    NEBIUS_E2E_PASSWORD=<password> BACKEND_URL=https://archon-api.duckdns.org \
+    NEBIUS_E2E_PASSWORD=<password> BACKEND_URL=https://<endpoint>.nebius.cloud \
     python -m pytest e2e/test_05_signed_in.py -v
 
 The ONLY user-gated step is obtaining the token / creating the test account
@@ -94,8 +95,10 @@ def id_token() -> str:
 def auth_session(id_token) -> requests.Session:
     s = requests.Session()
     s.headers.update({"Authorization": f"Bearer {id_token}", "Accept": "application/json"})
-    # The live endpoint serves a Caddy tls-internal cert (the BFF uses verify=False).
-    s.verify = os.environ.get("E2E_VERIFY_TLS", "false").lower() == "true"
+    # The live endpoint is served over Nebius's managed HTTPS URL (trusted cert),
+    # so TLS verification is on by default. Set E2E_VERIFY_TLS=false only against a
+    # legacy self-signed endpoint.
+    s.verify = os.environ.get("E2E_VERIFY_TLS", "true").lower() == "true"
     return s
 
 

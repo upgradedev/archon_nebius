@@ -1,4 +1,4 @@
-# Applies to the repo-root build context used by backend/Dockerfile.https.
+# Applies to the repo-root build context used by backend/Dockerfile.endpoint.
 # (Job images build from jobs/extraction|analysis/ so this file does not affect them.)
 # Keep only what the backend image needs: backend/ and jobs/.
 .git

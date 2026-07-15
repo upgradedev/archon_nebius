@@ -147,7 +147,7 @@ The design isn't arbitrary; each decision answers a specific problem in SMB fina
 | Layer | Technology | Hosting |
 |---|---|---|
 | Frontend | React 18, Vite, TypeScript, Ant Design, Recharts, TanStack Query | Firebase Hosting (Google CDN) |
-| Backend | Python 3.12, FastAPI, Pydantic v2, boto3, Caddy (TLS) | **Nebius Serverless AI Endpoint** (CPU `cpu-d3`) |
+| Backend | Python 3.12, FastAPI, Pydantic v2, boto3 (TLS terminated by the Nebius managed HTTPS endpoint URL) | **Nebius Serverless AI Endpoint** (CPU `cpu-d3`) |
 | Extraction Job | Python 3.12, Qwen2.5-VL-72B (vision), pdfplumber, PyMuPDF, python-docx | **Nebius Serverless AI Job** (CPU `cpu-d3`) |
 | Analysis Job | Python 3.12, Llama-3.3-70B-Instruct (7-stage pipeline) | **Nebius Serverless AI Job** (CPU `cpu-d3`) |
 | Storage | boto3 (S3-compatible) | Nebius Object Storage |
@@ -291,12 +291,12 @@ The authenticated browser+BFF path (Firebase sign-in → Bearer token → `/api/
 
 ```bash
 # Path A — headless: you already hold a Firebase ID token
-NEBIUS_E2E_SESSION=<id_token> BACKEND_URL=https://archon-api.duckdns.org \
+NEBIUS_E2E_SESSION=<id_token> BACKEND_URL=https://<endpoint>.nebius.cloud \
   python -m pytest e2e/test_05_signed_in.py -v
 
 # Path B — email/password (the test mints the token via Firebase Identity Toolkit)
 E2E_FIREBASE_API_KEY=<web_api_key> NEBIUS_E2E_USER=<email> \
-  NEBIUS_E2E_PASSWORD=<password> BACKEND_URL=https://archon-api.duckdns.org \
+  NEBIUS_E2E_PASSWORD=<password> BACKEND_URL=https://<endpoint>.nebius.cloud \
   python -m pytest e2e/test_05_signed_in.py -v
 ```
 
