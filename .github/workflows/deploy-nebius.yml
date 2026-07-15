@@ -270,6 +270,7 @@ jobs:
           NEBIUS_SA_KEY_B64: ${{ secrets.NEBIUS_SA_KEY_B64 }}
           NEBIUS_SA_KEY_ID: ${{ secrets.NEBIUS_SA_KEY_ID }}
           NEBIUS_SA_ID: ${{ secrets.NEBIUS_SA_ID }}
+          NEBIUS_PROJECT_ID_LADDER: ${{ vars.NEBIUS_PROJECT_ID_LADDER }}
         run: |
           pip install nebius --quiet
           python3 - <<'PYEOF'
@@ -287,10 +288,17 @@ jobs:
                     service_account_id=sa_id)
           try:
               svc = JobServiceClient(sdk)
-              svc.list(ListJobsRequest(parent_id="project-e01mmzejpr00e93rgqgf3q")).wait()
-              print("SA permissions check: PASSED")
+              ladder = [
+                  value.strip()
+                  for value in os.getenv("NEBIUS_PROJECT_ID_LADDER", "").split(",")
+                  if value.strip()
+              ]
+              projects = list(dict.fromkeys(ladder or [os.environ["NEBIUS_PROJECT_ID"]]))
+              for project_id in projects:
+                  svc.list(ListJobsRequest(parent_id=project_id)).wait()
+                  print(f"SA Jobs permission check: PASSED ({project_id})")
           except Exception as e:
-              print(f"SA permissions check: FAILED — {e}", file=sys.stderr)
+              print(f"SA Jobs permission check: FAILED — {e}", file=sys.stderr)
               sys.exit(1)
           finally:
               sdk.sync_close()
@@ -327,6 +335,10 @@ jobs:
           DOC_ENCRYPTION_ENABLED: ${{ vars.DOC_ENCRYPTION_ENABLED }}
           DOC_ENCRYPTION_KMS_KEY_ID: ${{ vars.DOC_ENCRYPTION_KMS_KEY_ID }}
           NEBIUS_PROJECT_ID_LADDER: ${{ vars.NEBIUS_PROJECT_ID_LADDER }}
+          # Per-project Job region/subnet/image configuration. The Endpoint and
+          # authoritative storage remain in the primary eu-west1 project; Job
+          # candidates may be in other regions and must not inherit that region.
+          NEBIUS_PROJECT_CONFIGS: ${{ vars.NEBIUS_PROJECT_CONFIGS }}
           # Managed PostgreSQL connection string. The backend Endpoint is the ONLY
           # component in-VPC that can reach the IP-allowlisted PG cluster, so it is
           # the writer for the relational read-model mirror (services/pg_sync.py).
@@ -403,7 +415,8 @@ jobs:
             --env "JOB_RUNNER_BACKEND=${JOB_RUNNER_BACKEND:-nebius}" \
             --env "DOC_ENCRYPTION_ENABLED=$DOC_ENCRYPTION_ENABLED" \
             --env "DOC_ENCRYPTION_KMS_KEY_ID=$DOC_ENCRYPTION_KMS_KEY_ID" \
-            --env "NEBIUS_PROJECT_ID_LADDER=$NEBIUS_PROJECT_ID_LADDER"
+            --env "NEBIUS_PROJECT_ID_LADDER=$NEBIUS_PROJECT_ID_LADDER" \
+            --env "NEBIUS_PROJECT_CONFIGS=$NEBIUS_PROJECT_CONFIGS"
           CREATE_STATUS=$?
           set -e
           if [ "$CREATE_STATUS" -ne 0 ]; then
