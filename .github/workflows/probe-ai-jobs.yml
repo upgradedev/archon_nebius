@@ -1,0 +1,83 @@
+name: Probe AI Jobs quota
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NEBIUS_SA_KEY_B64: ${{ secrets.NEBIUS_SA_KEY_B64 }}
+      NEBIUS_SA_KEY_ID: ${{ secrets.NEBIUS_SA_KEY_ID }}
+      NEBIUS_SA_ID: ${{ secrets.NEBIUS_SA_ID }}
+      NEBIUS_REGION: eu-west1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Nebius SDK
+        run: pip install --disable-pip-version-check 'nebius>=0.3.0'
+
+      - name: Probe quota allowances and Jobs access
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          from services.nebius import _jobs_quota_state, _make_sdk
+          from nebius.api.nebius.ai.v1 import JobServiceClient, ListJobsRequest
+          from nebius.api.nebius.quotas.v1 import QuotaAllowanceServiceClient, ListQuotaAllowancesRequest
+
+          projects = [
+              "project-e00cncsmpr00e8p6knyvdq",
+              "project-e01mmzejpr00e93rgqgf3q",
+              "project-e03byhh4pr00v15s7dz11p",
+          ]
+
+          print("=== Archon AI Jobs read-only probe ===")
+          for project in projects:
+              print(f"\nPROJECT {project}")
+              print("ROUTER_VERDICT", _jobs_quota_state(project, "eu-west1", "cpu-d3"))
+              sdk = _make_sdk()
+              try:
+                  try:
+                      jobs = JobServiceClient(sdk).list(ListJobsRequest(parent_id=project)).wait()
+                      items = list(getattr(jobs, "items", []) or [])
+                      print("JOBS_ACCESS ok", "count", len(items))
+                      for item in items[:5]:
+                          print("JOB", getattr(getattr(item, "metadata", None), "name", ""),
+                                "state", getattr(getattr(item, "status", None), "state", ""),
+                                "instances", len(getattr(getattr(item, "status", None), "instances", []) or []))
+                  except Exception as exc:
+                      print("JOBS_ACCESS error", type(exc).__name__, str(exc)[:300])
+
+                  try:
+                      quotas = QuotaAllowanceServiceClient(sdk).list(
+                          ListQuotaAllowancesRequest(parent_id=project)
+                      ).wait()
+                      qitems = list(getattr(quotas, "items", []) or [])
+                      print("QUOTA_ACCESS ok", "count", len(qitems))
+                      for item in qitems:
+                          metadata = getattr(item, "metadata", None)
+                          spec = getattr(item, "spec", None)
+                          status = getattr(item, "status", None)
+                          name = str(getattr(metadata, "name", ""))
+                          service = str(getattr(status, "service", ""))
+                          description = str(getattr(status, "description", ""))
+                          hay = f"{name} {service} {description}".lower()
+                          if "job" in hay or "cpu-d3" in hay:
+                              print("QUOTA", name,
+                                    "region", getattr(spec, "region", ""),
+                                    "limit", getattr(spec, "limit", None),
+                                    "service", service,
+                                    "description", description[:180])
+                  except Exception as exc:
+                      print("QUOTA_ACCESS error", type(exc).__name__, str(exc)[:300])
+              finally:
+                  sdk.sync_close()
+          PY
