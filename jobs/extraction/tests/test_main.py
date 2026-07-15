@@ -102,6 +102,36 @@ def test_main_deserialises_and_skips_malformed(monkeypatch):
     assert puts["extracted/2026-01/up-test/validation.json"]["summary"]["total"] == 0
 
 
+def test_main_surfaces_extraction_failures(monkeypatch):
+    # a.pdf extracts fine; b.pdf FAILS extraction (None); c.pdf extracts but is
+    # malformed. Both b and c must be recorded in extraction_summary.failed_files
+    # so a silently-dropped upload is visible instead of vanishing from the report.
+    monkeypatch.setattr(main, "_list_raw_files", lambda u, p: [
+        "raw-docs/2026-01/up-test/a.pdf",
+        "raw-docs/2026-01/up-test/b.pdf",
+        "raw-docs/2026-01/up-test/c.pdf",
+    ])
+
+    def fake_extract(key):
+        if key.endswith("a.pdf"):
+            return make_doc(source_file="a.pdf", doc_type=DocType.INVOICE,
+                            total_amount=500).model_dump()
+        if key.endswith("b.pdf"):
+            return None  # extraction failed for this file
+        return {"source_file": "c.pdf", "garbage": True}  # malformed -> dropped
+    monkeypatch.setattr(main, "_extract_file", fake_extract)
+
+    puts: dict[str, object] = {}
+    monkeypatch.setattr(main, "_put_json", lambda key, data: puts.__setitem__(key, data))
+
+    main.main()
+    summary = puts["extracted/2026-01/up-test/documents.json"]["extraction_summary"]
+    assert summary["files_found"] == 3
+    assert summary["documents_extracted"] == 1
+    assert summary["files_failed"] == 2
+    assert set(summary["failed_files"]) == {"b.pdf", "c.pdf"}
+
+
 # ── advisory injection scan surfaced by the pipeline ──────────────────────────
 
 def test_main_surfaces_injection_scan(monkeypatch):

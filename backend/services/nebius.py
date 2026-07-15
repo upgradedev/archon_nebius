@@ -1148,7 +1148,18 @@ def _run_inline(job_id: str, job_dir: str, extra_env: dict, period: str) -> None
             capture_output=True, text=True, timeout=_INLINE_TIMEOUT_SECS,
         )
         if proc.returncode == 0:
-            logger.info("Inline job %s completed (%s)", job_id, job_dir)
+            # A clean exit does NOT mean every file was processed: the extraction
+            # job catches per-file failures internally and still exits 0. Surface
+            # those (they are otherwise discarded with the captured stdout) so a
+            # silently-dropped upload is visible in the endpoint logs.
+            out = proc.stdout or ""
+            if "EXTRACTION FAILED" in out or "MALFORMED extraction" in out:
+                fail_lines = [ln for ln in out.splitlines()
+                              if "EXTRACTION FAILED" in ln or "MALFORMED extraction" in ln]
+                logger.warning("Inline job %s completed WITH extraction failures: %s",
+                               job_id, " | ".join(fail_lines)[-800:])
+            else:
+                logger.info("Inline job %s completed (%s)", job_id, job_dir)
             _write_inline_status(job_id, "completed", period)
         else:
             tail = (proc.stderr or proc.stdout or "")[-800:]

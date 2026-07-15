@@ -106,11 +106,20 @@ def main(upload_id: str | None = None, period: str | None = None):
     period = period or os.environ["PERIOD"]
     log.info("=== Extraction job start — upload=%s period=%s ===", upload_id, period)
 
-    # Step 1: extract raw files
+    # Step 1: extract raw files. A per-file failure inside _extract_file returns
+    # None (it never raises), so track which files produced nothing — otherwise a
+    # file that failed to extract vanishes silently and the job "succeeds" with
+    # fewer documents than the user uploaded (the exact "I uploaded an invoice and
+    # it shows nowhere" bug). Archon's whole promise is no hidden gaps, so surface it.
     raw_keys = _list_raw_files(upload_id, period)
     log.info("Found %d files to process", len(raw_keys))
-    raw_docs = [r for k in raw_keys if (r := _extract_file(k)) is not None]
-    log.info("Extracted %d documents", len(raw_docs))
+    _extractions = [(k, _extract_file(k)) for k in raw_keys]
+    raw_docs = [r for _, r in _extractions if r is not None]
+    failed_files = [k.rsplit("/", 1)[-1] for k, r in _extractions if r is None]
+    if failed_files:
+        log.error("EXTRACTION FAILED for %d/%d file(s) — not in the report: %s",
+                  len(failed_files), len(raw_keys), ", ".join(failed_files))
+    log.info("Extracted %d documents (%d file(s) failed)", len(raw_docs), len(failed_files))
 
     # Deserialise into typed models for the agent pipeline
     from models.document import ExtractedDocument
@@ -119,7 +128,9 @@ def main(upload_id: str | None = None, period: str | None = None):
         try:
             typed_docs.append(ExtractedDocument(**d))
         except Exception as exc:
-            log.warning("Skipping malformed extraction result: %s", exc)
+            src = d.get("source_file", "?")
+            failed_files.append(src)
+            log.error("MALFORMED extraction result for %s — dropped: %s", src, exc)
 
     # Step 2: classify (rule-based, no LLM)
     typed_docs = classifier.run(typed_docs)
@@ -161,6 +172,15 @@ def main(upload_id: str | None = None, period: str | None = None):
         "period": period,
         "upload_id": upload_id,
         "documents": [d.model_dump() for d in typed_docs],
+        # Loud, machine-readable record of what did NOT make it into the report, so
+        # the backend/frontend can tell the user "N file(s) could not be read" instead
+        # of silently showing fewer documents than were uploaded.
+        "extraction_summary": {
+            "files_found": len(raw_keys),
+            "documents_extracted": len(typed_docs),
+            "files_failed": len(failed_files),
+            "failed_files": failed_files,
+        },
     })
 
     _put_json(f"{base}/events.json", {
@@ -192,7 +212,8 @@ def main(upload_id: str | None = None, period: str | None = None):
         },
     })
 
-    log.info("=== Extraction job complete — %d docs, %d events ===", len(typed_docs), len(events))
+    log.info("=== Extraction job complete — %d docs, %d events, %d file(s) failed ===",
+             len(typed_docs), len(events), len(failed_files))
 
 
 if __name__ == "__main__":
