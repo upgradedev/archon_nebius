@@ -46,7 +46,7 @@ Archon exercises the Nebius platform end-to-end, not a single service. Every pri
 | # | Nebius primitive | Where used (file / module) | What it does | Tested? |
 |---|---|---|---|---|
 | 1 | **AI Endpoint** (CPU `cpu-d3`) | deploy: `nebius/redeploy.sh` (`nebius ai endpoint create`); app: `backend/main.py` | Always-on FastAPI orchestration (`/upload · /jobs · /analyze · /reports`) | ✅ app routes unit-tested (`backend/tests/`); deploy path exercised by `test_redeploy_credentials.py` (mocked CLI → asserts `endpoint create`) |
-| 2 | **AI Jobs** (CPU `cpu-d3`, ×2) | submit: `backend/services/nebius.py` (`JobServiceClient` · `CreateJobRequest`); jobs: `jobs/extraction/main.py` (4 agents) + `jobs/analysis/main.py` (7 agents) | Two on-demand, self-terminating pipelines — document extraction and financial analysis | ✅ `jobs/extraction/tests/` + `jobs/analysis/tests/`; submission + failover in `backend/tests/test_nebius_service.py` (real-pysdk `JobStatus` contract, mocked runner) |
+| 2 | **AI Jobs** (CPU `cpu-d3`, ×2) | submit: `backend/services/nebius.py` (`JobServiceClient` · `CreateJobRequest`); jobs: `jobs/extraction/main.py` (4 agents) + `jobs/analysis/main.py` (7 agents) | Two on-demand, self-terminating pipelines — document extraction and financial analysis. **Primary design; when the tenant's AI-Jobs quota is 0 an `inline` fallback runs the same pipelines inside the Endpoint — see [Inline runner](#inline-runner--the-resilience-path-when-jobs-quota-is-0).** | ✅ `jobs/extraction/tests/` + `jobs/analysis/tests/`; submission + failover in `backend/tests/test_nebius_service.py` (real-pysdk `JobStatus` contract, mocked runner) |
 | 3 | **Inference API** (OpenAI-compatible) | `jobs/extraction/extractors/{pdf,image,docx}.py` + `jobs/analysis/agents/narrator.py` (`OpenAI(base_url=NEBIUS_INFERENCE_BASE_URL)`) | Qwen2.5-VL-72B (vision extraction) + Llama-3.3-70B (analysis narration) | ✅ extractor + `test_narrator.py` (mocked client) |
 | 4 | **Object Storage** (S3-compatible) | `backend/services/storage.py` (`boto3`, `endpoint_url=STORAGE_ENDPOINT_URL`) | `raw-docs/ · extracted/ · reports/` object I/O | ✅ `test_storage.py` + `test_upload_storage_robustness.py` (boto3 mocked) |
 | 5 | **Managed PostgreSQL** | `backend/db/client.py` (`psycopg2`) · `backend/db/models.py` · `backend/db/schema.sql` · `backend/services/pg_sync.py` | Object Storage holds the authoritative artifacts; PostgreSQL is a relational **mirror** the backend populates. `documents` is written on document review and queried (period + document listing) with S3 fallback. `employees · employee_payroll · payroll_events · validation_results` are mirrored from the completed report by `pg_sync.materialize_report()`, invoked best-effort on `GET /reports/{period}` — idempotent per period, and a DB failure never breaks the report response (S3 stays the source of truth). The backend is the writer because it shares the VPC with the IP-allowlisted cluster (an ephemeral Job does not); it connects over the cluster's **private in-VPC endpoint** (`private-rw` host, port 5432, `sslmode=require`), so the mirror never depends on a public IP allowlist that shifts when the endpoint is recreated. Reachability is observable: a `/health/db` (and `/api/health/db`) probe runs `SELECT 1`, and the deploy pipeline reports PostgreSQL reachability in its job summary (non-fatal). A one-command seed workflow (`.github/workflows/seed-pg-report.yml` + `scripts/seed_pg_report.py`) proves the relational write end-to-end without needing job quota. | ✅ `test_db_models.py` + `test_db_periods.py` + `test_pg_sync.py` (models · router SQL · mirror) |
@@ -277,7 +277,7 @@ CORS_ORIGINS=https://archon-pnl.web.app
 
 Five GitHub Actions pipelines guard every change:
 
-- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **294 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack. (The offline coverage gate additionally runs the extraction- and analysis-Job suites and the script tests — 497 Python tests in all: 294 backend + 125 extraction + 67 analysis + 11 scripts — plus `eval/tests`.)
+- **Pipeline Smoke Test** (every PR) — gitleaks secret scan → **315 backend unit/integration tests** (pytest) → the **evaluation harness** (below) → frontend tests (Vitest) → a `docker compose` bring-up that runs the pipeline against the local stack. (The offline coverage gate additionally runs the extraction- and analysis-Job suites and the script tests — 521 Python tests in all: 315 backend + 125 extraction + 70 analysis + 11 scripts — plus `eval/tests`.)
 - **Pen-test (application security)** (the `pen-test` job in `smoke-test.yml`, every PR) — a machine-checkable OWASP-relevant suite that makes **real requests + assertions** against the actual FastAPI app (`TestClient`) and the extraction fence: **authz/authn** (every `/api/**` data route returns 401 unauthenticated — never 200/500), **injection** (upload filename traversal is sanitized; period params are pattern-locked; the prompt-injection fence keeps untrusted document text in the data position while the scanner surfaces smuggled directives), **IDOR / period isolation** (a read for one period can't reach another's artifacts), **sensitive-data exposure** (error bodies carry only an exception type name, tokens aren't logged, documents are ciphertext at rest), and **abuse/DoS-lite** (oversized / malformed uploads → 4xx, never 5xx). See [`backend/tests/test_pentest_*.py`](backend/tests) and [`jobs/extraction/tests/test_pentest_injection_fence.py`](jobs/extraction/tests/test_pentest_injection_fence.py).
 - **Exhaustive E2E Pipeline** (`e2e/`, on master + weekly) — **44 assertions** drive a live stack through the entire flow (upload → extract → link → validate → analyze → report → dashboard), and a **conditional payroll-cost invariant** (`employer_cost_total ≥ bank net`) asserted for every detected payroll event whose register `employer_cost_total` was extracted. The extraction prompt now requests that field (see [`eval/BASELINE.md`](eval/BASELINE.md) §3), so the invariant is enforced whenever the live extraction returns it, and skips only for an event where it is absent. Run locally with `pytest e2e/` — see [`e2e/README.md`](e2e/README.md).
 - **CodeQL** (`codeql.yml`, every PR + weekly) — SAST over both language families (Python: backend + extraction Job + analysis Endpoint; JavaScript/TypeScript: frontend) with the `security-and-quality` query suite.
@@ -349,6 +349,25 @@ jobs are submitted (quota is 0 and live jobs cost money). See **[ADR-009](docs/a
 GPU-only capacity-API finding, and the flow diagram) is documented in
 [`docs/capacity-probe-pattern.md`](docs/capacity-probe-pattern.md). Watch the
 ladder fail over live, offline, with `bash scripts/demo-failover.sh`.
+
+### Inline runner — the resilience path when Jobs quota is 0
+
+AI Jobs are the primary design: the submission path, the pysdk integration, and
+the capacity probe above are all built and tested. But this tenant's `cpu-d3`
+AI-Jobs quota is a hard **0** — verified empirically across every preset **and**
+every region (`eu-north1` / `eu-west1` / `me-west1` / `us-central1` / `uk-south1`),
+and the Nebius Capacity Advisor is GPU-VM-only so it gives no CPU-Jobs signal — so
+no Job ever provisions. Rather than gate the live demo on a quota grant, Archon
+carries a runtime fallback: with **`JOB_RUNNER_BACKEND=inline`** the *same*
+extraction and analysis pipelines run as **isolated subprocesses inside the
+Endpoint** (`python main.py` per pipeline, `UPLOAD_ID`/`PERIOD` via env — identical
+to how a Job invokes them), with status tracked in Object Storage exactly like a
+Job so the existing `/jobs/<id>` and `/analyze/<id>` poll endpoints are unchanged.
+Subprocess isolation (not in-process import) is required because the two job
+packages have colliding top-level module names. The job entrypoints are untouched;
+`nebius` mode is a one-variable toggle back. **The pipeline completes end to end
+either way** — the live signed-in demo runs inline today, and flips to real AI
+Jobs the moment quota is granted. Covered by `backend/tests/test_inline_runner.py`.
 
 ## Evaluation harness (measured accuracy)
 
