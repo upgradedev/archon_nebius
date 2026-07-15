@@ -26,6 +26,7 @@ difficulty: advanced
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Nebius Serverless](https://img.shields.io/badge/Nebius-Serverless%20AI-green)](https://nebius.com)
 [![#NebiusServerlessChallenge](https://img.shields.io/badge/%23NebiusServerlessChallenge-2026-orange)](https://nebius.com)
+[![Watch the technical proof](https://img.shields.io/badge/YouTube-Technical%20Proof-FF0000?logo=youtube&logoColor=white)](https://youtu.be/LwMMIvxHz9Q)
 
 > **Measured scope.** The offline harness scores the real deterministic agents at **100% classification, field, fusion-figure, and validation-outcome accuracy** across a 40-case labelled synthetic corpus, for **€0 with no API key**. For payroll, Archon links a bank confirmation, payroll register, and payslips, then checks net totals, the employer-cost/net ratio, payment date, and headcount. It does **not** verify separate tax or social-insurance remittances ([`eval/BASELINE.md`](eval/BASELINE.md)).
 
