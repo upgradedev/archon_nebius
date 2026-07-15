@@ -126,6 +126,12 @@ break-glass option.
   service account passed Jobs-list permission checks in all three projects; the
   Object Storage write/read/delete round-trip passed; the Firebase BFF function
   was updated; and the live `/api/health` probe returned HTTP 200.
+- [Single live-app extraction smoke 29456062145](https://github.com/upgradedev/archon_nebius/actions/runs/29456062145)
+  sent exactly one authenticated upload and one extraction request through the
+  public Firebase BFF. The API returned `aijob-e00gyxyn1n4bygw91n`, routed to
+  `project-e00cncsmpr00e8p6knyvdq`, with `pending` status. This proves live
+  Jobs-mode dispatch through the deployed application, not instance allocation
+  or workload completion.
 - The deployment proves that the live Archon backend activated Nebius Jobs-mode
   orchestration, quota preflight, and the configured placement ladder. It does
   **not** prove completion of an application extraction or analysis Job.
