@@ -129,7 +129,12 @@ def test_main_surfaces_extraction_failures(monkeypatch):
     assert summary["files_found"] == 3
     assert summary["documents_extracted"] == 1
     assert summary["files_failed"] == 2
-    assert set(summary["failed_files"]) == {"b.pdf", "c.pdf"}
+    # failed_files carries a per-file reason so the user learns WHY, not just that a
+    # file went missing.
+    failed = {f["file"]: f["reason"] for f in summary["failed_files"]}
+    assert set(failed) == {"b.pdf", "c.pdf"}
+    assert "no document" in failed["b.pdf"]           # extraction returned None
+    assert "malformed" in failed["c.pdf"].lower()     # ExtractedDocument rejected it
 
 
 # ── advisory injection scan surfaced by the pipeline ──────────────────────────

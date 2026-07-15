@@ -77,6 +77,12 @@ def _put_json(key: str, data: object) -> None:
 
 # ── extractor step ────────────────────────────────────────────────────────────
 
+# Per-file extraction failure reasons, keyed by filename. main() folds these into
+# documents.json extraction_summary so the backend/frontend can tell the user WHY a
+# file did not make it into the report (not just that it went missing).
+_EXTRACT_FAILURES: dict[str, str] = {}
+
+
 def _extract_file(key: str) -> dict | None:
     filename = key.split("/")[-1]
     with tempfile.NamedTemporaryFile(suffix=Path(filename).suffix, delete=False) as tmp:
@@ -85,13 +91,18 @@ def _extract_file(key: str) -> dict | None:
         _download(key, tmp_path)
         extractor = next((e for e in EXTRACTORS if e.can_handle(tmp_path)), None)
         if extractor is None:
-            log.warning("No extractor for %s — skipping", filename)
+            log.error("EXTRACTION FAILED for %s — unsupported file type (no extractor)", filename)
+            _EXTRACT_FAILURES[filename] = "unsupported file type (no extractor matched)"
             return None
         log.info("Extracting %s with %s", filename, type(extractor).__name__)
         doc = extractor.extract(tmp_path)
         return doc.model_dump()
     except Exception as exc:
-        log.error("Failed to extract %s: %s", filename, exc)
+        # Full traceback (log.exception) so the real cause is visible, and capture a
+        # short reason for extraction_summary. EXTRACTION FAILED marker lets the inline
+        # runner detect the failure in the captured output.
+        log.exception("EXTRACTION FAILED for %s", filename)
+        _EXTRACT_FAILURES[filename] = f"{type(exc).__name__}: {exc}"
         return None
     finally:
         tmp_path.unlink(missing_ok=True)
@@ -113,6 +124,7 @@ def main(upload_id: str | None = None, period: str | None = None):
     # it shows nowhere" bug). Archon's whole promise is no hidden gaps, so surface it.
     raw_keys = _list_raw_files(upload_id, period)
     log.info("Found %d files to process", len(raw_keys))
+    _EXTRACT_FAILURES.clear()
     _extractions = [(k, _extract_file(k)) for k in raw_keys]
     raw_docs = [r for _, r in _extractions if r is not None]
     failed_files = [k.rsplit("/", 1)[-1] for k, r in _extractions if r is None]
@@ -130,6 +142,7 @@ def main(upload_id: str | None = None, period: str | None = None):
         except Exception as exc:
             src = d.get("source_file", "?")
             failed_files.append(src)
+            _EXTRACT_FAILURES[src] = f"malformed extraction result: {type(exc).__name__}: {exc}"
             log.error("MALFORMED extraction result for %s — dropped: %s", src, exc)
 
     # Step 2: classify (rule-based, no LLM)
@@ -179,7 +192,10 @@ def main(upload_id: str | None = None, period: str | None = None):
             "files_found": len(raw_keys),
             "documents_extracted": len(typed_docs),
             "files_failed": len(failed_files),
-            "failed_files": failed_files,
+            "failed_files": [
+                {"file": f, "reason": _EXTRACT_FAILURES.get(f, "extraction returned no document")}
+                for f in failed_files
+            ],
         },
     })
 

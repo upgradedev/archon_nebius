@@ -1150,14 +1150,20 @@ def _run_inline(job_id: str, job_dir: str, extra_env: dict, period: str) -> None
         if proc.returncode == 0:
             # A clean exit does NOT mean every file was processed: the extraction
             # job catches per-file failures internally and still exits 0. Surface
-            # those (they are otherwise discarded with the captured stdout) so a
-            # silently-dropped upload is visible in the endpoint logs.
-            out = proc.stdout or ""
-            if "EXTRACTION FAILED" in out or "MALFORMED extraction" in out:
-                fail_lines = [ln for ln in out.splitlines()
+            # those (otherwise discarded with the captured output) so a silently-
+            # dropped upload is visible in the endpoint logs. Scan BOTH streams:
+            # the job logs via basicConfig, which writes to STDERR, and the full
+            # traceback of the underlying failure lives there too.
+            combined = (proc.stdout or "") + "\n" + (proc.stderr or "")
+            if "EXTRACTION FAILED" in combined or "MALFORMED extraction" in combined:
+                fail_lines = [ln for ln in combined.splitlines()
                               if "EXTRACTION FAILED" in ln or "MALFORMED extraction" in ln]
-                logger.warning("Inline job %s completed WITH extraction failures: %s",
-                               job_id, " | ".join(fail_lines)[-800:])
+                # print() (not just logger) so it is visible regardless of the app's
+                # logging config; include a stderr tail carrying the real traceback.
+                print(f"[inline {job_id}] COMPLETED WITH EXTRACTION FAILURES: "
+                      f"{' | '.join(fail_lines)[-600:]}\n--- stderr tail ---\n"
+                      f"{(proc.stderr or '')[-1500:]}", flush=True)
+                logger.warning("Inline job %s completed WITH extraction failures", job_id)
             else:
                 logger.info("Inline job %s completed (%s)", job_id, job_dir)
             _write_inline_status(job_id, "completed", period)
