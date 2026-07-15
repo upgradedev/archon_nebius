@@ -44,6 +44,23 @@ describe('MetricsCards', () => {
       .forEach(label => expect(screen.getByText(label)).toBeTruthy())
   })
 
+  it('derives the Invoices KPI from the same documents shown in its drill-down', () => {
+    const staleReport = {
+      ...report,
+      keyMetrics: { ...report.keyMetrics, invoiceCount: 4, avgInvoiceValue: 24100 },
+    }
+    const evidence = [
+      ...SAMPLE_DOCS,
+      { source_file: 'invoices/supplier.pdf', doc_type: 'invoice', total_amount: 300 },
+      { source_file: 'receipts/expense.pdf', doc_type: 'expense', total_amount: 200 },
+    ]
+    wrap(<MetricsCards report={staleReport} period="2026-01" documents={evidence} />)
+
+    const tile = screen.getByLabelText('Invoices — open detail')
+    expect(tile.textContent).toContain('3')
+    expect(tile.textContent).toContain('€4,167')
+  })
+
   it('exposes exactly the four evidence-backed drillable tiles as buttons', () => {
     wrap(<MetricsCards report={report} period="2026-01" />)
     // Revenue, Net Profit, Simplified Margin and Invoices are drillable.

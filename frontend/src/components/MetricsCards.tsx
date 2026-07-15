@@ -116,16 +116,25 @@ export default function MetricsCards({ report, period, documents }: Props) {
   // FLAT ExtractedDoc[] (not Azure's { documents }). In demo mode api.getDocuments
   // serves the seeded document set client-side (no backend), so the drill-down is
   // populated for a judge exactly as it is against a real report.
-  const { data: docsRaw = [], isLoading: docsFetching } = useQuery({
+  const { data: docsRaw = [], isLoading: docsFetching, isSuccess: docsLoaded } = useQuery({
     queryKey: ['documents', period],
     queryFn: () => api.getDocuments(period),
-    enabled: !!activeTile && !!period && documents === undefined,
+    // Load once with the dashboard so the Invoices KPI and its drill-down use
+    // the same evidence set. This also corrects previously persisted reports
+    // whose invoiceCount was produced by the old sales-only calculation.
+    enabled: !!period && documents === undefined,
     retry: false,
   })
   // Prefer an injected document set (sample fallback); otherwise use the fetched,
   // shape-normalised ExtractedDoc[]. Loading only applies to the fetch path.
   const allDocs = documents ?? docsRaw
   const docsLoading = documents === undefined && docsFetching
+  const invoiceDocs = allDocs.filter(d => TILE_DOC_TYPES.Invoices.includes(d.doc_type))
+  const hasDocumentEvidence = documents !== undefined || docsLoaded
+  const invoiceCount = hasDocumentEvidence ? invoiceDocs.length : metrics.invoiceCount
+  const invoiceAverage = hasDocumentEvidence
+    ? invoiceDocs.reduce((sum, doc) => sum + (doc.total_amount ?? 0), 0) / (invoiceDocs.length || 1)
+    : metrics.avgInvoiceValue
   const tileDocs = activeTile
     ? allDocs.filter(d => TILE_DOC_TYPES[activeTile]?.includes(d.doc_type))
     : []
@@ -229,11 +238,11 @@ export default function MetricsCards({ report, period, documents }: Props) {
           <Card size="small" {...tileProps('Invoices')}>
             <Statistic
               title={tileTitle('Invoices')}
-              value={metrics.invoiceCount}
+              value={invoiceCount}
               prefix={<FileTextOutlined />}
             />
             <Tag style={{ marginTop: 4 }}>
-              avg {fmt(metrics.avgInvoiceValue)}
+              avg {fmt(invoiceAverage)}
             </Tag>
           </Card>
         </Col>

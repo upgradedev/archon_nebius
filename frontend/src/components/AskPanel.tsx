@@ -135,7 +135,7 @@ export default function AskPanel({ report }: Props) {
           Grounded answers computed from this period's report — pick a question.
         </Text>
 
-        <Space size={[8, 8]} wrap>
+        <Space size={[8, 8]} wrap style={{ width: '100%' }}>
           {questions.map((qa) => (
             <Button
               key={qa.id}
@@ -143,6 +143,15 @@ export default function AskPanel({ report }: Props) {
               type={qa.id === activeId ? 'primary' : 'default'}
               onClick={() => setActiveId(qa.id)}
               aria-label={qa.q}
+              style={{
+                maxWidth: '100%',
+                height: 'auto',
+                minHeight: 24,
+                paddingBlock: 2,
+                whiteSpace: 'normal',
+                textAlign: 'left',
+                overflowWrap: 'anywhere',
+              }}
             >
               {qa.q}
             </Button>
