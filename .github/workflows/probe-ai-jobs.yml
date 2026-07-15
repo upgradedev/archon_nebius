@@ -23,7 +23,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install probe dependencies
-        run: pip install --disable-pip-version-check 'nebius>=0.3.0' httpx
+        run: pip install --disable-pip-version-check 'nebius==0.3.92' httpx
 
       - name: Probe quota allowances and Jobs access
         working-directory: backend
@@ -32,6 +32,7 @@ jobs:
           from services.nebius import _jobs_quota_state, _make_sdk
           from nebius.api.nebius.ai.v1 import JobServiceClient, ListJobsRequest
           from nebius.api.nebius.quotas.v1 import QuotaAllowanceServiceClient, ListQuotaAllowancesRequest
+          from nebius.api.nebius.vpc.v1 import SubnetServiceClient, ListSubnetsRequest
 
           projects = [
               "project-e00cncsmpr00e8p6knyvdq",
@@ -55,6 +56,22 @@ jobs:
                                 "instances", len(getattr(getattr(item, "status", None), "instances", []) or []))
                   except Exception as exc:
                       print("JOBS_ACCESS error", type(exc).__name__, str(exc)[:300])
+
+                  try:
+                      subnets = SubnetServiceClient(sdk).list(
+                          ListSubnetsRequest(parent_id=project, page_size=1000)
+                      ).wait()
+                      sitems = list(getattr(subnets, "items", []) or [])
+                      print("SUBNET_ACCESS ok", "count", len(sitems))
+                      for subnet in sitems:
+                          metadata = getattr(subnet, "metadata", None)
+                          status = getattr(subnet, "status", None)
+                          print("SUBNET",
+                                "id", getattr(metadata, "id", ""),
+                                "name", getattr(metadata, "name", ""),
+                                "state", getattr(status, "state", None))
+                  except Exception as exc:
+                      print("SUBNET_ACCESS error", type(exc).__name__, str(exc)[:300])
 
                   try:
                       quotas = QuotaAllowanceServiceClient(sdk).list(
