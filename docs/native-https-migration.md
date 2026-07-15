@@ -67,6 +67,34 @@ before the live cut-over — the live demo currently works, so we don't gamble i
 Also sanity-check cold-start latency through the managed URL against the Firebase
 60s / axios 120s ceilings.
 
+## Verified live (2026-07-15)
+
+Merging the migration triggered `Deploy to Nebius`, which created the endpoint
+with the new config. Measured on the live endpoint:
+
+- Managed URL appeared **without `--public`**: `https://port8000-<rand>.tunnel.applications.eu-west1.nebius.cloud`.
+- Ingress is **open/unauthenticated**: `curl /health` → `200` in ~0.25s, no IAM token.
+- **NOT stable across recreate:** the `<rand>` token is per-endpoint (≠ the endpoint
+  id), and blue/green uses a unique name per deploy → a fresh URL every deploy.
+
+## The BFF coupling (why every deploy re-points the function)
+
+Because the URL changes per deploy and the Firebase BFF holds it as
+`NEBIUS_BACKEND_URL` (in `frontend/functions/.env`, gitignored), a backend deploy
+that does **not** update the function leaves the live BFF pointing at the previous,
+now-deleted endpoint (a 502). So `deploy-nebius.yml` re-points the function on every
+deploy: it resolves the managed URL, writes `frontend/functions/.env`, and runs
+`firebase deploy --only functions`, then curls `https://archon-pnl.web.app/api/health`
+to confirm 200.
+
+This is **guarded on the `FIREBASE_SERVICE_ACCOUNT` CI secret** — a GCP service-account
+key JSON. Without it the step is a loud no-op (the deploy still succeeds and the job
+summary prints the exact manual repoint command), so a missing secret can never
+silently take the demo down. The service account needs roles to deploy a Gen2
+function: `roles/firebase.admin`, `roles/cloudfunctions.admin`, `roles/run.admin`,
+`roles/iam.serviceAccountUser`, `roles/artifactregistry.admin`, and
+`roles/cloudbuild.builds.editor` (or, simplest, `roles/editor` + `roles/firebase.admin`).
+
 ## Rollback
 
 The change is branch-isolated. If a live cut-over misbehaves, redeploy the
