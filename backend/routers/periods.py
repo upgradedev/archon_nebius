@@ -112,71 +112,32 @@ def delete_period(period: str = Path(..., pattern=_PERIOD_PATTERN)):
 
 @router.get("/documents/{period}")
 def get_documents(period: str = Path(..., pattern=_PERIOD_PATTERN)):
-    """Return all extracted documents for a period, as a flat list."""
-    # 1. Try PostgreSQL database first
-    try:
-        from db.client import get_db_connection
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT 
-                        source_file, doc_type, detected_lang, issue_date,
-                        vendor_name, vendor_tax_id, recipient_name, currency,
-                        subtotal, vat_amount, vat_rate_pct, total_amount,
-                        invoice_number, confidence, upload_id
-                    FROM documents 
-                    WHERE period = %s
-                    """,
-                    (period,)
-                )
-                rows = cur.fetchall()
-                if rows:
-                    logger.info("Found %d documents for period %s in PostgreSQL", len(rows), period)
-                    docs = []
-                    for row in rows:
-                        docs.append({
-                            "source_file": row[0],
-                            "doc_type": row[1],
-                            "detected_language": row[2] or "en",
-                            "issue_date": str(row[3]) if row[3] else None,
-                            "vendor_name": row[4],
-                            "vendor_tax_id": row[5],
-                            "recipient_name": row[6],
-                            "currency": row[7],
-                            "subtotal": float(row[8]) if row[8] is not None else None,
-                            "vat_amount": float(row[9]) if row[9] is not None else None,
-                            "vat_rate_pct": float(row[10]) if row[10] is not None else None,
-                            "total_amount": float(row[11]) if row[11] is not None else 0.0,
-                            "invoice_number": row[12],
-                            "confidence": float(row[13]) if row[13] is not None else 1.0,
-                            "upload_id": row[14]
-                        })
-                    return docs
-        finally:
-            conn.close()
-    except Exception as exc:
-        logger.warning("Could not query documents for %s from PostgreSQL: %s — trying S3", period, exc)
+    """Return all extracted documents for a period, as a flat list.
 
-    # 2. Fallback to S3 Object Storage
+    Object Storage is the SOURCE OF TRUTH for extracted documents and is read
+    FIRST. This matters: the extraction job writes a freshly-uploaded batch to S3
+    but NOT to PostgreSQL (PG is a downstream mirror, populated only on review/report
+    materialization). Reading PG first therefore returned a STALE list that hid a
+    just-uploaded document — and because the review PUT deletes the per-upload S3
+    originals, confirming that stale list permanently destroyed the new upload (the
+    "I uploaded an invoice and it shows nowhere" data-loss bug). PostgreSQL is used
+    only as a fallback when S3 has nothing.
+    """
+    # 1. Object Storage first (authoritative, always fresh). A genuine storage
+    #    ERROR is surfaced as an error — never masked as "no documents" — so it can
+    #    never silently hide data. Only a reachable-but-EMPTY S3 falls through to the
+    #    PostgreSQL mirror below.
     try:
         keys = storage.list_keys(f"extracted/{period}/")
         doc_keys = sorted(k for k in keys if k.endswith("documents.json"))
-        if not doc_keys:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No extracted documents for period {period}",
-            )
         merged: list = []
         for key in doc_keys:
             payload = storage.download_json(key)
             docs = payload.get("documents", []) if isinstance(payload, dict) else payload
             if isinstance(docs, list):
                 merged.extend(docs)
-        return merged
-    except HTTPException:
-        raise
+        if merged:
+            return merged
     except ClientError as exc:
         logger.exception("Storage error listing documents for %s", period)
         raise HTTPException(status_code=502, detail="Storage error listing documents") from exc
@@ -186,6 +147,49 @@ def get_documents(period: str = Path(..., pattern=_PERIOD_PATTERN)):
             status_code=500,
             detail=f"Failed to fetch documents: {type(exc).__name__}",
         ) from exc
+
+    # 2. S3 was reachable but empty — fall back to the PostgreSQL mirror.
+    try:
+        from db.client import get_db_connection
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        source_file, doc_type, detected_lang, issue_date,
+                        vendor_name, vendor_tax_id, recipient_name, currency,
+                        subtotal, vat_amount, vat_rate_pct, total_amount,
+                        invoice_number, confidence, upload_id
+                    FROM documents
+                    WHERE period = %s
+                    """,
+                    (period,)
+                )
+                rows = cur.fetchall()
+                if rows:
+                    logger.info("S3 empty for %s; returning %d documents from PostgreSQL mirror",
+                                period, len(rows))
+                    return [{
+                        "source_file": row[0], "doc_type": row[1],
+                        "detected_language": row[2] or "en",
+                        "issue_date": str(row[3]) if row[3] else None,
+                        "vendor_name": row[4], "vendor_tax_id": row[5], "recipient_name": row[6],
+                        "currency": row[7],
+                        "subtotal": float(row[8]) if row[8] is not None else None,
+                        "vat_amount": float(row[9]) if row[9] is not None else None,
+                        "vat_rate_pct": float(row[10]) if row[10] is not None else None,
+                        "total_amount": float(row[11]) if row[11] is not None else 0.0,
+                        "invoice_number": row[12],
+                        "confidence": float(row[13]) if row[13] is not None else 1.0,
+                        "upload_id": row[14],
+                    } for row in rows]
+        finally:
+            conn.close()
+    except Exception as exc:
+        logger.warning("PostgreSQL fallback for %s failed: %s", period, exc)
+
+    raise HTTPException(status_code=404, detail=f"No extracted documents for period {period}")
 
 
 class DocumentReviewRequest(BaseModel):
