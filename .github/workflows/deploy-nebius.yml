@@ -8,6 +8,16 @@ on:
   push:
     branches:
       - master
+    # Only redeploy the backend when something that actually ships in the endpoint
+    # or job images changes. Docs, the blog, the README, and frontend UI must NOT
+    # trigger a backend redeploy (a redeploy mints a fresh managed URL and re-points
+    # the BFF, so it is never free). The deploy workflow itself is intentionally
+    # excluded so editing it does not self-trigger; use workflow_dispatch for that.
+    paths:
+      - 'backend/**'
+      - 'jobs/**'
+      - 'nebius/**'
+      - 'frontend/functions/**'
   workflow_dispatch:
     inputs:
       project_id:
