@@ -405,7 +405,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
         <Row align="middle" justify="space-between">
           <Col>
             <Title level={2} style={{ margin: 0 }}>Archon</Title>
-            <Text type="secondary">Agentic Financial Intelligence — upload documents, get P&amp;L insights</Text>
+            <Text type="secondary">Agentic Financial Document Control — extract, classify, review, and reconcile records</Text>
           </Col>
           <Col>
             <Space>
