@@ -78,3 +78,4 @@ logs/
 
 # Claude Code local worktrees/settings (never commit)
 .claude/
+demo/archon-nebius-blog.html

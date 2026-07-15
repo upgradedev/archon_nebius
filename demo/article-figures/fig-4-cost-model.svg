@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850" role="img" aria-labelledby="title desc">
+  <title id="title">Archon serverless cost model</title>
+  <desc id="desc">Cost model showing always-on CPU endpoint, on-demand CPU jobs, and model execution in Nebius Inference API instead of always-on GPU.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#344054"/>
+    </marker>
+    <style>
+      .bg{fill:#fbfcfe}
+      .always{fill:#eef4ff;stroke:#356ac3;stroke-width:2}
+      .ondemand{fill:#e9f7ef;stroke:#1b7f4b;stroke-width:2}
+      .model{fill:#f4ecff;stroke:#7a3ec8;stroke-width:2}
+      .warn{fill:#fff1f3;stroke:#c01048;stroke-width:2}
+      .title{font:700 34px Arial, sans-serif;fill:#101828}
+      .h{font:700 22px Arial, sans-serif;fill:#101828}
+      .t{font:17px Arial, sans-serif;fill:#344054}
+      .big{font:700 38px Arial, sans-serif;fill:#101828}
+      .rule{font:700 26px Arial, sans-serif;fill:#101828}
+      .s{font:14px Arial, sans-serif;fill:#475467}
+      .arrow{stroke:#344054;stroke-width:3;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect class="bg" width="1400" height="850"/>
+  <text class="title" x="60" y="70">No Always-On GPU: Serverless Cost Model</text>
+  <rect class="always" x="90" y="160" width="330" height="190" rx="18"/>
+  <text class="h" x="125" y="205">Always On</text>
+  <text class="big" x="125" y="265">CPU Endpoint</text>
+  <text class="t" x="125" y="305">FastAPI orchestration</text>
+  <text class="s" x="125" y="333">Receives uploads and submits jobs</text>
+  <rect class="ondemand" x="535" y="130" width="335" height="130" rx="18"/>
+  <text class="h" x="570" y="176">On Demand</text>
+  <text class="big" x="570" y="225">Extraction Job</text>
+  <rect class="ondemand" x="535" y="330" width="335" height="130" rx="18"/>
+  <text class="h" x="570" y="376">On Demand</text>
+  <text class="big" x="570" y="425">Analysis Job</text>
+  <rect class="model" x="985" y="210" width="330" height="180" rx="18"/>
+  <text class="h" x="1020" y="255">Nebius Inference API</text>
+  <text class="t" x="1020" y="295">Qwen2.5-VL for vision</text>
+  <text class="t" x="1020" y="330">Llama 3.3 for narrative</text>
+  <rect class="warn" x="380" y="560" width="940" height="130" rx="18"/>
+  <text class="h" x="420" y="608">Design rule</text>
+  <text class="rule" x="420" y="656">GPU lives in inference, not in Archon containers</text>
+  <line class="arrow" x1="420" y1="255" x2="535" y2="195"/>
+  <line class="arrow" x1="420" y1="255" x2="535" y2="395"/>
+  <line class="arrow" x1="870" y1="195" x2="985" y2="275"/>
+  <line class="arrow" x1="870" y1="395" x2="985" y2="325"/>
+  <text class="t" x="90" y="765">Result: predictable idle cost, batch processing paid only when documents are uploaded, and no managed GPU fleet.</text>
+</svg>
