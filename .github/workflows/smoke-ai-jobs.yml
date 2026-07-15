@@ -9,7 +9,7 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     env:
       NEBIUS_SA_KEY_B64: ${{ secrets.NEBIUS_SA_KEY_B64 }}
       NEBIUS_SA_KEY_ID: ${{ secrets.NEBIUS_SA_KEY_ID }}
@@ -81,7 +81,10 @@ jobs:
                       failures.append((project, region, "CREATE", repr(exc)))
                       print("SMOKE_CREATE_FAILED", project, region, type(exc).__name__, str(exc), flush=True)
 
-              deadline = time.monotonic() + 9 * 60
+              # A cold Serverless AI CPU Job can remain legitimately provisioning
+              # for well over ten minutes. Keep this evidence probe patient enough
+              # to distinguish a slow start from a terminal capacity failure.
+              deadline = time.monotonic() + 35 * 60
               completed = set()
               last_states = {}
               while created.keys() - completed and time.monotonic() < deadline:
