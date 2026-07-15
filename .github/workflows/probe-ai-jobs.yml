@@ -70,12 +70,14 @@ jobs:
                           service = str(getattr(status, "service", ""))
                           description = str(getattr(status, "description", ""))
                           hay = f"{name} {service} {description}".lower()
-                          if "job" in hay or "cpu-d3" in hay:
-                              print("QUOTA", name,
-                                    "region", getattr(spec, "region", ""),
-                                    "limit", getattr(spec, "limit", None),
-                                    "service", service,
-                                    "description", description[:180])
+                          print("QUOTA_ROW",
+                                "name", name,
+                                "region", getattr(spec, "region", ""),
+                                "limit", getattr(spec, "limit", None),
+                                "service", service,
+                                "description", description[:180],
+                                "service_description", str(getattr(status, "service_description", ""))[:120],
+                                "unit", getattr(status, "unit", ""))
                   except Exception as exc:
                       print("QUOTA_ACCESS error", type(exc).__name__, str(exc)[:300])
               finally:
