@@ -1,0 +1,170 @@
+name: Live app single extraction smoke
+
+# Manual, deliberately narrow production verification:
+#   * one embedded synthetic PDF
+#   * one isolated period (2026-07)
+#   * exactly one extraction submission
+#   * status polling only; no review, analysis, deletion, or retrying POSTs
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-app-single-extraction-smoke
+  cancel-in-progress: false
+
+jobs:
+  extraction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # sample-data/generated/*.pdf is intentionally gitignored. Embed this one
+      # 2.5 KiB synthetic fixture so the manual workflow is reproducible and can
+      # upload the exact file requested without accessing private documents.
+      - name: Materialize the synthetic invoice fixture
+        shell: bash
+        run: |
+          mkdir -p sample-data/generated
+          base64 --decode > sample-data/generated/attiki_odos_invoice_202601.pdf <<'PDF_BASE64'
+          JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSIC9GMiAzIDAgUiAvRjMgNCAwIFIgL0Y0IDUgMCBSCj4+CmVuZG9iagoyIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nIC9OYW1lIC9GMSAvU3VidHlwZSAvVHlwZTEgL1R5cGUgL0ZvbnQKPj4KZW5kb2JqCjMgMCBvYmoKPDwKL0Jhc2VGb250IC9IZWx2ZXRpY2EtQm9sZCAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjIgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iago0IDAgb2JqCjw8Ci9CYXNlRm9udCAvU3ltYm9sIC9OYW1lIC9GMyAvU3VidHlwZSAvVHlwZTEgL1R5cGUgL0ZvbnQKPj4KZW5kb2JqCjUgMCBvYmoKPDwKL0Jhc2VGb250IC9aYXBmRGluZ2JhdHMgL05hbWUgL0Y0IC9TdWJ0eXBlIC9UeXBlMSAvVHlwZSAvRm9udAo+PgplbmRvYmoKNiAwIG9iago8PAovQ29udGVudHMgMTAgMCBSIC9NZWRpYUJveCBbIDAgMCA1OTUuMjc1NiA4NDEuODg5OCBdIC9QYXJlbnQgOSAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNyAwIG9iago8PAovUGFnZU1vZGUgL1VzZU5vbmUgL1BhZ2VzIDkgMCBSIC9UeXBlIC9DYXRhbG9nCj4+CmVuZG9iago4IDAgb2JqCjw8Ci9BdXRob3IgKGFub255bW91cykgL0NyZWF0aW9uRGF0ZSAoRDoyMDI2MDYyNjE1NTUyMyswMycwMCcpIC9DcmVhdG9yIChhbm9ueW1vdXMpIC9LZXl3b3JkcyAoKSAvTW9kRGF0ZSAoRDoyMDI2MDYyNjE1NTUyMyswMycwMCcpIC9Qcm9kdWNlciAoUmVwb3J0TGFiIFBERiBMaWJyYXJ5IC0gXChvcGVuc291cmNlXCkpIAogIC9TdWJqZWN0ICh1bnNwZWNpZmllZCkgL1RpdGxlICh1bnRpdGxlZCkgL1RyYXBwZWQgL0ZhbHNlCj4+CmVuZG9iago5IDAgb2JqCjw8Ci9Db3VudCAxIC9LaWRzIFsgNiAwIFIgXSAvVHlwZSAvUGFnZXMKPj4KZW5kb2JqCjEwIDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDkzNwo+PgpzdHJlYW0KR2F1SEs5bEpgTiZBQDcuYmJeSiRPXyRidF09a2IzI280ZWBpMXEvQVc7MXMlQCJnRjAlZlBvVFBfKVZRKkE9RUIsX1VAOGMwVylnNCM4UmBgSjpTMV5XY2RDQkAtJyM/bFpJNkAkNCglcUBJOjBsWkhPOFhPaVR1aClhO1g6ZThyUF9dW0hkMFM5UzhHbFxQKVRITUNfVXQ3YmFtKDo1SSExU3MsWWswSWVIJVI6V0siKUEzNFgwZDVBWVdYaVkjIk9KL3NJTlhlV3UoKiwpQThyKWVXL0xfJ2JtRi5aLF1kITVHMEA/Mjt1UUhLQmI1IU0oWEkiISRMITBBWGdUUVdBbyQlM2QnXkw7cUEnczdZUiJJUEtpbD1gOFVGSGNlOW9aRltNYWA1bC0kOkJsRDRDXnQ/TFpfc0dnMllTPztmbURjby5NRCVWN0JoTGYxclcsOlJXJUdpSjpdPl84R2hYc1A0I1xbNFx1S2JcaFQicWwiUEEmTk9wKk5MW2NlR0FxKG9lUnQhaCM5U2gtciVbTVJzY1h1ZUgraSFiRDxXOz8yLypoNT9TOGNXNVo0ZmhWNU5uZjk3KUZyQmVkL25aZ0xXUkAwImU+TFdJTSJvTjtVMy1UO0w1Q2ZFSCVoZW09Jlo9TmsiXWpTcG1vck9VcyFxcGVDQydYYllMXFdtSFdLRiJFOktIVWAqOUZUcDBQYTEtNmBWRGc8LyFPU3AsJCtccEBHTCtmVmNlJFw2ZGdtLilGZEg5ZD9KVm8nbyVLTDdrdThrLixNI20lQkY3Mzg1cmtObjw5OWAhRnIuO3E+cjlUKidTW28+MWFTZ0xZdFVYXzRuLlBXWUVaQyN1LVpIaUdTI2A3TlBgdCJwbV9GL2RDaSIzP0xfXVkjVURpPEE0L1tdVzpeaU5gKkxLQDJ0NGRWO3BVIWU0TkQqYyVzcT9RXlFML0Q0LCZfOThUMDgpOz1DVGsqPHVCV0wibEtCKS5GUXI+NCk4QFIkR1goQVtRNGwvZmU0IUZdIiRAKkIiTW1EL0xHMSVDYGtyNXM5TDghWCY/MkNxdW1tP1kqa0JbcjlxK1wraFQ3ViE1b3JhIyxbLEBjQ0lKUT1mKS1CSVdXWmYwOjFxQ2JiLmVXdEJTUTZIYDZcK0YrcjZ0ZjtKNy9OVVJjNi4vbD1GTjZyZzE+YTdfajFvPyUwNk5naT5AUWYqZmRCVU1cM1xeJSsoc0xRSks1TzBIQyNxKzFsVTx+PmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDExCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDA2MSAwMDAwMCBuIAowMDAwMDAwMTIyIDAwMDAwIG4gCjAwMDAwMDAyMjkgMDAwMDAgbiAKMDAwMDAwMDM0MSAwMDAwMCBuIAowMDAwMDAwNDE4IDAwMDAwIG4gCjAwMDAwMDA1MDEgMDAwMDAgbiAKMDAwMDAwMDcwNSAwMDAwMCBuIAowMDAwMDAwNzczIDAwMDAwIG4gCjAwMDAwMDEwMzQgMDAwMDAgbiAKMDAwMDAwMTA5MyAwMDAwMCBuIAp0cmFpbGVyCjw8Ci9JRCAKWzw0MzIxM2FhMzEzNzg5ZTJlMmEyNTcxYmJlYTQwZTMwZT48NDMyMTNhYTMxMzc4OWUyZTJhMjU3MWJiZWE0MGUzMGU+XQolIFJlcG9ydExhYiBnZW5lcmF0ZWQgUERGIGRvY3VtZW50IC0tIGRpZ2VzdCAob3BlbnNvdXJjZSkKCi9JbmZvIDggMCBSCi9Sb290IDcgMCBSCi9TaXplIDExCj4+CnN0YXJ0eHJlZgoyMTIxCiUlRU9GCg==
+          PDF_BASE64
+          actual_sha256="$(sha256sum sample-data/generated/attiki_odos_invoice_202601.pdf | cut -d' ' -f1)"
+          test "$actual_sha256" = "08926fb7147493706b52d39457903ab18ef7461f886238013e40eceb3bbde687"
+
+      - name: Install HTTP client
+        run: python -m pip install --disable-pip-version-check requests
+
+      - name: Submit exactly one live extraction Job
+        env:
+          E2E_FIREBASE_API_KEY: ${{ secrets.E2E_FIREBASE_API_KEY }}
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import os
+          import time
+          from pathlib import Path
+
+          import requests
+
+          API_BASE = "https://archon-pnl.web.app/api"
+          PERIOD = "2026-07"
+          FIXTURE = Path("sample-data/generated/attiki_odos_invoice_202601.pdf")
+
+          api_key = os.environ.get("E2E_FIREBASE_API_KEY", "")
+          email = os.environ.get("E2E_EMAIL", "")
+          password = os.environ.get("E2E_PASSWORD", "")
+          if not all((api_key, email, password)):
+              raise SystemExit("Missing one or more E2E Firebase secrets")
+          if not FIXTURE.is_file():
+              raise SystemExit("Synthetic invoice fixture is missing")
+
+          try:
+              auth = requests.post(
+                  "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword",
+                  params={"key": api_key},
+                  json={"email": email, "password": password, "returnSecureToken": True},
+                  timeout=30,
+              )
+          except requests.RequestException:
+              raise SystemExit("Firebase authentication request failed") from None
+          if auth.status_code != 200:
+              raise SystemExit(f"Firebase authentication failed (HTTP {auth.status_code})")
+          token = auth.json().get("idToken")
+          if not token:
+              raise SystemExit("Firebase authentication returned no ID token")
+
+          session = requests.Session()
+          session.headers.update({
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/json",
+          })
+
+          # Warm only with safe GET probes. The upload and extraction POSTs below
+          # are each issued exactly once, even on timeout or transport failure.
+          warm_deadline = time.monotonic() + 300
+          while True:
+              try:
+                  health = session.get(f"{API_BASE}/health", timeout=20)
+                  if 200 <= health.status_code < 300:
+                      break
+              except requests.RequestException:
+                  pass
+              if time.monotonic() >= warm_deadline:
+                  raise SystemExit("Live backend did not become ready within five minutes")
+              time.sleep(10)
+
+          try:
+              with FIXTURE.open("rb") as source:
+                  upload = session.post(
+                      f"{API_BASE}/upload",
+                      data={"period": PERIOD},
+                      files=[("files", (FIXTURE.name, source, "application/pdf"))],
+                      timeout=120,
+                  )
+          except requests.RequestException:
+              raise SystemExit("The single upload request failed") from None
+          if upload.status_code != 200:
+              raise SystemExit(f"The single upload request failed (HTTP {upload.status_code})")
+          upload_data = upload.json()
+          upload_id = upload_data.get("uploadId")
+          if not upload_id or upload_data.get("period") != PERIOD:
+              raise SystemExit("Upload response did not confirm the isolated period")
+
+          try:
+              submitted = session.post(
+                  f"{API_BASE}/jobs",
+                  json={"uploadId": upload_id, "period": PERIOD},
+                  timeout=90,
+              )
+          except requests.RequestException:
+              raise SystemExit("The single extraction submission failed") from None
+          if submitted.status_code != 200:
+              raise SystemExit(
+                  f"The single extraction submission failed (HTTP {submitted.status_code})"
+              )
+          job = submitted.json()
+          job_id = str(job.get("id", ""))
+          status = str(job.get("status", "unknown"))
+          if not job_id.startswith("aijob-"):
+              raise SystemExit("Extraction did not return a Nebius AI Job ID")
+
+          project_by_prefix = {
+              "aijob-e00": "project-e00cncsmpr00e8p6knyvdq",
+              "aijob-e01": "project-e01mmzejpr00e93rgqgf3q",
+              "aijob-e03": "project-e03byhh4pr00v15s7dz11p",
+          }
+          project = next(
+              (value for prefix, value in project_by_prefix.items() if job_id.startswith(prefix)),
+              "unknown",
+          )
+          print(f"ARCHON_JOB_ID={job_id}")
+          print(f"ARCHON_JOB_PROJECT={project}")
+          print(f"ARCHON_JOB_INITIAL_STATUS={status}")
+
+          # Brief read-only status observation. Do not wait for completion, mutate
+          # documents, start analysis, or delete the Job/test period.
+          last_status = status
+          for _ in range(6):
+              time.sleep(10)
+              try:
+                  observed = session.get(f"{API_BASE}/jobs/{job_id}", timeout=30)
+              except requests.RequestException:
+                  continue
+              if observed.status_code != 200:
+                  continue
+              candidate = str(observed.json().get("status", "unknown"))
+              last_status = candidate
+              if candidate in {"completed", "failed"}:
+                  break
+          print(f"ARCHON_JOB_OBSERVED_STATUS={last_status}")
+          PY

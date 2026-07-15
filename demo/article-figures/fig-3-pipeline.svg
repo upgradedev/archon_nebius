@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-labelledby="title desc">
-  <title id="title">Archon workflow with live inline and designed AI Jobs execution modes</title>
-  <desc id="desc">One document-control workflow runs the same extraction and analysis packages. The live deployment uses isolated subprocesses in the CPU Endpoint; the designed on-demand AI Jobs path is implemented and tested but could not run because CPU Jobs quota is zero.</desc>
+  <title id="title">Archon document-control workflow dispatched through Nebius AI Jobs</title>
+  <desc id="desc">The live r133 CPU AI Endpoint orchestrates the document workflow and dispatches extraction and analysis as separate AI Jobs through three project-local routes. Human review stays between the two stages. Inline execution is an emergency fallback only, and no completed application Job is claimed.</desc>
   <defs>
     <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
       <path d="M2,2 L10,6 L2,10 Z" fill="#344054"/>
@@ -12,85 +12,113 @@
       .review{fill:#fff7ed;stroke:#c2410c;stroke-width:2}
       .analysis{fill:#f4ecff;stroke:#7a3ec8;stroke-width:2}
       .output{fill:#eef4ff;stroke:#356ac3;stroke-width:2}
-      .live{fill:#e9f7ef;stroke:#1b7f4b;stroke-width:3}
-      .design{fill:#f4ecff;stroke:#7a3ec8;stroke-width:3;stroke-dasharray:10 7}
-      .title{font:700 33px Arial,sans-serif;fill:#101828}
-      .sub{font:18px Arial,sans-serif;fill:#475467}
-      .h{font:700 20px Arial,sans-serif;fill:#101828}
+      .plane{fill:#ffffff;stroke:#356ac3;stroke-width:3}
+      .endpoint{fill:#eef4ff;stroke:#356ac3;stroke-width:2}
+      .router{fill:#e9f7ef;stroke:#1b7f4b;stroke-width:2}
+      .job{fill:#f4ecff;stroke:#7a3ec8;stroke-width:2}
+      .fallback{fill:#fff4cc;stroke:#b88700;stroke-width:2;stroke-dasharray:9 7}
+      .title{font:700 32px Arial,sans-serif;fill:#101828}
+      .sub{font:17px Arial,sans-serif;fill:#475467}
+      .h{font:700 19px Arial,sans-serif;fill:#101828}
       .t{font:15px Arial,sans-serif;fill:#344054}
       .s{font:13px Arial,sans-serif;fill:#475467}
       .warn{font:700 13px Arial,sans-serif;fill:#b42318}
       .ok{font:700 14px Arial,sans-serif;fill:#067647}
-      .limit{font:700 14px Arial,sans-serif;fill:#7a3ec8}
+      .code{font:700 13px Consolas,monospace;fill:#175cd3}
+      .route{font:12.5px Consolas,monospace;fill:#344054}
       .arrow{stroke:#344054;stroke-width:3;fill:none;marker-end:url(#arrow)}
+      .branch{stroke:#7a3ec8;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
     </style>
   </defs>
+
   <rect class="bg" width="1400" height="900"/>
-  <text class="title" x="50" y="58">One Document-Control Workflow, Two Execution Modes</text>
-  <text class="sub" x="50" y="92">The agent packages and Object Storage contracts stay the same; only the compute boundary changes.</text>
+  <text class="title" x="45" y="52">One Document-Control Workflow, Dispatched Through AI Jobs</text>
+  <text class="sub" x="45" y="83">The review gate stays between extraction and analysis; r133 dispatches each compute stage as a separate CPU Job.</text>
 
-  <rect class="upload" x="35" y="155" width="235" height="330" rx="16"/>
-  <text class="h" x="62" y="198">1. Upload</text>
-  <text class="t" x="62" y="235">PDF · DOCX · images</text>
-  <text class="t" x="62" y="264">TIFF · scanned PDFs</text>
-  <text class="s" x="62" y="320">Raw files written to</text>
-  <text class="s" x="62" y="344">Object Storage</text>
+  <rect class="upload" x="35" y="130" width="235" height="300" rx="16"/>
+  <text class="h" x="62" y="172">1. Upload</text>
+  <text class="t" x="62" y="210">PDF · DOCX · images</text>
+  <text class="t" x="62" y="239">TIFF · scanned PDFs</text>
+  <text class="s" x="62" y="302">Raw files written to</text>
+  <text class="s" x="62" y="326">Object Storage</text>
 
-  <rect class="extract" x="305" y="155" width="235" height="330" rx="16"/>
-  <text class="h" x="332" y="198">2. Extract</text>
-  <text class="t" x="332" y="235">ExtractorAgent</text>
-  <text class="t" x="332" y="264">ClassifierAgent</text>
-  <text class="t" x="332" y="293">EventLinkerAgent</text>
-  <text class="t" x="332" y="322">ValidatorAgent</text>
-  <text class="s" x="332" y="382">Writes documents, events,</text>
-  <text class="s" x="332" y="406">validation + failure metadata</text>
+  <rect class="extract" x="305" y="130" width="235" height="300" rx="16"/>
+  <text class="h" x="332" y="172">2. Extract</text>
+  <text class="t" x="332" y="210">ExtractorAgent</text>
+  <text class="t" x="332" y="239">ClassifierAgent</text>
+  <text class="t" x="332" y="268">EventLinkerAgent</text>
+  <text class="t" x="332" y="297">ValidatorAgent</text>
+  <text class="s" x="332" y="356">Writes structured artifacts</text>
+  <text class="s" x="332" y="380">and failure metadata</text>
 
-  <rect class="review" x="575" y="155" width="235" height="330" rx="16"/>
-  <text class="h" x="602" y="198">3. Human review</text>
-  <text class="t" x="602" y="235">Correct document type</text>
-  <text class="t" x="602" y="264">Exclude unrelated records</text>
-  <text class="t" x="602" y="293">Approve record set</text>
-  <text class="s" x="602" y="355">Current UI shows successfully</text>
-  <text class="s" x="602" y="379">extracted records only.</text>
-  <text class="warn" x="602" y="420">Failed-file list is not yet</text>
-  <text class="warn" x="602" y="441">surfaced or preserved here.</text>
+  <rect class="review" x="575" y="130" width="235" height="300" rx="16"/>
+  <text class="h" x="602" y="172">3. Human review</text>
+  <text class="t" x="602" y="210">Correct document type</text>
+  <text class="t" x="602" y="239">Exclude unrelated records</text>
+  <text class="t" x="602" y="268">Approve record set</text>
+  <text class="s" x="602" y="326">Current UI shows successful</text>
+  <text class="s" x="602" y="350">extractions only.</text>
+  <text class="warn" x="602" y="389">Failed-file summary is next.</text>
 
-  <rect class="analysis" x="845" y="155" width="250" height="330" rx="16"/>
-  <text class="h" x="872" y="198">4. Analyse</text>
-  <text class="t" x="872" y="235">Classification + P&amp;L</text>
-  <text class="t" x="872" y="264">Provisional cash-flow view</text>
-  <text class="t" x="872" y="293">Payroll validation</text>
-  <text class="t" x="872" y="322">Employee analytics</text>
-  <text class="t" x="872" y="351">Reconciliation component</text>
-  <text class="t" x="872" y="380">Bounded narrative</text>
-  <text class="s" x="872" y="430">Writes report.json</text>
+  <rect class="analysis" x="845" y="130" width="250" height="300" rx="16"/>
+  <text class="h" x="872" y="172">4. Analyse</text>
+  <text class="t" x="872" y="210">Classification + P&amp;L</text>
+  <text class="t" x="872" y="239">Provisional cash-flow view</text>
+  <text class="t" x="872" y="268">Payroll validation</text>
+  <text class="t" x="872" y="297">Employee analytics</text>
+  <text class="t" x="872" y="326">Reconciliation component</text>
+  <text class="t" x="872" y="355">Bounded narrative</text>
+  <text class="s" x="872" y="395">Writes report.json</text>
 
-  <rect class="output" x="1130" y="155" width="235" height="330" rx="16"/>
-  <text class="h" x="1157" y="198">5. Inspect</text>
-  <text class="t" x="1157" y="235">Period financial view</text>
-  <text class="t" x="1157" y="264">Payroll events</text>
-  <text class="t" x="1157" y="293">Named rule results</text>
-  <text class="t" x="1157" y="322">Source-file references</text>
-  <text class="s" x="1157" y="382">Invoice cash movements are</text>
-  <text class="s" x="1157" y="406">assumptions until bank linking.</text>
+  <rect class="output" x="1130" y="130" width="235" height="300" rx="16"/>
+  <text class="h" x="1157" y="172">5. Inspect</text>
+  <text class="t" x="1157" y="210">Period financial view</text>
+  <text class="t" x="1157" y="239">Payroll events</text>
+  <text class="t" x="1157" y="268">Named rule results</text>
+  <text class="t" x="1157" y="297">Source-file references</text>
+  <text class="s" x="1157" y="356">Invoice cash movements remain</text>
+  <text class="s" x="1157" y="380">assumptions until bank linking.</text>
 
-  <line class="arrow" x1="270" y1="320" x2="305" y2="320"/>
-  <line class="arrow" x1="540" y1="320" x2="575" y2="320"/>
-  <line class="arrow" x1="810" y1="320" x2="845" y2="320"/>
-  <line class="arrow" x1="1095" y1="320" x2="1130" y2="320"/>
+  <line class="arrow" x1="270" y1="280" x2="305" y2="280"/>
+  <line class="arrow" x1="540" y1="280" x2="575" y2="280"/>
+  <line class="arrow" x1="810" y1="280" x2="845" y2="280"/>
+  <line class="arrow" x1="1095" y1="280" x2="1130" y2="280"/>
 
-  <rect class="live" x="85" y="565" width="575" height="170" rx="18"/>
-  <text class="h" x="120" y="610">Observed live mode</text>
-  <text class="t" x="120" y="646">CPU AI Endpoint runs extraction and analysis as isolated subprocesses.</text>
-  <text class="t" x="120" y="676">Same agents, statuses, and Object Storage artifacts.</text>
-  <text class="ok" x="120" y="708">JOB_RUNNER_BACKEND=inline · Endpoint RUNNING</text>
+  <rect class="plane" x="55" y="485" width="1290" height="245" rx="18"/>
+  <text class="h" x="85" y="524">Live r133 execution control plane</text>
+  <text class="ok" x="1060" y="524">DEPLOY SUCCEEDED</text>
 
-  <rect class="design" x="740" y="565" width="575" height="170" rx="18"/>
-  <text class="h" x="775" y="610">Designed Nebius AI Jobs mode</text>
-  <text class="t" x="775" y="646">Extraction and analysis submit as separate on-demand CPU AI Jobs.</text>
-  <text class="t" x="775" y="676">SDK path, images, and capacity handling are implemented and tested.</text>
-  <text class="limit" x="775" y="708">Tenant CPU Jobs quota = 0 · no successful Job run</text>
+  <rect class="endpoint" x="90" y="555" width="250" height="120" rx="14"/>
+  <text class="h" x="117" y="590">CPU AI Endpoint</text>
+  <text class="t" x="117" y="620">FastAPI orchestrator</text>
+  <text class="code" x="117" y="649">BACKEND=nebius</text>
 
-  <text class="sub" x="170" y="805">Both modes call the Nebius Inference API; Qwen reads documents and Llama narrates already-computed metrics.</text>
-  <text class="s" x="310" y="842">The live fallback is deployment evidence. The dashed Jobs architecture is an implemented design, not execution evidence.</text>
+  <rect class="router" x="385" y="545" width="345" height="140" rx="14"/>
+  <text class="h" x="412" y="578">Project-local router</text>
+  <text class="route" x="412" y="608">e00 / eu-north1 / local subnet</text>
+  <text class="route" x="412" y="633">e01 / eu-west1  / local subnet</text>
+  <text class="route" x="412" y="658">e03 / uk-south1 / local subnet</text>
+
+  <rect class="job" x="785" y="555" width="235" height="120" rx="14"/>
+  <text class="h" x="812" y="590">Extraction AI Job</text>
+  <text class="t" x="812" y="620">Workflow stage 2</text>
+  <text class="s" x="812" y="649">CPU · on demand</text>
+
+  <rect class="job" x="1065" y="555" width="235" height="120" rx="14"/>
+  <text class="h" x="1092" y="590">Analysis AI Job</text>
+  <text class="t" x="1092" y="620">Workflow stage 4</text>
+  <text class="s" x="1092" y="649">CPU · on demand</text>
+
+  <line class="arrow" x1="340" y1="615" x2="385" y2="615"/>
+  <path class="branch" d="M730 590 L785 590"/>
+  <path class="branch" d="M730 640 L755 640 L755 535 L1182 535 L1182 555"/>
+  <text class="s" x="85" y="710">Configuration is live; no completed application extraction or analysis Job is claimed yet.</text>
+
+  <rect class="fallback" x="190" y="770" width="1020" height="68" rx="14"/>
+  <text class="h" x="220" y="800">Emergency fallback only</text>
+  <text class="code" x="490" y="800">JOB_RUNNER_BACKEND=inline</text>
+  <text class="t" x="745" y="800">Same packages as isolated Endpoint subprocesses</text>
+  <text class="s" x="490" y="824">Operator-selected continuity path — not the live r133 configuration.</text>
+
+  <text class="s" x="155" y="878">Both Job packages use Object Storage contracts and the Nebius Inference API; Qwen extracts, while Llama narrates computed metrics.</text>
 </svg>

@@ -21,7 +21,9 @@ The operational questions are simple to ask and expensive to answer manually:
 
 The current build proves that architecture with two bounded control paths: automated document processing with a human review gate, and payroll-event linking with deterministic validation. It also contains a supplier-statement reconciliation component for structured statement entries. General invoice-to-bank-payment matching, collections matching, duplicate-payment detection, and tax-remittance verification are the next extensions of the same model, not claims about what this version already does.
 
-> **Architecture diagram:** the complete component graph is also available in the [public repository](https://github.com/upgradedev/archon_nebius#architecture). The diagram separates the Jobs-based target architecture from the inline execution mode used by the live Endpoint while this tenant has zero CPU AI-Jobs quota.
+> **Architecture diagram:** the complete component graph is also available in the [public repository](https://github.com/upgradedev/archon_nebius#architecture). AI Jobs are the primary execution architecture. A separate inline subprocess runner remains an operator-selected emergency fallback; it is not the current-path claim and is not evidence that an AI Job ran.
+
+![Archon architecture on Nebius Serverless AI](https://raw.githubusercontent.com/upgradedev/archon_nebius/master/demo/article-figures/png/fig-1-architecture.png)
 
 ## The product loop: read, classify, review, record, control
 
@@ -36,6 +38,8 @@ The user then sees the successfully extracted documents before analysis. They ca
 There is an important current limitation around failed files. During extraction, Archon records each failed filename and reason inside the per-upload `documents.json` artifact in Object Storage and writes the failure to the job log. The current review API and UI do not expose that failure list, and confirming the reviewed set replaces the per-upload document artifact without carrying the failure metadata forward. Failures are therefore recorded during processing, but they are not yet visible to the reviewer in the product. Surfacing and preserving them through review is required before this can be described as a closed failure-handling loop.
 
 That review gate is deliberate. Automation should remove repetitive entry work without removing control from the person responsible for the books.
+
+![Archon financial document control loop](https://raw.githubusercontent.com/upgradedev/archon_nebius/master/demo/article-figures/png/fig-2-control-loop.png)
 
 ```python
 # jobs/extraction/agents/classifier.py
@@ -59,6 +63,8 @@ Payroll is a useful worked example because a single payroll run produces several
 - Individual payslips explain the employee-level amounts.
 
 These are complementary records for different parts of the same event, not competing versions of one number. Archon’s `EventLinkerAgent` groups them by company and period into a `PayrollEvent`. The cash-flow view reads the bank movement; the management expense view reads the register; validation checks whether the supporting records agree.
+
+![Payroll event linking across bank confirmation, payroll register, and payslips](https://raw.githubusercontent.com/upgradedev/archon_nebius/master/demo/article-figures/png/fig-2-payroll-gap.png)
 
 ```python
 # jobs/extraction/agents/event_linker.py
@@ -103,19 +109,25 @@ Financial-document processing is bursty. A business may upload a monthly batch, 
 Archon separates orchestration from batch work:
 
 - A **CPU AI Endpoint** hosts the FastAPI backend and the upload, review, job-status, analysis, and report APIs.
-- An **extraction AI Job** is the designed on-demand path for processing an uploaded batch and writing structured artifacts.
-- An **analysis AI Job** is the designed on-demand path for reading approved records, running the financial agents, and writing the report.
+- An **extraction AI Job** is the configured primary on-demand submission path for processing an uploaded batch and writing structured artifacts.
+- An **analysis AI Job** is the configured primary on-demand submission path for reading approved records, running the financial agents, and writing the report.
 - The **Nebius Inference API** serves Qwen2.5-VL-72B for vision extraction and Llama-3.3-70B for the executive narrative.
 - **Object Storage** and **Managed PostgreSQL** provide durable artifacts and a relational read model.
 - **Nebius Container Registry** holds the extraction and analysis Job images. The Endpoint backend image is pulled from GitHub Container Registry.
 
-The GPU lives in the managed inference layer rather than in Archon’s containers. The extraction and analysis packages remain CPU-only whether they run as Jobs or through the fallback below.
+The GPU lives in the managed inference layer rather than in Archon’s containers. The extraction and analysis packages remain CPU-only whether they run as Jobs or through the emergency fallback below.
 
-The live deployment currently uses `JOB_RUNNER_BACKEND=inline`: the same two packages run as isolated subprocesses inside the CPU Endpoint and use the same Object Storage and status contracts. The Jobs submission code, images, and capacity handling are implemented and tested, but this tenant’s zero CPU AI-Jobs quota means no Job has provisioned successfully. “Designed as AI Jobs” and “currently running inline” are intentionally separate claims.
+![Why Nebius Serverless AI fits the bursty workload](https://raw.githubusercontent.com/upgradedev/archon_nebius/master/demo/article-figures/png/fig-4-cost-model.png)
+
+The Jobs runner implements bounded cross-region provisioning failover across three project-local placements: `project-e00cncsmpr00e8p6knyvdq` in `eu-north1` on `vpcsubnet-e00sn2btkrs87k2re4`; `project-e01mmzejpr00e93rgqgf3q` in `eu-west1` on `vpcsubnet-e01x810n0mmhj19k9b`; and `project-e03byhh4pr00v15s7dz11p` in `uk-south1` on `vpcsubnet-e03w9xd3nbg2abq7qb`. This is not generic high availability. It handles provisioning placement only, keeps a slow-but-pending Job instead of duplicating it, and does not replay an application that failed after receiving compute.
+
+`JOB_RUNNER_BACKEND=inline` remains an explicit emergency option. It runs the same two entrypoints as isolated subprocesses inside the CPU Endpoint and preserves the Object Storage and status contracts, but its presence neither changes the primary AI Jobs architecture nor proves live Job execution.
 
 The React frontend and a thin BFF run on Firebase for public hosting, authentication, and browser-edge TLS. The precise deployment claim is therefore: **Nebius runs the domain backend, job design, inference, storage, registry, and financial data services; Firebase provides the public browser edge.**
 
 ## Two single-responsibility pipelines
+
+![Archon extraction and analysis pipelines](https://raw.githubusercontent.com/upgradedev/archon_nebius/master/demo/article-figures/png/fig-3-pipeline.png)
 
 The extraction package has four stages:
 
@@ -126,7 +138,7 @@ The extraction package has four stages:
 
 The analysis package has seven stages: classification, P&L aggregation, cash-flow construction, validation, employee analytics, supplier-statement reconciliation, and narrative generation.
 
-These are the same packages in both execution modes. With Jobs capacity they are submitted as two on-demand Nebius AI Jobs. In the live submission they run as isolated subprocesses inside the Nebius AI Endpoint. The execution boundary changes; the agents and artifact contracts do not.
+These are the same packages in both execution modes. The primary runner is configured to submit them as two on-demand Nebius AI Jobs; the emergency runner executes them as isolated subprocesses inside the Nebius AI Endpoint. The execution boundary changes; the agents and artifact contracts do not.
 
 Small agents are not cosmetic. They make each responsibility independently testable. A failed extraction remains an extraction problem; a classification error does not become an unexplained reporting error; and a validation rule can be measured separately from the figures it checks.
 
@@ -169,19 +181,19 @@ The benchmark runs offline with no API key and only `pydantic`. The public repos
 
 ## An operational lesson from AI Jobs
 
-The most useful Serverless engineering lesson came from a failure mode. A Nebius AI Job can be accepted while never receiving an instance when the selected compute preset has no available quota. The submission returns an ID, but the job remains in provisioning and eventually disappears.
+The most useful Serverless engineering lesson came from a failure mode. A Nebius AI Job can be accepted, remain `PROVISIONING` with zero instances, and later enter `ERROR`; acceptance alone does not prove provisioning or execution.
 
-Archon wraps job submission in a bounded capacity probe. It distinguishes:
+Archon wraps job submission in a bounded provisioning-state probe. It distinguishes:
 
-1. submission rejected for capacity,
+1. creation explicitly rejected for a qualifying provisioning, quota, or capacity error,
 2. accepted but never provisioned,
 3. an application that reached compute and then failed.
 
-A capacity rejection, or a terminal/vanished Job that provably never received an instance, moves to the next configured preset. If an accepted Job is still provisioning when the observation window ends, Archon keeps and returns that pending Job rather than deleting it or creating a duplicate. A Job that reached compute and then failed is surfaced as an application failure, not retried on another preset.
+An explicit qualifying create rejection, or a terminal/vanished Job that provably never received an instance, advances to the next bounded project × preset candidate. If an accepted Job is still provisioning when the observation window ends, Archon keeps and returns that pending Job rather than deleting it or creating a duplicate. A Job that reached compute and then failed is surfaced as an application failure, not retried elsewhere.
 
-This tenant currently has zero CPU AI-Jobs quota. The Jobs integration, SDK submission path, images, and capacity probe are built and tested, but no CPU Job can provision on the tenant. For the live product, `JOB_RUNNER_BACKEND=inline` runs the same extraction and analysis packages as isolated subprocesses inside the CPU Endpoint while preserving the same status and Object Storage contracts. It is a resilience path, not evidence of a successful Job run.
+Nebius documents that Serverless AI Jobs consume the underlying [Compute quotas](https://docs.nebius.com/compute/resources/quotas-limits). Archon therefore queries `compute.instance.count` and `compute.instance.non-gpu.vcpu` for each candidate's own region, accounts for current usage when a limit is explicit, treats an omitted provider-default limit as unknown rather than zero, and fails open on uncertainty. The [read-only probe run](https://github.com/upgradedev/archon_nebius/actions/runs/29452440996) verified Jobs-list and quota access, the three project regions, and the real quota-row names. Project-local subnet IDs come from the explicit routing configuration. The [short three-project smoke](https://github.com/upgradedev/archon_nebius/actions/runs/29452734826) then submitted against each tuple: all three `CreateJobRequest` calls succeeded, but every Job remained `PROVISIONING` with zero instances until the nine-minute harness timed out and deleted it. The workflow's terminal failure is therefore a harness timeout, not successful Job execution and not a pending result. The terminal [35-minute smoke](https://github.com/upgradedev/archon_nebius/actions/runs/29453371645) also accepted all three creates. Each Job initially reported state 1 (`PROVISIONING`) with zero instances; around 30 minutes later, each reported state 9 (`ERROR`), still with zero instances and empty `JobStateDetails`. Cleanup deleted all three Jobs, and the workflow concluded with failure. This proves create acceptance followed by a pre-compute terminal error, not workload execution. The empty details do not identify quota exhaustion, capacity, or another root cause.
 
-That disclosure matters. Reproducible engineering includes the limits of the environment in which it was tested.
+That evidence boundary matters. Reproducible engineering includes both what a probe proves and what it does not.
 
 ## Try the build
 
@@ -204,7 +216,7 @@ cd archon_nebius
 bash scripts/test-pipeline.sh
 ```
 
-The [live demo](https://archon-pnl.web.app/?demo=1) renders an illustrative seeded financial view without authentication. Its internally consistent seeded records demonstrate the review and reporting UI; they are not evidence of bank matching, collection matching, or remittance verification. The public [Nebius deployment run](https://github.com/upgradedev/archon_nebius/actions/runs/29419841856) is infrastructure evidence: it records `archon-backend-r130` reaching `RUNNING`, a successful Object Storage round trip, Managed PostgreSQL reachable from the Endpoint, and the Firebase BFF health route returning HTTP 200. It does not claim that an AI Job ran; the live processing mode remains the disclosed inline fallback.
+The [live demo](https://archon-pnl.web.app/?demo=1) renders an illustrative seeded financial view without authentication. Its internally consistent seeded records demonstrate the review and reporting UI; they are not evidence of bank matching, collection matching, or remittance verification. The [production deployment run 29453848235](https://github.com/upgradedev/archon_nebius/actions/runs/29453848235) completed successfully: the new `archon-backend-r133` Endpoint reached `RUNNING` with `JOB_RUNNER_BACKEND=nebius`, `JOB_QUOTA_PREFLIGHT=1`, and all three exact project-local configurations injected (`project-e00cncsmpr00e8p6knyvdq=eu-north1=vpcsubnet-e00sn2btkrs87k2re4`, `project-e01mmzejpr00e93rgqgf3q=eu-west1=vpcsubnet-e01x810n0mmhj19k9b`, and `project-e03byhh4pr00v15s7dz11p=uk-south1=vpcsubnet-e03w9xd3nbg2abq7qb`). The runtime service account passed Jobs-list permission checks in all three projects, the Object Storage write/read/delete round-trip passed, the Firebase BFF function was updated, and the public `/api/health` probe returned HTTP 200. The [read-only probe](https://github.com/upgradedev/archon_nebius/actions/runs/29452440996) separately establishes three-project Jobs and quota access. Both smoke workflows prove that the API accepted one create request for each configured tuple, but neither proves execution: the short run timed out at nine minutes with all Jobs still `PROVISIONING` at zero instances, while the long run reached `ERROR` around 30 minutes with all three still at zero instances and empty details, then deleted all three. The successful production deployment proves that the live application is configured to orchestrate Nebius Jobs; this article does not claim completion of an application extraction or analysis Job or infer quota exhaustion from the empty error details.
 
 Archon’s direction is straightforward: every successfully extracted document becomes an understandable record; every record has a category and an owner; related records form one financial event; and every validation result identifies the values and source files it compared. That is the foundation for answering the questions a business actually asks — what is this, why was it paid, what is still missing, and does the close reconcile?
 

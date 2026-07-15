@@ -1,77 +1,96 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850" role="img" aria-labelledby="title desc">
-  <title id="title">Archon CPU compute and managed inference model</title>
-  <desc id="desc">The current deployment runs orchestration and inline pipelines in a CPU AI Endpoint. A dashed target path shows on-demand CPU AI Jobs when quota is available. Both call managed models through the Nebius Inference API, so Archon operates no GPU container.</desc>
+  <title id="title">Archon CPU orchestration, on-demand AI Jobs, and managed inference placement</title>
+  <desc id="desc">The live r133 CPU AI Endpoint orchestrates on-demand extraction and analysis AI Jobs through three project-local routes. Managed GPU inference remains behind the Nebius Inference API. Inline subprocess execution is only an emergency fallback. Deployment succeeded, while application Job runtime and cost remain unmeasured because no application Job completion is claimed.</desc>
   <defs>
     <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
       <path d="M2,2 L10,6 L2,10 Z" fill="#344054"/>
     </marker>
     <style>
       .bg{fill:#fbfcfe}
-      .current{fill:#eef4ff;stroke:#356ac3;stroke-width:3}
-      .design{fill:#e9f7ef;stroke:#1b7f4b;stroke-width:3;stroke-dasharray:10 7}
-      .model{fill:#f4ecff;stroke:#7a3ec8;stroke-width:2}
-      .data{fill:#f8fafc;stroke:#667085;stroke-width:2}
-      .rule{fill:#fff4cc;stroke:#b88700;stroke-width:2}
-      .title{font:700 33px Arial,sans-serif;fill:#101828}
-      .sub{font:18px Arial,sans-serif;fill:#475467}
-      .h{font:700 21px Arial,sans-serif;fill:#101828}
-      .t{font:16px Arial,sans-serif;fill:#344054}
-      .big{font:700 27px Arial,sans-serif;fill:#101828}
-      .s{font:14px Arial,sans-serif;fill:#475467}
+      .endpoint{fill:#eef4ff;stroke:#356ac3;stroke-width:3}
+      .job{fill:#e9f7ef;stroke:#1b7f4b;stroke-width:2.5}
+      .model{fill:#f4ecff;stroke:#7a3ec8;stroke-width:3}
+      .route{fill:#f8fafc;stroke:#667085;stroke-width:2}
+      .data{fill:#f8fafc;stroke:#98a2b3;stroke-width:2}
+      .proof{fill:#e9f7ef;stroke:#1b7f4b;stroke-width:2}
+      .boundary{fill:#fff4cc;stroke:#b88700;stroke-width:2}
+      .title{font:700 32px Arial,sans-serif;fill:#101828}
+      .sub{font:17px Arial,sans-serif;fill:#475467}
+      .h{font:700 20px Arial,sans-serif;fill:#101828}
+      .t{font:15px Arial,sans-serif;fill:#344054}
+      .big{font:700 25px Arial,sans-serif;fill:#101828}
+      .s{font:13px Arial,sans-serif;fill:#475467}
       .ok{font:700 14px Arial,sans-serif;fill:#067647}
-      .limit{font:700 14px Arial,sans-serif;fill:#7a3ec8}
+      .warn{font:700 14px Arial,sans-serif;fill:#b54708}
+      .code{font:700 13px Consolas,monospace;fill:#175cd3}
+      .routeText{font:13px Consolas,monospace;fill:#344054}
       .arrow{stroke:#344054;stroke-width:3;fill:none;marker-end:url(#arrow)}
-      .dash{stroke:#1b7f4b;stroke-width:3;fill:none;stroke-dasharray:9 8;marker-end:url(#arrow)}
     </style>
   </defs>
+
   <rect class="bg" width="1400" height="850"/>
-  <text class="title" x="55" y="58">No Application GPU: Current and Designed Compute Modes</text>
-  <text class="sub" x="55" y="92">This diagram describes resource placement, not an unverified per-run cost claim.</text>
+  <text class="title" x="50" y="52">CPU Orchestration + On-Demand Jobs + Managed GPU Inference</text>
+  <text class="sub" x="50" y="82">Resource placement and evidence boundaries — not an unverified per-run cost claim.</text>
 
-  <rect class="current" x="70" y="155" width="390" height="240" rx="18"/>
-  <text class="h" x="105" y="199">Observed live compute</text>
-  <text class="big" x="105" y="245">CPU AI Endpoint</text>
-  <text class="t" x="105" y="283">FastAPI orchestration</text>
-  <text class="t" x="105" y="313">Inline extraction subprocess</text>
-  <text class="t" x="105" y="343">Inline analysis subprocess</text>
-  <text class="ok" x="105" y="374">RUNNING · JOB_RUNNER_BACKEND=inline</text>
+  <rect class="endpoint" x="55" y="135" width="380" height="255" rx="18"/>
+  <text class="h" x="90" y="178">Always-on control plane</text>
+  <text class="big" x="90" y="222">CPU AI Endpoint</text>
+  <text class="t" x="90" y="260">FastAPI orchestration</text>
+  <text class="t" x="90" y="290">Revision r133 · RUNNING</text>
+  <text class="code" x="90" y="322">JOB_RUNNER_BACKEND=nebius</text>
+  <text class="s" x="90" y="356">Continuously billed while running</text>
+  <text class="ok" x="90" y="380">LIVE DEPLOYMENT CONFIGURATION</text>
 
-  <rect class="design" x="535" y="135" width="365" height="125" rx="18"/>
-  <text class="h" x="570" y="176">Designed on demand</text>
-  <text class="big" x="570" y="218">Extraction AI Job</text>
-  <rect class="design" x="535" y="305" width="365" height="125" rx="18"/>
-  <text class="h" x="570" y="346">Designed on demand</text>
-  <text class="big" x="570" y="388">Analysis AI Job</text>
-  <text class="limit" x="575" y="465">Implemented/tested · CPU Jobs quota 0 · no successful Job run</text>
+  <text class="h" x="545" y="128">On-demand CPU work</text>
+  <rect class="job" x="510" y="150" width="390" height="110" rx="16"/>
+  <text class="big" x="545" y="193">Extraction AI Job</text>
+  <text class="t" x="545" y="229">On-demand compute · runtime unmeasured</text>
+  <rect class="job" x="510" y="285" width="390" height="110" rx="16"/>
+  <text class="big" x="545" y="328">Analysis AI Job</text>
+  <text class="t" x="545" y="364">On-demand compute · runtime unmeasured</text>
 
-  <rect class="model" x="985" y="190" width="345" height="195" rx="18"/>
-  <text class="h" x="1020" y="235">Nebius Inference API</text>
-  <text class="t" x="1020" y="278">Qwen2.5-VL for vision</text>
-  <text class="t" x="1020" y="310">Llama 3.3 for narrative</text>
-  <text class="s" x="1020" y="348">Managed model execution</text>
+  <rect class="model" x="975" y="135" width="370" height="255" rx="18"/>
+  <text class="h" x="1010" y="178">Managed model layer</text>
+  <text class="big" x="1010" y="222">Nebius Inference API</text>
+  <text class="t" x="1010" y="264">Qwen2.5-VL for vision</text>
+  <text class="t" x="1010" y="296">Llama 3.3 for narrative</text>
+  <text class="s" x="1010" y="340">Usage-priced managed execution</text>
+  <text class="ok" x="1010" y="370">GPU STAYS IN INFERENCE</text>
 
-  <line class="arrow" x1="460" y1="275" x2="985" y2="275"/>
-  <line class="dash" x1="460" y1="225" x2="535" y2="198"/>
-  <line class="dash" x1="460" y1="325" x2="535" y2="368"/>
-  <line class="dash" x1="900" y1="198" x2="985" y2="255"/>
-  <line class="dash" x1="900" y1="368" x2="985" y2="320"/>
+  <line class="arrow" x1="435" y1="245" x2="510" y2="205"/>
+  <line class="arrow" x1="435" y1="300" x2="510" y2="340"/>
+  <line class="arrow" x1="900" y1="205" x2="975" y2="245"/>
+  <line class="arrow" x1="900" y1="340" x2="975" y2="300"/>
 
-  <rect class="data" x="90" y="530" width="370" height="115" rx="16"/>
-  <text class="h" x="125" y="574">Object Storage + PostgreSQL</text>
-  <text class="t" x="125" y="607">Artifacts and relational read model</text>
-  <text class="s" x="125" y="631">Shared contracts across both modes</text>
+  <rect class="data" x="55" y="455" width="380" height="150" rx="16"/>
+  <text class="h" x="90" y="497">Shared service contracts</text>
+  <text class="t" x="90" y="532">Object Storage · authoritative artifacts</text>
+  <text class="t" x="90" y="561">PostgreSQL · best-effort read model</text>
+  <text class="t" x="90" y="590">Container Registry · Job images</text>
 
-  <rect class="data" x="515" y="530" width="370" height="115" rx="16"/>
-  <text class="h" x="550" y="574">Nebius Container Registry</text>
-  <text class="t" x="550" y="607">Extraction + analysis Job images</text>
-  <text class="s" x="550" y="631">Endpoint backend image is on GHCR</text>
+  <rect class="route" x="510" y="445" width="390" height="170" rx="16"/>
+  <text class="h" x="545" y="483">Project-local Job routes</text>
+  <text class="routeText" x="545" y="519">e00 · eu-north1 · local subnet</text>
+  <text class="routeText" x="545" y="549">e01 · eu-west1  · local subnet</text>
+  <text class="routeText" x="545" y="579">e03 · uk-south1 · local subnet</text>
+  <text class="s" x="545" y="603">Bounded provisioning failover, not generic HA</text>
 
-  <rect class="rule" x="940" y="520" width="390" height="135" rx="16"/>
-  <text class="h" x="975" y="565">Resource-placement rule</text>
-  <text class="big" x="975" y="608">GPU stays in inference</text>
-  <text class="s" x="975" y="635">No GPU in Archon containers</text>
+  <rect class="boundary" x="975" y="455" width="370" height="150" rx="16"/>
+  <text class="h" x="1010" y="497">Measured-cost boundary</text>
+  <text class="warn" x="1010" y="532">NO COMPLETED APPLICATION JOB YET</text>
+  <text class="t" x="1010" y="561">Job duration and per-run cost remain</text>
+  <text class="t" x="1010" y="588">projected until an app Job completes.</text>
 
-  <text class="t" x="90" y="735">Today: one CPU Endpoint runs orchestration and both packages; model calls use managed inference.</text>
-  <text class="t" x="90" y="772">With CPU Jobs quota: the packages can move to on-demand Jobs without changing their agents or artifact contracts.</text>
-  <text class="s" x="90" y="812">Solid path = observed deployment. Dashed path = implemented target architecture, currently blocked by quota.</text>
+  <rect class="proof" x="55" y="665" width="620" height="100" rx="16"/>
+  <text class="h" x="88" y="703">Deployment evidence</text>
+  <text class="ok" x="88" y="734">r133 RUNNING · Jobs backend configured · deploy succeeded</text>
+  <text class="s" x="88" y="755">This proves live orchestration configuration, not application Job completion.</text>
+
+  <rect class="boundary" x="725" y="665" width="620" height="100" rx="16"/>
+  <text class="h" x="758" y="703">Emergency continuity option</text>
+  <text class="code" x="758" y="734">JOB_RUNNER_BACKEND=inline</text>
+  <text class="s" x="1000" y="734">Operator-selected fallback only; not live r133 mode</text>
+  <text class="s" x="758" y="755">If selected, it consumes the already-running Endpoint's CPU resources.</text>
+
+  <text class="s" x="50" y="820">The live architecture keeps application containers CPU-only and places GPU execution behind the managed Inference API.</text>
 </svg>

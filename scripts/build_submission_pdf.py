@@ -5,7 +5,7 @@ The Challenge form requires a PDF export of the public article.  This builder
 uses ReportLab so the artifact is deterministic and does not depend on a local
 browser.  By default it writes:
 
-    output/pdf/archon-nebius-medium-story.pdf
+    output/pdf/archon-nebius-devto-article.pdf
 
 Pass ``--sync-demo`` to also replace the repository copy at
 ``demo/archon-nebius-blog.pdf`` after the final article has been approved.
@@ -47,7 +47,7 @@ from reportlab.lib.utils import ImageReader
 REPO = Path(__file__).resolve().parents[1]
 BLOG = REPO / "demo" / "blog-post.md"
 FIGURES = REPO / "demo" / "article-figures" / "png"
-DEFAULT_OUT = REPO / "output" / "pdf" / "archon-nebius-medium-story.pdf"
+DEFAULT_OUT = REPO / "output" / "pdf" / "archon-nebius-devto-article.pdf"
 DEMO_OUT = REPO / "demo" / "archon-nebius-blog.pdf"
 
 
@@ -272,6 +272,14 @@ def parse_markdown(text: str, styles, content_width: float):
             i += 1
             continue
 
+        # DEV renders these external PNG references directly. The PDF inserts the
+        # same local figures at deliberate section boundaries below, so skip the
+        # Markdown image line here to avoid duplicate figures or raw alt text.
+        if re.fullmatch(r"!\[[^\]]*\]\([^)]+\)", line):
+            flush_paragraph()
+            i += 1
+            continue
+
         if line.startswith("# "):
             flush_paragraph()
             story.append(Paragraph(inline_markup(line[2:], FONTS), styles["title"]))
@@ -281,13 +289,12 @@ def parse_markdown(text: str, styles, content_width: float):
         if line.startswith("## "):
             flush_paragraph()
             heading = line[3:].strip()
-            if heading == "Try the build":
-                story.append(PageBreak())
+            story.append(Paragraph(inline_markup(heading, FONTS), styles["h2"]))
             if heading.startswith("Why Nebius Serverless AI"):
                 story.append(
                     figure(
                         "fig-4-cost-model.png",
-                        "Figure 4. The live build uses a CPU Endpoint and managed inference; the AI Jobs path remains the burst-compute design.",
+                        "Figure 4. The live build uses a CPU Endpoint and managed inference; extraction and analysis are dispatched as on-demand AI Jobs with bounded cross-region provisioning.",
                         styles,
                         content_width,
                     )
@@ -296,12 +303,11 @@ def parse_markdown(text: str, styles, content_width: float):
                 story.append(
                     figure(
                         "fig-3-pipeline.png",
-                        "Figure 3. Both pipelines share artifact and status contracts across the designed Jobs path and the live inline fallback.",
+                        "Figure 3. Both pipelines run as AI Jobs and share artifact and status contracts; inline execution is an emergency fallback only.",
                         styles,
                         content_width,
                     )
                 )
-            story.append(Paragraph(inline_markup(heading, FONTS), styles["h2"]))
             i += 1
             continue
 
@@ -316,7 +322,7 @@ def parse_markdown(text: str, styles, content_width: float):
                 story.append(
                     figure(
                         "fig-1-architecture.png",
-                        "Figure 1. Archon spans a Firebase browser edge and Nebius backend services, with the current inline fallback shown explicitly.",
+                        "Figure 1. Archon spans a Firebase browser edge and Nebius backend services, with AI Job dispatch routed through explicit project-region-subnet placements.",
                         styles,
                         content_width,
                     )

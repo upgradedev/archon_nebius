@@ -4,7 +4,8 @@
 This version keeps every claim inside the boundary demonstrated by the repo:
 failed-file metadata is recorded but not surfaced in the current review UI,
 supplier reconciliation is unit-tested but not wired to extraction, and the
-live Endpoint uses the inline subprocess runner because CPU AI-Jobs quota is 0.
+AI Jobs router implements bounded provisioning failover across three explicit
+project-region-subnet tuples. Inline execution is an emergency fallback only.
 """
 
 from __future__ import annotations
@@ -96,22 +97,23 @@ SLIDES = [
     },
     {
         "title": "The deployed Nebius architecture",
-        "subtitle": "Job design, live inline execution, and exact image registries",
+        "subtitle": "AI Jobs dispatch, bounded regional routing, and exact image registries",
         "kind": "architecture",
         "items": [
-            ("CPU AI Endpoint", "FastAPI orchestration · live inline runner"),
-            ("Extraction pipeline", "AI Job design · subprocess in live Endpoint"),
-            ("Analysis pipeline", "AI Job design · subprocess in live Endpoint"),
+            ("CPU AI Endpoint", "FastAPI orchestration · AI Jobs SDK dispatch"),
+            ("Extraction pipeline", "Separate AI Job package · inline emergency fallback"),
+            ("Analysis pipeline", "Separate AI Job package · inline emergency fallback"),
             ("Inference API", "Qwen2.5-VL extraction · Llama 3.3 narration"),
-            ("Artifacts & images", "Object Storage authority · PostgreSQL mirror\nNebius Registry: job images · GHCR: Endpoint image"),
+            ("Regional ladder", "e00 · eu-north1 · local subnet\ne01 · eu-west1 · local subnet\ne03 · uk-south1 · local subnet"),
         ],
         "narration": (
             "A Nebius CPU AI Endpoint hosts the FastAPI backend. Extraction and analysis are packaged as separate "
-            "on-demand AI Job entry points, but this tenant currently has zero CPU Jobs quota. The live Endpoint "
-            "therefore runs those same packages as isolated subprocesses. Qwen two-point-five V L performs document "
+            "on-demand AI Job entry points, and the implemented router binds each configured project to its own "
+            "region and subnet: e zero zero in E U north one, e zero one in E U west one, and e zero three in U K "
+            "south one. Inline subprocess execution remains an emergency fallback only. Qwen two-point-five V L performs document "
             "extraction and Llama three-point-three produces optional narration through the Nebius Inference API. "
             "Object Storage is authoritative for raw, extracted, and report artifacts; Managed PostgreSQL is a best-"
-            "effort relational mirror. Nebius Container Registry hosts the two job images, while the live Endpoint "
+            "effort relational mirror. Nebius Container Registry hosts the two job images, while the Endpoint "
             "image is pulled from GitHub Container Registry. Firebase supplies the authenticated browser edge."
         ),
     },
@@ -157,42 +159,52 @@ SLIDES = [
         ),
     },
     {
-        "title": "Exact AI Jobs failover behavior",
-        "subtitle": "The live path is inline because CPU AI-Jobs quota is zero",
+        "title": "Bounded cross-region AI Jobs failover",
+        "subtitle": "Three project-region-subnet tuples — not generic high availability",
         "kind": "operations",
         "items": [
-            ("1", "Create rejected for quota or capacity", "Try the next configured project and preset"),
-            ("2", "Terminal or vanished with zero instances", "Clean up the never-provisioned job; then advance"),
-            ("3", "Still pending when the probe ends", "Keep the same job and poll it; never fail over by elapsed time"),
-            ("4", "Application reached compute and failed", "Surface the application error; do not retry another preset"),
+            ("1", "e00 · eu-north1", "vpcsubnet-e00sn2btkrs87k2re4"),
+            ("2", "e01 · eu-west1", "vpcsubnet-e01x810n0mmhj19k9b"),
+            ("3", "e03 · uk-south1", "vpcsubnet-e03w9xd3nbg2abq7qb"),
+            ("RULE", "Advance only after a provisioning failure", "Never fail over by elapsed time or application error"),
         ],
         "narration": (
-            "The failover rule is narrower than a timeout. If job creation is rejected for quota or capacity, Archon "
-            "tries the next configured project and preset. If a job reaches a terminal failure with zero instances, "
-            "or vanishes while provisioning, Archon cleans up that never-provisioned job and advances. If the bounded "
-            "probe ends while the job is still pending, it keeps that same job and continues polling; elapsed time alone "
-            "never triggers failover or a duplicate submission. If compute was provisioned and the application then "
-            "fails, Archon surfaces the application error without retrying another preset. This logic is built and "
-            "tested, but the current live product uses the inline subprocess path because tenant CPU Jobs quota is zero."
+            "The implemented ladder is bounded to three configured project-region-subnet tuples: e zero zero in E U "
+            "north one, e zero one in E U west one, and e zero three in U K south one, each with its project-local "
+            "subnet. If job creation is rejected for quota or capacity, Archon advances through configured presets and "
+            "then the next tuple. A terminal failure with zero instances, or a job that vanishes while provisioning, "
+            "also permits cleanup and advancement. If the bounded probe ends while the job is still pending, Archon "
+            "keeps and polls that same job; elapsed time alone never triggers failover or duplicate submission. Once "
+            "compute is reached, an application failure is surfaced without retrying elsewhere. This is provisioning "
+            "failover across an explicit ladder, not generic high availability. Inline execution is emergency fallback only."
         ),
     },
     {
         "title": "Public deployment evidence",
-        "subtitle": "Running Nebius Endpoint and state checks — not a successful AI Job claim",
+        "subtitle": "Live Endpoint activated Jobs mode; long smoke reached pre-compute ERROR in 3/3 projects",
         "kind": "proof",
         "items": [
-            ("DEPLOYMENT · 15 JULY 2026", "Nebius CPU Endpoint reached RUNNING with JOB_RUNNER_BACKEND=inline"),
-            ("LIVE CHECKS", "PostgreSQL /health/db reported reachable · Firebase BFF /api/health returned HTTP 200"),
-            ("PUBLIC ACTIONS LOGS", "Deploy: github.com/upgradedev/archon_nebius/actions/runs/29419841856\nPG seed: github.com/upgradedev/archon_nebius/actions/runs/29309815367"),
+            ("PRODUCTION DEPLOY · SUCCESS", "archon-backend-r133 · RUNNING · backend=nebius · preflight=1\ngithub.com/upgradedev/archon_nebius/actions/runs/29453848235"),
+            ("LIVE DEPLOY CHECKS", "All 3 tuples injected · Jobs-list permission 3/3\nObject Storage round-trip · Firebase BFF update · /api/health 200"),
+            ("LONG SMOKE · WORKFLOW FAILURE", "3/3 accepted · PROVISIONING → ERROR (~30m) · 0 instances\n3/3 deleted · empty details · run 29453371645"),
         ],
-        "footer": "Deployment evidence ≠ CPU AI Job execution; no Job provisioned under the zero-quota tenant.",
+        "footer": "No workload executed; empty JobStateDetails do not establish quota or capacity as the root cause.",
         "narration": (
-            "The deployment evidence is public. GitHub Actions run twenty-nine billion four hundred nineteen million "
-            "eight hundred forty-one thousand eight hundred fifty-six shows the Nebius CPU Endpoint reaching running "
-            "state with the inline runner, PostgreSQL reachable through its private endpoint, and the Firebase B F F "
-            "health route returning H T T P two hundred. A separate public seed run exercises authenticated report "
-            "serving and triggers the PostgreSQL read-model mirror. These logs prove the deployed Endpoint and state "
-            "path. They do not claim that a CPU AI Job provisioned; none did under the tenant's zero Jobs quota."
+            "Production deployment run twenty-nine billion four hundred fifty-three million eight hundred forty-eight "
+            "thousand two hundred thirty-five completed successfully. The new Archon backend revision one hundred "
+            "thirty-three reached running with the Nebius Jobs backend and quota preflight enabled. All three project, "
+            "region, and subnet configurations shown on the previous slide were injected. The runtime service account "
+            "passed the Jobs-list permission check in all three projects. The Object Storage write, read, and delete "
+            "round-trip passed, the Firebase B F F function was updated, and the live API health endpoint returned HTTP "
+            "two hundred. The earlier short smoke still proves only that all three create requests were accepted before "
+            "remaining in provisioning at zero instances and being deleted by its nine-minute harness. In the terminal "
+            "long smoke, all three creates were again accepted. Each Job initially reported state one, provisioning, "
+            "with zero instances. Around thirty minutes later, every Job reported state nine, error, still with zero "
+            "instances and empty Job State Details. Cleanup deleted all three, and the workflow concluded with failure. "
+            "This is evidence of create acceptance followed by a pre-compute terminal error, not workload execution. "
+            "The empty details do not establish quota exhaustion, capacity failure, or another root cause. The successful "
+            "deployment proves live Jobs-mode orchestration and configuration, not completion of an application extraction "
+            "or analysis Job."
         ),
     },
     {
@@ -200,14 +212,15 @@ SLIDES = [
         "subtitle": "A controlled-record prototype with bounded, reproducible claims",
         "kind": "close",
         "items": [
-            ("TODAY", "Mixed-file extraction · type refinement\nhuman review of successful documents\npayroll R1–R4 · validation source files\nlive inline execution on a Nebius Endpoint"),
+            ("TODAY", "Mixed-file extraction · type refinement\nhuman review of successful documents\npayroll R1–R4 · validation source files\nbounded three-region AI Jobs provisioning router"),
             ("NEXT", "Show failed-file summaries in the review UI\nwire supplier-statement extraction\ninvoice ↔ payment or collection · remittances\njournal export and accounting integrations"),
         ],
         "narration": (
             "The submitted proof is deliberately bounded: mixed-file extraction, structured records, deterministic "
             "type refinement, human review of successfully extracted documents, payroll linking, four named checks "
-            "with source-file references, reproducible downstream evaluation, and a live Nebius Endpoint using the "
-            "inline fallback. The next work is equally explicit: surface failed-file summaries in the review interface, "
+            "with source-file references, reproducible downstream evaluation, and an implemented three-region AI Jobs "
+            "provisioning router. Inline execution remains an emergency fallback only, and the cross-region ladder is "
+            "not a generic high-availability claim. The next work is equally explicit: surface failed-file summaries in the review interface, "
             "wire supplier-statement extraction, add invoice-to-payment and invoice-to-collection events, verify tax "
             "and contribution remittances, and integrate with accounting journals. That boundary is the honest Archon "
             "story for this challenge."

@@ -1,109 +1,151 @@
-# ADR-010 — AI-Jobs quota pre-flight, and cross-region failover (future)
+# ADR-010 — Compute-quota routing and bounded cross-region Job provisioning
 
 **Date:** 2026-07-13
-**Status:** Partially Active — quota pre-flight **Active** (opt-in); cross-region failover **Proposed / future work**
+
+**Updated:** 2026-07-16
+**Status:** Implemented; production deployment and terminal long-smoke result verified
 
 ## Context
 
-ADR-009 gave Archon a preset-size failover ladder and a capacity probe, turning a
-silent zero-quota stall into an eventual HTTP 503. But it still *submits, waits,
-and fails*: with `cpu-d3` AI-Jobs quota at a hard 0 in `eu-west1`, every rung is
-accepted, stranded in `PROVISIONING`, and torn down after ~30 minutes. The user
-waits the full provision-then-FAIL cycle to learn something that was knowable up
-front.
+Archon's extraction and analysis packages are CPU Serverless AI Jobs. The three
+available projects are in different regions and require project-local subnets:
 
-Two facts shape the fix:
+| Project | Region | Subnet |
+|---|---|---|
+| `project-e00cncsmpr00e8p6knyvdq` | `eu-north1` | `vpcsubnet-e00sn2btkrs87k2re4` |
+| `project-e01mmzejpr00e93rgqgf3q` | `eu-west1` | `vpcsubnet-e01x810n0mmhj19k9b` |
+| `project-e03byhh4pr00v15s7dz11p` | `uk-south1` | `vpcsubnet-e03w9xd3nbg2abq7qb` |
 
-1. **There is no "chance of launch" signal for CPU AI Jobs.** Nebius' Capacity
-   Advisor (`AVAILABILITY_LEVEL_HIGH/MEDIUM/LOW/LIMIT_REACHED`) is documented as
-   **GPU-VM-only** and *explicitly excludes* `cpu-d3` and AI Jobs. So a CPU Job
-   does not fail from unlucky instance selection — it fails because quota is a
-   deterministic **0**. Binary, not probabilistic. The right pre-flight is a
-   **quota lookup**, not a capacity-availability guess.
+A project-ID-only ladder was insufficient: a Job submitted under one project
+could not safely inherit the Endpoint project's `eu-west1` region and subnet.
+Likewise, matching quota rows heuristically on `job` or `cpu-d3` was unsupported.
+Nebius documents that Serverless AI workloads consume underlying
+[Compute quotas](https://docs.nebius.com/compute/resources/quotas-limits), and the
+real project rows are `compute.instance.count` and
+`compute.instance.non-gpu.vcpu`.
 
-2. **Serverless AI runs in all five public regions** (`eu-north1`, `eu-west1`,
-   `me-west1`, `us-central1`, `uk-south1`), but Archon's Jobs are single-region:
-   `build_spec` uses one hardcoded `NEBIUS_SUBNET_ID`, and the storage bucket,
-   container registry, and PostgreSQL cluster all live in `eu-west1`. Quota is
-   granted per region, so a different region may have quota where `eu-west1` has
-   none — but reaching it needs region-local infrastructure.
+The [read-only probe run](https://github.com/upgradedev/archon_nebius/actions/runs/29452440996)
+verified that the runtime service account can list Jobs and quota allowances in
+all three projects. It also recorded each project's region and the two real
+Compute quota rows. Every observed `spec.limit` was omitted (`None`), which is a
+provider-default/unknown allowance, not evidence of a zero limit. The probe did
+not create compute and is not proof that an AI Job completed.
 
 ## Decision
 
-### Part A — Quota pre-flight, now an active routing SELECTOR (Active, opt-in)
+### 1. Project-local routing configuration
 
-Before submitting, `_submit_job_with_failover` calls `_route_projects_by_quota`,
-which reads the AI-Jobs quota for every `(project, ladder-platform)` pair via
-`QuotaAllowanceService.List` and actively **routes** the submission rather than
-merely gating it:
+`NEBIUS_PROJECT_CONFIGS` is the source of truth for cross-region placement. Its
+format is an ordered comma-separated list of `project=region=subnet` entries:
 
-- projects are **ordered** quota-available-first, then unknown;
-- a project that is a **confirmed** hard 0 on *every* ladder platform is
-  **dropped** (submitting there only provisions ~30 min then FAILs);
-- a single confirmed-zero `(project, platform)` rung inside an otherwise-viable
-  project is **skipped** in the submit loop;
-- if **every** candidate is a confirmed 0, the request fails up front with
-  `NoJobsQuota` (a `ComputeCapacityUnavailable` subclass → **HTTP 503**) — an
-  instant, named error ("no AI-Jobs quota for cpu-d3 in region eu-west1") instead
-  of a 30-minute doomed provision.
+```text
+project-e00cncsmpr00e8p6knyvdq=eu-north1=vpcsubnet-e00sn2btkrs87k2re4,
+project-e01mmzejpr00e93rgqgf3q=eu-west1=vpcsubnet-e01x810n0mmhj19k9b,
+project-e03byhh4pr00v15s7dz11p=uk-south1=vpcsubnet-e03w9xd3nbg2abq7qb
+```
 
-This supersedes the earlier single-project `_preflight_jobs_quota` gate for the
-submit path: the gate raised on the *first* project's zero, which would have
-killed a submission that could still succeed on a later project in the ladder.
-The gate function is retained as a standalone tested utility.
+The line breaks above are for readability; the environment value is a single
+line. Each JobSpec receives the selected project's subnet. When the variable is
+absent, the legacy `NEBIUS_PROJECT_ID[_LADDER]`, `NEBIUS_REGION`, and
+`NEBIUS_SUBNET_ID` contract preserves single-region compatibility.
 
-Two guardrails make this safe to ship on a live submission:
+The backend Endpoint, authoritative Object Storage, registry, and PostgreSQL
+remain anchored in the primary e01/`eu-west1` deployment. A Job placement does
+not infer its region or subnet from that Endpoint.
 
-- **Opt-in** via `JOB_QUOTA_PREFLIGHT` (default off). The exact quota resource
-  name must be confirmed against a live tenant with real credentials before the
-  selector can drop/reorder; until then it performs no lookups and behaviour is
-  identical to today.
-- **Fail-open** by contract. `_jobs_quota_state` returns `"unknown"` on any
-  uncertainty — no matching quota row, an SDK build without the quotas API, or a
-  lookup error — and `"unknown"` is never dropped (kept, ordered after
-  available). The selector can only ever convert a *doomed* submission into a fast
-  503 or reorder the ladder; it can never block one that might have succeeded.
+### 2. Project-specific Compute quota selector
 
-### Part B — Cross-region failover (Proposed / future work)
+When `JOB_QUOTA_PREFLIGHT` is enabled, the runner lists quota allowances with the
+candidate **project** as `parent_id`; it never substitutes the tenant and thereby
+returns the same quota view for every project. For the candidate's own region it
+evaluates:
 
-Extend the ADR-009 ladder with a **region dimension**: each rung carries its own
-`(region, subnet_id, registry image ref, storage endpoint)`. A per-region quota
-pre-flight (Part A, run across regions) selects the first region whose AI-Jobs
-quota is `> 0`, and the Job is submitted there. Ordering is config-driven, e.g.
-`NEBIUS_REGION_LADDER=eu-west1,eu-north1,us-central1`.
+- `compute.instance.count`
+- `compute.instance.non-gpu.vcpu`
 
-This is **not implemented**. It is documented here as the deliberate next step so
-the lever is captured, not lost.
+An explicit limit is reduced by current `status.usage`. A candidate is confirmed
+exhausted if either required allowance has no remaining headroom. An omitted
+limit, missing row, SDK/API error, or ambiguous duplicate is `unknown` and fails
+open. Available candidates are ordered before unknown candidates; only confirmed
+exhaustion removes a candidate.
+
+The selector is a quota signal, not a general capacity oracle. It does not claim
+that a positive or default allowance guarantees immediate provisioning.
+
+### 3. Bounded project × preset provisioning failover
+
+After project ordering, the existing `JOB_PRESET_LADDER` applies within each
+project. Every project × preset candidate is tried at most once. The runner
+advances only on an unambiguous never-provisioned signal:
+
+- create rejected for provisioning/quota/capacity;
+- terminal failure with zero instances and no evidence of having run; or
+- a Job that vanishes during the bounded provisioning probe.
+
+A Job still provisioning when the probe ends is retained and returned for
+polling. Elapsed time alone does not delete it or create a duplicate. If compute
+was allocated and the application then fails, that application error is surfaced
+without replaying it in another region.
+
+This policy is **bounded cross-region provisioning failover**, not generic high
+availability. It does not promise uninterrupted service, automatic replay of
+application failures, or regional data replication.
+
+### 4. Inline execution is emergency fallback only
+
+`JOB_RUNNER_BACKEND=inline` remains a break-glass continuity option. It invokes
+the same extraction and analysis entrypoints as isolated subprocesses inside the
+Endpoint and preserves their Object Storage/status contracts. Its existence is
+not evidence that an AI Job ran. Production run 29453848235 proves that r133 uses
+`JOB_RUNNER_BACKEND=nebius`; inline remains an inactive, operator-selected
+break-glass option.
+
+## Evidence boundary
+
+- [Probe run 29452440996](https://github.com/upgradedev/archon_nebius/actions/runs/29452440996)
+  is read-only evidence for project access, regions, quota-row identity, limits,
+  and usage.
+- [Short smoke run 29452734826](https://github.com/upgradedev/archon_nebius/actions/runs/29452734826)
+  is a terminal harness failure, not a pending run. All three
+  `CreateJobRequest` calls succeeded, one for each configured placement. Every
+  Job then remained `PROVISIONING` with zero instances until the nine-minute
+  harness timed out and deleted it. This proves API acceptance of the three
+  placement requests; it does **not** prove provisioning or execution.
+- [Long smoke run 29453371645](https://github.com/upgradedev/archon_nebius/actions/runs/29453371645)
+  is a terminal workflow failure. All three `CreateJobRequest` calls succeeded.
+  Each Job initially reported state 1 (`PROVISIONING`) with zero instances. At
+  around 30 minutes, each transitioned to state 9 (`ERROR`), still with zero
+  instances and empty `JobStateDetails`. Cleanup deleted all three Jobs, after
+  which the workflow exited with failure. This proves create acceptance followed
+  by a pre-compute terminal error, not workload execution. The empty details do
+  not establish quota exhaustion, capacity failure, or another root cause.
+- [Production deployment run 29453848235](https://github.com/upgradedev/archon_nebius/actions/runs/29453848235)
+  completed successfully. The new `archon-backend-r133` Endpoint reached
+  `RUNNING` with `JOB_RUNNER_BACKEND=nebius`, `JOB_QUOTA_PREFLIGHT=1`, and all
+  three project/region/subnet configurations in the table above. The runtime
+  service account passed Jobs-list permission checks in all three projects; the
+  Object Storage write/read/delete round-trip passed; the Firebase BFF function
+  was updated; and the live `/api/health` probe returned HTTP 200.
+- The deployment proves that the live Archon backend activated Nebius Jobs-mode
+  orchestration, quota preflight, and the configured placement ladder. It does
+  **not** prove completion of an application extraction or analysis Job.
 
 ## Consequences
 
-- Part A ships as pure upside behind a flag: quota-ordered routing across the
-  project ladder, zero-quota projects/rungs skipped, and an instant region-named
-  503 when everything is a confirmed 0 — all once enabled; no behaviour change and
-  no quota lookups while off. Covered by `backend/tests/test_quota_preflight.py`
-  (state matching + gate + selector ordering/drop/fail-open + all-zero submit
-  raises `NoJobsQuota` without creating a job). Adds `JOB_QUOTA_PREFLIGHT`,
-  `NEBIUS_TENANT_ID` env knobs (`NEBIUS_REGION` already existed). `DATABASE_URL`
-  is now injected into the backend Endpoint at deploy so the PG read-model mirror
-  actually writes (was previously unset → silent no-op).
-- Part B is deferred, not declined, because it is a real infrastructure lift and
-  **untestable locally** (no reachable multi-region infra, IP-allowlisted PG):
-  - Each candidate region needs its own subnet, a registry image it can pull
-    (regional registries → push per region or configure cross-region pull), and
-    reachable storage. Cross-region Object Storage reads incur latency + egress.
-  - PostgreSQL is single-region and IP-allowlisted; a Job in another region does
-    not touch it anyway (per ADR on the PG read-model, jobs write only S3 and the
-    backend mirrors to PG), so this is not a blocker — but the backend↔PG path
-    stays pinned to `eu-west1`.
-  - Building and verifying this safely needs real multi-region credentials and
-    more runway than the current submission window allows.
-- The honest unblock for the demo remains operational, not architectural: request
-  a `cpu-d3` AI-Jobs quota increase, or drive the offline `?demo=1` report path
-  that needs no Jobs at all.
+- Cross-region placement is explicit and auditable instead of inferred from the
+  primary Endpoint.
+- Default/unknown provider quota is no longer misreported as a hard zero.
+- The runtime service account must retain Jobs and subnet access in all three
+  projects and registry-read access for the Job images.
+- Jobs outside `eu-west1` read the authoritative Object Storage remotely, so
+  cross-region latency and transfer charges may apply. Jobs do not write directly
+  to PostgreSQL; the eu-west1 Endpoint continues to materialize that read model.
+- Operators can return to emergency inline execution with one variable if Job
+  placement is unavailable, without changing agent code or artifact contracts.
 
-## Relationship to other ADRs
+## Relationship to ADR-009
 
-Builds directly on **ADR-009** (preset-size ladder + capacity probe). ADR-009
-handles *"this preset never provisioned → try the next size"* after submission;
-ADR-010 Part A handles *"this region has no quota → don't submit at all"* before
-it, and Part B generalises the ladder from preset-size to region.
+ADR-009 defines the never-provisioned versus application-failure taxonomy and the
+preset ladder. ADR-010 adds project-specific Compute-quota ordering and the
+project→region→subnet dimension while retaining ADR-009's bounded, no-duplicate
+semantics.

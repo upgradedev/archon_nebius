@@ -153,8 +153,8 @@ See `.env.example` for the annotated opt-in example and cost warning.
 
 ## Reproduce it in one command
 
-The pattern is exercised offline — no Nebius credentials, no live capacity, no
-real job submitted (quota is 0 and live jobs cost money):
+The pattern is exercised offline — no Nebius credentials, no live capacity, and
+no real Job submission:
 
 ```bash
 bash scripts/demo-failover.sh
