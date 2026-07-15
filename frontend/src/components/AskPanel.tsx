@@ -33,31 +33,30 @@ const QUESTIONS: QA[] = [
     available: (r) => !!r.pnl,
     answer: (r) =>
       `Net profit was ${fmt(r.pnl.netProfit)} on ${fmt(r.pnl.revenue)} of revenue — ` +
-      `a ${pct(r.pnl.operatingMarginPct)} operating margin.`,
+      `a ${pct(r.pnl.operatingMarginPct)} simplified document margin.`,
   },
   {
     id: 'employer-cost',
-    q: "What's the total employer cost?",
+    q: 'What employer cost does the payroll register report?',
     available: (r) => !!r.payrollGap,
     answer: (r) =>
-      `The true employer cost is ${fmt(r.payrollGap!.trueEmployerCost)} across ` +
-      `${r.payrollGap!.employeeCount} employees — gross pay plus the employer's ` +
-      `social-security contribution.`,
+      `The payroll register reports total employer cost of ${fmt(r.payrollGap!.trueEmployerCost)} ` +
+      `across ${r.payrollGap!.employeeCount} employees. Archon uses that register value for ` +
+      `payroll expense; it does not infer it from the bank transfer.`,
   },
   {
     id: 'payroll-gap',
-    q: 'How does the bank transfer reconcile to the true payroll cost?',
+    q: 'How do bank-confirmed net wages compare with registered employer cost?',
     available: (r) => !!r.payrollGap,
     answer: (r) => {
       const g = r.payrollGap!
-      const reconciled = g.trueEmployerCost - g.bankTransferNet
+      const difference = g.trueEmployerCost - g.bankTransferNet
       return (
-        `The bank moved ${fmt(g.bankTransferNet)} in net wages, and the register's ` +
-        `true employer cost is ${fmt(g.trueEmployerCost)} — ${g.gapPct.toFixed(0)}% more ` +
-        `once the withheld payroll taxes and the employer's own social-security ` +
-        `contributions are reconciled back to source documents (${fmt(reconciled)} in all). ` +
-        `The employer contribution alone is ~35% over the transfer; the rest is ` +
-        `employee withholdings.`
+        `The bank confirmation records ${fmt(g.bankTransferNet)} in net wages, while the ` +
+        `payroll register reports ${fmt(g.trueEmployerCost)} in total employer cost — a ` +
+        `${fmt(difference)} difference (${g.gapPct.toFixed(0)}%). These documents describe ` +
+        `different payroll measures. Archon checks their ratio, but does not verify separate ` +
+        `tax or social-insurance remittance transactions.`
       )
     },
   },
@@ -84,7 +83,9 @@ const QUESTIONS: QA[] = [
       const failed = rules.filter((x) => x.state === 'fail')
       const skipped = rules.filter((x) => x.state === 'skip')
       if (failed.length === 0 && skipped.length === 0) {
-        return `All ${rules.length} cross-document checks passed (R1–R4). No validation issues were found.`
+        return `All ${rules.length} available payroll checks passed (R1–R4). This validates ` +
+          `the uploaded net totals, employer-cost ratio, payment date, and headcount; it does ` +
+          `not confirm separate tax or social-insurance remittances.`
       }
       const parts: string[] = [`${passed.length} of ${rules.length} cross-document checks passed`]
       if (failed.length) parts.push(`${failed.map((x) => x.id).join(', ')} failed`)
@@ -98,13 +99,15 @@ const QUESTIONS: QA[] = [
   },
   {
     id: 'cash',
-    q: 'How much cash did the business generate?',
+    q: 'What cash-flow view do these documents produce?',
     available: (r) => !!r.cashFlow,
     answer: (r) =>
-      `Net cash generated was ${fmt(r.cashFlow.net)} (operating ${fmt(r.cashFlow.operating)})` +
+      `The current document-based view is ${fmt(r.cashFlow.net)} net cash ` +
+      `(operating ${fmt(r.cashFlow.operating)}). It assumes sales invoices were collected and ` +
+      `purchase/expense invoices were paid; generic bank-to-invoice matching is not implemented` +
       (r.keyMetrics.collectionRatePct !== null
-        ? `, with a ${pct(r.keyMetrics.collectionRatePct)} collection rate.`
-        : '.'),
+        ? `, and the report contains a ${pct(r.keyMetrics.collectionRatePct)} collection rate.`
+        : ', so collection rate is unavailable.'),
   },
 ]
 

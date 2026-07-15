@@ -2,13 +2,11 @@
 Executive narrator — uses an LLM to write a concise English executive summary
 from the computed financial metrics.
 
-Grounded-narrator tier: the prompt is enriched with a multi-stream
-reconciliation context block (payroll bank-transfer net vs true employer cost,
-cash flow, per-employee analytics, cross-document validation results) so the
-summary reasons over the fused financial picture rather than top-line numbers
-alone. The model is instructed to end with a "Sources:" line that cites the
-actual input documents / payroll events / validation rules it drew from —
-traceability over the real inputs, not an external corpus.
+Grounded-narrator tier: the prompt is enriched with a document-comparison
+context block (bank-confirmed payroll net vs register-reported employer cost,
+the assumption-based cash-flow view, per-employee analytics, and named payroll
+checks). The prompt explicitly prevents the narrator from turning those checks
+into claims about tax remittance or generic payment matching.
 """
 
 import os
@@ -56,14 +54,13 @@ def _build_prompt(report: FinancialReport) -> str:
 
     return f"""You are a CFO-level financial analyst. Write a concise executive summary (3-4 sentences, plain English, no bullet points) for the following monthly financial data.
 
-Where relevant, note where correlating multiple document streams was essential to arriving at the correct figure — a single payroll period is understood from several documents at once (a bank confirmation shows only the employee net transfer, while the payroll register adds employer social-insurance contributions, and separate tax-authority withholdings form a further stream). You may reference applicable universal accounting standards for context (e.g. IAS 1 presentation of financial statements, IAS 19 employee-benefit cost), but every citation you list must be grounded in the actual inputs below.
+Where relevant, explain that a bank confirmation, payroll register, and payslips report different payroll measures. Use the register-reported employer cost for the P&L and the bank-confirmed net transfer for the current cash-flow view. Do not claim that Archon verified separate tax or social-insurance remittances, generic bank-to-invoice payment matching, collections, or duplicate payments: those checks are not present in the data below. Do not call a figure "true" or "fully reconciled" when it is only reported by one uploaded document.
 
 Period: {report.period}
 Revenue: €{report.pnl.revenue:,.2f}
 Expenses: €{report.pnl.expenses:,.2f}
 Net Profit: €{report.pnl.netProfit:,.2f}
-Gross Margin: {report.pnl.grossMarginPct:.1f}%
-Operating Margin: {report.pnl.operatingMarginPct:.1f}%
+Simplified document margin (net profit / document-total revenue): {report.pnl.operatingMarginPct:.1f}%
 Revenue Growth MoM: {growth}
 Expense Ratio: {report.keyMetrics.expenseRatioPct:.1f}%
 Invoice Count: {report.keyMetrics.invoiceCount}
@@ -71,17 +68,15 @@ Avg Invoice Value: €{report.keyMetrics.avgInvoiceValue:,.2f}
 Collection Rate: {collection}
 Top Expense Categories: {top_categories}{reconciliation}
 
-Write the summary now. After the summary, output a blank line, then a single line that begins exactly with "Sources: " and lists the specific inputs you drew from — payroll registers/periods, bank confirmations, validation rules, or accounting standards — separated by " · " (space, middle-dot, space). Example: "Sources: payroll register 2026-01 · bank confirmation · validation R1 · IAS 19". Only cite inputs that appear in the data above."""
+Write the summary now. After the summary, output a blank line, then a single line that begins exactly with "Sources: " and lists only the specific report inputs you drew from — for example the period's payroll register, bank confirmation, payslips, or named validation rules — separated by " · " (space, middle-dot, space). Do not cite an input or external standard that is not present above."""
 
 
 def _reconciliation_context(report: FinancialReport) -> str:
     """
     Build a multi-stream reconciliation context block from the fused report.
 
-    Feeds the narrator the payroll bank-net vs true employer-cost gap, cash flow,
-    per-employee coverage, and validation results so the summary reasons over the
-    correlated picture. Returns "" when no supporting streams are present so the
-    prompt degrades gracefully (and the deterministic unit tests stay green).
+    Feed the narrator values already present in the report, together with their
+    limitations. Returns "" when no supporting streams are present.
     """
     lines: list[str] = []
 
@@ -91,13 +86,12 @@ def _reconciliation_context(report: FinancialReport) -> str:
             gap_pct = (gap / ev.net_total * 100) if ev.net_total else 0.0
             company = f" for {ev.company_name}" if ev.company_name else ""
             lines.append(
-                f"\nPayroll multi-stream reconciliation ({ev.period}{company}):"
+                f"\nPayroll document comparison ({ev.period}{company}):"
                 f"\n  • Bank confirmation (employee net transfers): €{ev.net_total:,.2f}"
-                f"\n  • Payroll register (gross + employer social-insurance cost): €{ev.employer_cost_total:,.2f}"
-                f"\n  • True employer cost exceeds the bank transfer by €{gap:,.2f} ({gap_pct:.0f}%)."
-                f"\n  Employer social-insurance contributions and tax-authority withholdings"
-                f"\n  are separate payment streams not visible in the bank slip; accurate P&L"
-                f"\n  requires correlating all of them. Employees covered: {ev.employee_count}."
+                f"\n  • Payroll register (reported total employer cost): €{ev.employer_cost_total:,.2f}"
+                f"\n  • Register-reported employer cost is €{gap:,.2f} ({gap_pct:.0f}%) above bank-confirmed net wages."
+                f"\n  This is a comparison of uploaded values, not verification that separate tax"
+                f"\n  or social-insurance remittance transactions were paid. Employees covered: {ev.employee_count}."
                 f"\n  Bank-confirmed: {'yes' if ev.bank_confirmed else 'no'}."
             )
             break
@@ -105,9 +99,10 @@ def _reconciliation_context(report: FinancialReport) -> str:
     if report.cashFlow:
         cf = report.cashFlow
         lines.append(
-            f"\nCash flow (real movements): operating €{cf.operating:,.2f}, "
+            f"\nDocument-based cash-flow view: operating €{cf.operating:,.2f}, "
             f"investing €{cf.investing:,.2f}, financing €{cf.financing:,.2f}, "
-            f"net €{cf.net:,.2f}."
+            f"net €{cf.net:,.2f}. Sales invoices are assumed collected and purchase/expense "
+            f"invoices paid; generic bank-to-invoice matching is not implemented."
         )
 
     if report.employeeSummaries:

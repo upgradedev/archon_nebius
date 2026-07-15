@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850" role="img" aria-labelledby="title desc">
-  <title id="title">Payroll reconciliation event linking</title>
-  <desc id="desc">Diagram showing bank net salary, payroll register employer cost, and payslips linked into one payroll event to reconcile the full employer cost.</desc>
+  <title id="title">One payroll event described by three complementary records</title>
+  <desc id="desc">An illustrative bank confirmation, payroll register, and set of payslips are linked into one payroll event. The linked records support different cash, management-expense, and deterministic validation views.</desc>
   <defs>
     <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
       <path d="M2,2 L10,6 L2,10 Z" fill="#344054"/>
@@ -9,7 +9,7 @@
       .bg{fill:#fbfcfe}
       .doc{fill:#eef4ff;stroke:#356ac3;stroke-width:2}
       .event{fill:#e9f7ef;stroke:#1b7f4b;stroke-width:2}
-      .warn{fill:#fff1f3;stroke:#c01048;stroke-width:2}
+      .control{fill:#f4ecff;stroke:#7a3ec8;stroke-width:2}
       .money{fill:#fff4cc;stroke:#b88700;stroke-width:2}
       .title{font:700 34px Arial, sans-serif;fill:#101828}
       .h{font:700 22px Arial, sans-serif;fill:#101828}
@@ -21,7 +21,7 @@
     </style>
   </defs>
   <rect class="bg" width="1400" height="850"/>
-  <text class="title" x="60" y="70">Why Payroll Needs Event Linking</text>
+  <text class="title" x="60" y="70">One Payroll Event, Three Complementary Records</text>
   <rect class="doc" x="80" y="160" width="310" height="120" rx="14"/>
   <text class="h" x="110" y="202">Bank confirmation</text>
   <text class="t" x="110" y="234">Net salary transfer</text>
@@ -46,13 +46,15 @@
   <text class="h" x="1045" y="207">Cash-flow signal</text>
   <text class="big" x="1045" y="260">EUR 1,000</text>
   <rect class="money" x="1015" y="360" width="310" height="140" rx="14"/>
-  <text class="h" x="1045" y="402">P&amp;L payroll cost</text>
-  <text class="big green" x="1045" y="462">EUR 1,720</text>
-  <rect class="warn" x="1015" y="565" width="310" height="125" rx="14"/>
-  <text class="h" x="1045" y="608">Employer delta</text>
-  <text class="big red" x="1045" y="662">EUR 720</text>
+  <text class="h" x="1045" y="402">Management expense</text>
+  <text class="big" x="1045" y="462">EUR 1,720</text>
+  <rect class="control" x="1015" y="565" width="310" height="125" rx="14"/>
+  <text class="h" x="1045" y="608">Deterministic checks</text>
+  <text class="t" x="1045" y="644">R1–R4: amount, ratio,</text>
+  <text class="t" x="1045" y="674">date, and headcount</text>
   <line class="arrow" x1="875" y1="410" x2="1015" y2="230"/>
   <line class="arrow" x1="875" y1="410" x2="1015" y2="430"/>
   <line class="arrow" x1="875" y1="410" x2="1015" y2="625"/>
-  <text class="t" x="80" y="760">Without linking, software either sees only the net-wages component from bank data or double counts unrelated payroll documents.</text>
+  <text class="t" x="80" y="750">Illustrative amounts: the records answer different questions; linking prevents omission or double counting.</text>
+  <text class="t" x="80" y="782">The documents answer different questions inside one completeness-and-control workflow.</text>
 </svg>

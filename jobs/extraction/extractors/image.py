@@ -56,7 +56,8 @@ Choose doc_type from EXACTLY one of these values:
 PAYROLL FIELDS — populate ONLY for payroll documents, else leave null:
   - payroll_register: set "gross_pay_total" (total gross wages),
     "employer_cost_total" (gross + the employer's social-security contribution —
-    the true cost to employ the team, larger than the net transfer),
+    the total employer cost reported by the register, which may differ from the
+    net bank transfer),
     "net_pay_total" (total net pay), and "employee_count" (number of employees on
     the register). Read each from its own labelled line; never copy one line into
     another.

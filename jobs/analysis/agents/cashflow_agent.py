@@ -1,14 +1,13 @@
 """
-CashFlowAgent — derives the cash flow statement from real document cash movements.
+CashFlowAgent — derives a provisional document-based cash-flow view.
 
 Single responsibility: produce a CashFlow model from the classified documents.
 
-Operating cash flow is built from actual movements, not from the P&L accrual:
-bank_confirmation.total_amount is the real payroll cash out (the net transfer —
-this is where cash flow deliberately reads the bank figure, while the P&L reads
-the register's full employer cost), sales are inflows, and invoices/expenses are
-the other outflows. Investing / financing stay zero until asset-purchase or loan
-documents are present.
+bank_confirmation.total_amount is treated as the observed payroll cash out (the
+net transfer), while the P&L reads the register-reported employer cost. Until
+general payment and collection linking is implemented, sales invoices are
+assumed collected and purchase/expense documents are assumed paid. Investing /
+financing stay zero until asset-purchase or loan documents are supported.
 """
 
 from models.financial import ExtractedDoc, CashFlow, MonthlyPnL
@@ -31,12 +30,12 @@ def build_cashflow(period: str, docs: list[ExtractedDoc], pnl: MonthlyPnL) -> Ca
     bank_payroll_out = sum(
         d.total_amount for d in docs if d.doc_type == "bank_confirmation"
     )
-    # Non-payroll expense cash out
+    # Assumption-based non-payroll outflow until payment linking is implemented.
     non_payroll_out = sum(
         d.total_amount for d in docs
         if d.doc_type in ("invoice", "expense")
     )
-    # Sales cash in (assume collected — refine with AR aging when available)
+    # Assumption-based sales inflow until collection linking is implemented.
     sales_in = sum(d.total_amount for d in docs if d.doc_type == "sales")
 
     operating = round(sales_in - bank_payroll_out - non_payroll_out, 2)

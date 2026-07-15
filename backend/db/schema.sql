@@ -151,7 +151,7 @@ CREATE INDEX IF NOT EXISTS idx_validation_passed ON validation_results (passed);
 
 CREATE TABLE IF NOT EXISTS job_runs (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    job_id              TEXT NOT NULL,      -- Nebius aijob-… id
+    job_id              TEXT NOT NULL,      -- aijob-… or inline-ext-/inline-ana-… execution id
     nebius_job_name     TEXT,               -- e.g. archon-analysis-2026-01-abc123
     job_type            TEXT NOT NULL,      -- "extraction" | "analysis"
     period              TEXT,

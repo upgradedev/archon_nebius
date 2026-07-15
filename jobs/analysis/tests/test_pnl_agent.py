@@ -1,8 +1,4 @@
-"""
-PnLAgent — the fusion-math core. Verifies that the P&L reports the TRUE
-employer payroll cost (gross + employer social-security) from the register, not
-the bank net, and that the three payroll subtypes are never double-counted.
-"""
+"""PnLAgent deterministic arithmetic and payroll-source de-duplication."""
 from agents import pnl_agent
 
 
@@ -90,6 +86,25 @@ def test_expense_breakdown_uses_employer_cost_for_register(doc):
     assert cats[0].amount == 12_800.0
 
 
+def test_expense_breakdown_deduplicates_payroll_and_reconciles_to_pnl(doc):
+    docs = [
+        doc(source_file="reg.pdf", doc_type="payroll_register",
+            total_amount=10_000, employer_cost_total=12_800),
+        doc(source_file="bank.pdf", doc_type="bank_confirmation", total_amount=10_000),
+        doc(source_file="s1.pdf", doc_type="payslip", total_amount=5_000),
+        doc(source_file="s2.pdf", doc_type="payslip", total_amount=5_000),
+        doc(source_file="rent.pdf", doc_type="expense", total_amount=2_000,
+            notes="office rent"),
+    ]
+
+    pnl = pnl_agent.build_pnl("2026-01", docs)
+    breakdown = {c.category: c for c in pnl_agent.build_expense_breakdown(docs)}
+
+    assert breakdown["Payroll"].amount == 12_800.0
+    assert breakdown["Rent & Facilities"].amount == 2_000.0
+    assert sum(c.amount for c in breakdown.values()) == pnl.expenses == 14_800.0
+
+
 def test_expense_breakdown_empty_is_safe():
     assert pnl_agent.build_expense_breakdown([]) == []
 
@@ -123,6 +138,21 @@ def test_vendor_summary_aggregates_and_counts(doc):
 def test_vendor_summary_skips_blank_vendor(doc):
     docs = [doc(doc_type="expense", vendor_name=None, total_amount=100)]
     assert pnl_agent.build_vendor_summary(docs) == []
+
+
+def test_vendor_summary_excludes_payroll_bank_sales_and_reference_docs(doc):
+    docs = [
+        doc(doc_type="invoice", vendor_name="Supplier A", total_amount=300),
+        doc(doc_type="expense", vendor_name="Supplier B", total_amount=200),
+        doc(doc_type="payroll_register", vendor_name="Our Company", total_amount=10_000),
+        doc(doc_type="payslip", vendor_name="Our Company", total_amount=5_000),
+        doc(doc_type="bank_confirmation", vendor_name="Our Bank", total_amount=10_000),
+        doc(doc_type="sales", vendor_name="Our Company", total_amount=20_000),
+        doc(doc_type="account_statement", vendor_name="Supplier C", total_amount=400),
+    ]
+
+    vendors = pnl_agent.build_vendor_summary(docs)
+    assert [v.name for v in vendors] == ["Supplier A", "Supplier B"]
 
 
 def test_vendor_summary_top_10_only(doc):

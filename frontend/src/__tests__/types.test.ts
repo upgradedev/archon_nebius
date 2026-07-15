@@ -11,10 +11,6 @@ import type {
   Job,
   FinancialReport,
   AnalysisResponse,
-  MonthlyPnL,
-  CashFlow,
-  KeyMetrics,
-  ExpenseCategory,
 } from '../types/financial'
 
 describe('type smoke tests', () => {

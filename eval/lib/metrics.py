@@ -10,7 +10,7 @@ re-implementation.
   3. validation outcome       — R1-R4 from the real ValidatorAgent vs DOMAIN truth
   4. fusion figure accuracy   — the payroll expense the real PnLAgent reports
                                 (+ bank net, employee count) vs truth
-  5. naive floor              — bank-only payroll cost vs true employer cost
+  5. document-value comparison — bank-confirmed net wages vs generated register employer cost
 
 Because the two pipelines ship colliding `models` packages, scoring runs in two
 isolated phases: all extraction-side work first, snapshot the per-doc fields,
@@ -187,7 +187,7 @@ def run_extractor(cases: list[dict], extractor_fn) -> dict:
 
 
 def naive_floor(cases: list[dict]) -> dict:
-    """Bank-only payroll cost vs true employer cost — the value the product recovers."""
+    """Compare complementary bank-net and register employer-cost values."""
     rows = [c["naive"] for c in cases if c.get("naive")]
     n = len(rows)
     if not n:

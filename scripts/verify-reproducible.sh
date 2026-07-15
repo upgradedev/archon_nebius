@@ -5,8 +5,9 @@
 # A judge (or CI) can run THIS single script, with no cloud credentials and no
 # network, and watch the headline claims reproduce from source:
 #
-#   1. the measured impact  — the naive bank-only floor understates workforce
-#      cost by EUR 133,381.71 (~72% over the bank figure) on the 40-case corpus;
+#   1. document comparison  — generated register employer cost differs from
+#      bank-confirmed net wages by EUR 133,381.71 (~72% over bank net) across
+#      applicable cases in the synthetic 40-case corpus;
 #   2. the pipeline smoke    — every OFFLINE agent suite passes (the extraction
 #      and analysis pipelines run end-to-end against deterministic Fake/mocked
 #      clients — no Inference API, no S3, no Postgres);
@@ -49,20 +50,21 @@ trap 'rm -f "$RESULTS_TMP"' EXIT
 import json, sys
 data = json.load(open(sys.argv[1], encoding="utf-8"))
 floor = data["naive_floor"]
-recovered = round(floor["total_understatement"], 2)
+difference = round(floor["total_understatement"], 2)
 pct_bank = floor["mean_understatement_pct_of_bank"]
 wedge = floor["mean_employer_social_security_wedge_pct_of_bank"]
 
 # The README / blog / eval/BASELINE.md headline numbers, asserted from source.
-EXPECT_RECOVERED = 133381.71
-assert abs(recovered - EXPECT_RECOVERED) < 0.5, (
-    f"understatement drifted: got {recovered}, expected {EXPECT_RECOVERED}")
+EXPECTED_DIFFERENCE = 133381.71
+assert abs(difference - EXPECTED_DIFFERENCE) < 0.5, (
+    f"register-bank difference drifted: got {difference}, expected {EXPECTED_DIFFERENCE}")
 assert 68.0 <= pct_bank <= 76.0, f"~72% figure drifted: {pct_bank}%"
-assert 30.0 <= wedge <= 40.0, f"~35% employer wedge drifted: {wedge}%"
+assert 30.0 <= wedge <= 40.0, f"~35% generated employer component drifted: {wedge}%"
 
-print(f"    OK  understatement recovered = EUR {recovered:,.2f}  (expected {EXPECT_RECOVERED:,.2f})")
-print(f"    OK  mean understatement       = {pct_bank}% over the bank figure (~72%)")
-print(f"    OK  employer social-sec wedge = {wedge}% of the bank figure (~35%)")
+print(f"    OK  register-bank difference  = EUR {difference:,.2f}  (expected {EXPECTED_DIFFERENCE:,.2f})")
+print(f"    OK  mean difference           = {pct_bank}% over bank-confirmed net (~72%)")
+print(f"    OK  generated employer component = {wedge}% of bank net (~35%)")
+print("    NOTE complementary synthetic document values; not proof of separate liability payments")
 PYEOF
 
 # ── 2. Offline pipeline smoke: every agent suite that runs without the cloud ──

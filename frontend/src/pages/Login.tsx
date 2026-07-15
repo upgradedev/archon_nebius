@@ -145,9 +145,9 @@ export default function Login() {
         <div className="brand-divider" />
 
         <p className="tagline">
-          Agentic P&amp;L intelligence for SMBs.<br />
-          Upload financial documents in any language,<br />
-          get a boardroom-ready dashboard.
+          Financial document control for SMBs.<br />
+          Extract, classify, review, and exclude records,<br />
+          then run deterministic period and payroll checks.
         </p>
 
         <Button

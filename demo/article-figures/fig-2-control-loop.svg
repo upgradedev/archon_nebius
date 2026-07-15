@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850" role="img" aria-labelledby="title desc">
+  <title id="title">Archon financial document control loop</title>
+  <desc id="desc">Successfully extracted financial documents receive deterministic document-type refinement and event linking before human review. Review confirms company ownership and the approved record set then enters expense categorization, deterministic analysis, and controls. Failed filenames and reasons are recorded during extraction but are not yet surfaced in the review UI.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#344054"/>
+    </marker>
+    <style>
+      .bg{fill:#fbfcfe}
+      .box{fill:#eef4ff;stroke:#356ac3;stroke-width:2}
+      .review{fill:#fff4cc;stroke:#b88700;stroke-width:2}
+      .control{fill:#e9f7ef;stroke:#1b7f4b;stroke-width:2}
+      .proof{fill:#f4f3ff;stroke:#6941c6;stroke-width:2}
+      .title{font:700 34px Arial,sans-serif;fill:#101828}
+      .sub{font:19px Arial,sans-serif;fill:#475467}
+      .num{font:700 20px Arial,sans-serif;fill:#356ac3}
+      .h{font:700 23px Arial,sans-serif;fill:#101828}
+      .t{font:17px Arial,sans-serif;fill:#344054}
+      .small{font:15px Arial,sans-serif;fill:#475467}
+      .lim{font:700 15px Arial,sans-serif;fill:#b42318}
+      .arrow{stroke:#344054;stroke-width:3;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect class="bg" width="1400" height="850"/>
+  <text class="title" x="60" y="70">From Document Pile to Controlled Financial Records</text>
+  <text class="sub" x="60" y="105">Automation accelerates entry; review and deterministic controls preserve accountability.</text>
+
+  <rect class="box" x="55" y="190" width="230" height="190" rx="16"/>
+  <text class="num" x="80" y="225">01</text>
+  <text class="h" x="80" y="265">Extract</text>
+  <text class="t" x="80" y="300">PDF, DOCX, image</text>
+  <text class="t" x="80" y="328">Text or vision path</text>
+  <text class="t" x="80" y="356">Structured fields</text>
+
+  <rect class="box" x="325" y="190" width="230" height="190" rx="16"/>
+  <text class="num" x="350" y="225">02</text>
+  <text class="h" x="350" y="265">Classify</text>
+  <text class="t" x="350" y="300">Document type only</text>
+  <text class="t" x="350" y="328">Deterministic refinement</text>
+  <text class="t" x="350" y="356">No expense categories</text>
+
+  <rect class="box" x="595" y="190" width="230" height="190" rx="16"/>
+  <text class="num" x="620" y="225">03</text>
+  <text class="h" x="620" y="265">Link</text>
+  <text class="t" x="620" y="300">Same company + period</text>
+  <text class="t" x="620" y="328">Pre-review payroll event</text>
+  <text class="t" x="620" y="356">Preliminary rule results</text>
+
+  <rect class="review" x="865" y="190" width="230" height="190" rx="16"/>
+  <text class="num" x="890" y="225">04</text>
+  <text class="h" x="890" y="265">Review</text>
+  <text class="t" x="890" y="300">Confirm ownership</text>
+  <text class="t" x="890" y="328">Correct type / exclude file</text>
+  <text class="t" x="890" y="356">Approve successful set</text>
+
+  <rect class="control" x="1135" y="190" width="230" height="190" rx="16"/>
+  <text class="num" x="1160" y="225">05</text>
+  <text class="h" x="1160" y="265">Analyze + control</text>
+  <text class="t" x="1160" y="300">Expense categorization</text>
+  <text class="t" x="1160" y="328">Period financial view</text>
+  <text class="t" x="1160" y="356">Named controls + sources</text>
+
+  <line class="arrow" x1="285" y1="285" x2="325" y2="285"/>
+  <line class="arrow" x1="555" y1="285" x2="595" y2="285"/>
+  <line class="arrow" x1="825" y1="285" x2="865" y2="285"/>
+  <line class="arrow" x1="1095" y1="285" x2="1135" y2="285"/>
+
+  <rect class="proof" x="120" y="500" width="530" height="210" rx="18"/>
+  <text class="h" x="155" y="545">Implemented proof: payroll event</text>
+  <text class="t" x="155" y="585">Bank confirmation + payroll register + payslips</text>
+  <text class="t" x="155" y="620">linked by company and period into one event.</text>
+  <text class="t" x="155" y="655">R1–R4 check amount, ratio, date, and headcount.</text>
+  <text class="small" x="155" y="687">Each result cites the values and source files compared.</text>
+
+  <rect class="proof" x="750" y="500" width="530" height="210" rx="18"/>
+  <text class="h" x="785" y="545">Next event families</text>
+  <text class="t" x="785" y="585">Invoice ↔ payment · invoice ↔ collection</text>
+  <text class="t" x="785" y="620">Payroll liability ↔ tax and contribution remittance</text>
+  <text class="t" x="785" y="655">Bank movement ↔ supporting document or obligation</text>
+  <text class="small" x="785" y="687">Product direction, explicitly separated from current proof.</text>
+
+  <text class="lim" x="120" y="753">Current gap: extraction failures are recorded in Object Storage and logs, but not surfaced or preserved through review.</text>
+  <text class="sub" x="60" y="806">The product is the control loop—not a single percentage or one document family.</text>
+</svg>

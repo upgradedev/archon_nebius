@@ -158,21 +158,21 @@ def eval_full_corpus() -> dict:
 
 
 def check_headline_figure() -> tuple[str, str]:
-    """The eval floor reproduces EUR 133,381.71 / ~72% / ~35% from source."""
+    """The synthetic register-to-bank comparison reproduces its committed values."""
     floor = eval_full_corpus()
     if "error" in floor:
         return FAIL, f"eval harness did not run: {floor['error']}"
-    recovered = round(float(floor["total_understatement"]), 2)
+    difference = round(float(floor["total_understatement"]), 2)
     pct_bank = float(floor["mean_understatement_pct_of_bank"])
     wedge = float(floor["mean_employer_social_security_wedge_pct_of_bank"])
-    if abs(recovered - 133381.71) >= 0.5:
-        return FAIL, f"understatement drifted: {recovered} != 133381.71"
+    if abs(difference - 133381.71) >= 0.5:
+        return FAIL, f"register-bank difference drifted: {difference} != 133381.71"
     if not (68.0 <= pct_bank <= 76.0):
         return FAIL, f"~72% figure drifted: {pct_bank}%"
     if not (30.0 <= wedge <= 40.0):
-        return FAIL, f"~35% wedge drifted: {wedge}%"
-    return PASS, (f"eval floor reproduces EUR {recovered:,.2f} "
-                  f"({pct_bank}% over bank, wedge {wedge}%)")
+        return FAIL, f"~35% generated employer component drifted: {wedge}%"
+    return PASS, (f"synthetic register-bank comparison reproduces EUR {difference:,.2f} "
+                  f"({pct_bank}% over bank net, generated employer component {wedge}%)")
 
 
 def probe_live(url: str, timeout: float = 6.0) -> tuple[int | None, str]:
@@ -335,10 +335,10 @@ def build_criteria(skip_live: bool) -> list[Criterion]:
 
         Criterion("usefulness", "Real-world usefulness", [
             Check("useful.figure.consistent",
-                  "Euro figure lives in eval evidence only; README/blog carry accuracy + labelled ~72%",
+                  "Value framing stays bounded to synthetic evidence and document control",
                   _figure_consistent),
-            Check("useful.floor.recovers",
-                  "Naive-floor eval recovers the measured understatement",
+            Check("useful.document_difference",
+                  "Synthetic eval reproduces the register-to-bank comparison",
                   check_headline_figure),
             Check("useful.reconciliation.wired",
                   "Completeness (statement-vs-invoice) agent wired + tested",
@@ -468,22 +468,23 @@ def _no_stale_gap() -> tuple[str, str]:
 def _figure_consistent() -> tuple[str, str]:
     # The measured euro figure is EVAL EVIDENCE only. Quoting it as a value
     # headline reads as a real customer result, so it must NOT appear in README
-    # or blog as a claim. BASELINE carries the measured figure; README and blog
-    # carry the accuracy evidence (100%) plus a labelled ~72% sample ratio.
+    # or blog as a claim. BASELINE carries the comparison; public prose must keep
+    # the 100% result labelled as synthetic/perfect-input evidence and position
+    # payroll as one bounded document-control example, not the product headline.
     ok_num, _ = file_contains("eval/BASELINE.md", r"133,381")
     if not ok_num:
         return FAIL, "measured 133,381 missing from eval/BASELINE.md (the evidence source)"
     for rel in ("README.md", "demo/blog-post.md"):
-        ok_pct, _ = file_contains(rel, r"72\s*%")
-        if not ok_pct:
-            return FAIL, f"labelled ~72% sample ratio missing from {rel}"
         ok_acc, _ = file_contains(rel, r"100\s*%")
         if not ok_acc:
             return FAIL, f"accuracy evidence (100%) missing from {rel}"
         has_euro, _ = file_contains(rel, r"133,381")
         if has_euro:
             return FAIL, f"{rel} still quotes 133,381 as a value claim (keep it eval-evidence only)"
-    return PASS, "euro figure in eval evidence only; README + blog carry 100% + labelled ~72%"
+    ok_control, _ = file_contains("demo/blog-post.md", r"(?i)complementary records|document control")
+    if not ok_control:
+        return FAIL, "blog no longer frames payroll as bounded document control"
+    return PASS, "euro figure remains eval-only; public prose labels the synthetic ceiling and bounded control scope"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

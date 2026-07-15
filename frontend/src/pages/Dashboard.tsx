@@ -82,8 +82,7 @@ export default function Dashboard() {
     const byNewest = [...periods].sort((a, b) => b.period.localeCompare(a.period))
     const pick = byNewest.find((p) => p.hasReport) ?? byNewest[0]
     if (pick) setActivePeriod(pick.period)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [periods])
+  }, [periods, activePeriod])
 
   const { data: reportData, isLoading: reportLoading, error: reportError, refetch: refetchReport } = useQuery({
     queryKey: ['report', activePeriod],
@@ -389,8 +388,8 @@ export default function Dashboard() {
 
             {report.payrollGap && (
               <Card
-                title="Payroll — bank net vs true employer cost"
-                extra={<Tag color="green">3-document fusion</Tag>}
+                title="Payroll — bank-confirmed net vs registered employer cost"
+                extra={<Tag color="green">3-document comparison</Tag>}
               >
                 <PayrollGapCard gap={report.payrollGap} />
               </Card>
@@ -434,7 +433,7 @@ export default function Dashboard() {
             {triggerJobId ? (
               <JobStatus
                 jobId={triggerJobId}
-                label="Analysis job"
+                label="Analysis run"
                 runningMessage="Running 7-agent financial analysis pipeline…"
                 pollFn={api.getAnalysisJob}
                 onComplete={() => {

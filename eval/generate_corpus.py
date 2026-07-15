@@ -13,8 +13,9 @@ Emits, per case, a `ground_truth.json` carrying:
   * `expected_validations` — domain truth for R1–R4 (is this payroll actually
     consistent?), kept SEPARATE from the figures so a rule bug cannot hide.
   * `expected_figures`     — the fused numbers the product should report.
-  * `naive`      — the bank-only "payroll cost" an owner would book, and the
-    understatement vs the true employer cost (the value the product recovers).
+  * `naive`      — bank-confirmed net wages and their numeric difference from
+    independently generated register-reported employer cost. These are
+    complementary payroll measures, not discovered savings.
 
 The small `corpus/sample/` set is committed (JSON only — no PDFs, no deps) and
 reproduces every baseline offline. Pass `--pdf` to additionally render the
@@ -39,7 +40,7 @@ from pathlib import Path
 # ── payroll arithmetic (single source of truth) ───────────────────────────────
 EMPLOYEE_SOCIAL_SECURITY_RATE = 0.16   # employee social-security withholding
 TAX_RATE = 0.11                        # PAYE income-tax withholding
-EMPLOYER_SOCIAL_SECURITY_RATE = 0.26   # employer social-security contribution (the hidden cost)
+EMPLOYER_SOCIAL_SECURITY_RATE = 0.26   # synthetic employer-contribution component in the register
 
 # Locale-neutral, mixed-locale sample entities. List LENGTHS are load-bearing:
 # `rng.choice` consumes a length-dependent amount of the RNG stream, so keeping

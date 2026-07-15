@@ -25,7 +25,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function JobStatus({
   jobId,
-  label = 'Extraction job',
+  label = 'Extraction run',
   runningMessage,
   pollFn = api.getJob,
   onComplete,
@@ -71,7 +71,7 @@ export default function JobStatus({
   }, [job?.status, onComplete])
 
   if (error) {
-    return <Alert type="error" message="Failed to fetch job status" showIcon />
+    return <Alert type="error" message="Failed to fetch run status" showIcon />
   }
 
   if (!job) return null
@@ -97,7 +97,7 @@ export default function JobStatus({
 
     return (
       <Tag style={style}>
-        Automated Deploy: {elapsed}s
+        Elapsed: {elapsed}s
       </Tag>
     )
   }
@@ -118,13 +118,13 @@ export default function JobStatus({
         />
 
         <Text type="secondary">
-          {job.status === 'pending'   && 'Waiting for compute instance…'}
+          {job.status === 'pending'   && 'Waiting to start…'}
           {job.status === 'running'   && defaultRunningMsg}
           {job.status === 'completed' && 'Done.'}
-          {job.status === 'failed'    && (job.errorMessage ?? 'Job failed')}
+          {job.status === 'failed'    && (job.errorMessage ?? 'Run failed')}
         </Text>
 
-        {/* A failed job always exposes a recovery action so the user is never
+        {/* A failed run always exposes a recovery action so the user is never
             stranded on a red card. onDismiss (supplied by every caller) resets the
             host flow; the best-effort deleteJob clears the failed job server-side. */}
         {job.status === 'failed' && (

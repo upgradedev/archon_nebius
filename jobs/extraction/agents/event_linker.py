@@ -5,10 +5,11 @@ Single responsibility: identify that a bank confirmation, a payroll register,
 and one or more payslips are all describing the *same* payroll event (same
 company, same period, overlapping amounts) and package them together.
 
-This solves the core insight: the bank confirmation alone understates the true
-employer payroll cost by ~72% (its net transfer vs gross + employer
-social-security; the employer's own contribution alone is ~35% over the net).
-Only by linking all three doc subtypes can we compute the real P&L impact.
+The three sources report complementary payroll measures: bank-confirmed net
+wages, register-reported employer cost, and employee-level payslip nets. Linking
+them supports explicit total, ratio, date, and headcount checks. Their numeric
+difference compares uploaded values and does not prove that separate tax or
+social-insurance remittances were paid.
 """
 
 from __future__ import annotations
