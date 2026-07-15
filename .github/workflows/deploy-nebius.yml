@@ -525,6 +525,55 @@ jobs:
             echo "⚠️ PostgreSQL NOT reachable from the Endpoint — read-model mirror will no-op. Detail: $DB_JSON" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Repoint the Firebase BFF at the managed URL
+        # A Serverless Endpoint's managed HTTPS URL is per-endpoint and changes on
+        # every blue/green recreate, so the Firebase BFF (which holds it as
+        # NEBIUS_BACKEND_URL) must be re-pointed on every backend deploy — otherwise
+        # the live demo 502s against the previous, now-deleted endpoint. This wires
+        # that in. Guarded on FIREBASE_SERVICE_ACCOUNT: without it the step is a loud
+        # no-op (the deploy still succeeds) that tells you exactly how to repoint by
+        # hand, so a missing secret can never silently take the demo down.
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$BACKEND_URL" ]; then
+            echo "BACKEND_URL is empty — refusing to repoint the BFF at nothing." >&2
+            exit 1
+          fi
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::warning::FIREBASE_SERVICE_ACCOUNT not set — BFF NOT repointed; it still targets the previous endpoint."
+            {
+              echo "### ⚠️ BFF NOT repointed — the live demo is now stale"
+              echo ""
+              echo "The backend's managed URL is \`$BACKEND_URL\`, but no \`FIREBASE_SERVICE_ACCOUNT\` CI secret is set, so the Firebase function was not redeployed."
+              echo "Repoint by hand: put \`NEBIUS_BACKEND_URL=$BACKEND_URL\` in \`frontend/functions/.env\`, then \`cd frontend && firebase deploy --only functions --project archon-pnl\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/fb-sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/fb-sa.json"
+          npm install -g firebase-tools >/dev/null 2>&1
+          printf 'NEBIUS_BACKEND_URL=%s\n' "$BACKEND_URL" > frontend/functions/.env
+          echo "Redeploying the BFF function → $BACKEND_URL"
+          ( cd frontend && firebase deploy --only functions --project archon-pnl --non-interactive )
+          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
+
+          # Confirm the live BFF now reaches the NEW backend (cold-start tolerant).
+          OK=""
+          for i in 1 2 3 4 5; do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 40 "https://archon-pnl.web.app/api/health" || echo 000)
+            echo "  BFF /api/health attempt $i -> $CODE"
+            [ "$CODE" = "200" ] && { OK=1; break; }
+            sleep 6
+          done
+          if [ -n "$OK" ]; then
+            echo "✅ BFF repointed — https://archon-pnl.web.app/api/health → 200 (backend $BACKEND_URL)" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::BFF redeployed but /api/health is not 200 yet — verify the function manually."
+            echo "⚠️ BFF redeployed but /api/health not yet 200 (backend $BACKEND_URL) — verify manually." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Clean up superseded backend endpoints
         run: |
           # Only after the new endpoint is RUNNING and its managed URL resolves.
