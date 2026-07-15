@@ -123,7 +123,10 @@ def get_documents(period: str = Path(..., pattern=_PERIOD_PATTERN)):
     "I uploaded an invoice and it shows nowhere" data-loss bug). PostgreSQL is used
     only as a fallback when S3 has nothing.
     """
-    # 1. Object Storage first (authoritative, always fresh).
+    # 1. Object Storage first (authoritative, always fresh). A genuine storage
+    #    ERROR is surfaced as an error — never masked as "no documents" — so it can
+    #    never silently hide data. Only a reachable-but-EMPTY S3 falls through to the
+    #    PostgreSQL mirror below.
     try:
         keys = storage.list_keys(f"extracted/{period}/")
         doc_keys = sorted(k for k in keys if k.endswith("documents.json"))
@@ -135,12 +138,17 @@ def get_documents(period: str = Path(..., pattern=_PERIOD_PATTERN)):
                 merged.extend(docs)
         if merged:
             return merged
-    except ClientError:
-        logger.exception("Storage error listing documents for %s — trying PostgreSQL", period)
-    except Exception:
-        logger.exception("S3 document fetch failed for %s — trying PostgreSQL", period)
+    except ClientError as exc:
+        logger.exception("Storage error listing documents for %s", period)
+        raise HTTPException(status_code=502, detail="Storage error listing documents") from exc
+    except Exception as exc:
+        logger.exception("Document fetch failed for %s", period)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch documents: {type(exc).__name__}",
+        ) from exc
 
-    # 2. Fallback to the PostgreSQL mirror only when S3 has nothing.
+    # 2. S3 was reachable but empty — fall back to the PostgreSQL mirror.
     try:
         from db.client import get_db_connection
         conn = get_db_connection()
