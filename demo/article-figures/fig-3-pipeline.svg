@@ -1,59 +1,96 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850" role="img" aria-labelledby="title desc">
-  <title id="title">Archon pipeline</title>
-  <desc id="desc">Pipeline diagram showing upload, extraction job with four stages, analysis job with seven stages, and dashboard output.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-labelledby="title desc">
+  <title id="title">Archon workflow with live inline and designed AI Jobs execution modes</title>
+  <desc id="desc">One document-control workflow runs the same extraction and analysis packages. The live deployment uses isolated subprocesses in the CPU Endpoint; the designed on-demand AI Jobs path is implemented and tested but could not run because CPU Jobs quota is zero.</desc>
   <defs>
     <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
       <path d="M2,2 L10,6 L2,10 Z" fill="#344054"/>
     </marker>
     <style>
       .bg{fill:#f7f9fc}
-      .card{fill:#ffffff;stroke:#d0d5dd;stroke-width:2}
       .upload{fill:#fff4cc;stroke:#b88700;stroke-width:2}
       .extract{fill:#e9f7ef;stroke:#1b7f4b;stroke-width:2}
+      .review{fill:#fff7ed;stroke:#c2410c;stroke-width:2}
       .analysis{fill:#f4ecff;stroke:#7a3ec8;stroke-width:2}
       .output{fill:#eef4ff;stroke:#356ac3;stroke-width:2}
-      .title{font:700 34px Arial, sans-serif;fill:#101828}
-      .h{font:700 22px Arial, sans-serif;fill:#101828}
-      .t{font:16px Arial, sans-serif;fill:#344054}
-      .s{font:14px Arial, sans-serif;fill:#475467}
+      .live{fill:#e9f7ef;stroke:#1b7f4b;stroke-width:3}
+      .design{fill:#f4ecff;stroke:#7a3ec8;stroke-width:3;stroke-dasharray:10 7}
+      .title{font:700 33px Arial,sans-serif;fill:#101828}
+      .sub{font:18px Arial,sans-serif;fill:#475467}
+      .h{font:700 20px Arial,sans-serif;fill:#101828}
+      .t{font:15px Arial,sans-serif;fill:#344054}
+      .s{font:13px Arial,sans-serif;fill:#475467}
+      .warn{font:700 13px Arial,sans-serif;fill:#b42318}
+      .ok{font:700 14px Arial,sans-serif;fill:#067647}
+      .limit{font:700 14px Arial,sans-serif;fill:#7a3ec8}
       .arrow{stroke:#344054;stroke-width:3;fill:none;marker-end:url(#arrow)}
     </style>
   </defs>
-  <rect class="bg" width="1400" height="850"/>
-  <text class="title" x="60" y="70">Upload to Dashboard: Two On-Demand Nebius AI Jobs</text>
-  <rect class="upload" x="75" y="170" width="250" height="210" rx="16"/>
-  <text class="h" x="105" y="215">1. Upload</text>
-  <text class="t" x="105" y="252">PDF, DOCX, JPG, PNG,</text>
-  <text class="t" x="105" y="280">TIFF, scanned PDFs</text>
-  <text class="s" x="105" y="330">raw-docs/{period}/{upload}</text>
-  <rect class="extract" x="415" y="110" width="315" height="360" rx="16"/>
-  <text class="h" x="445" y="155">2. Extraction Job</text>
-  <text class="t" x="445" y="195">1. ExtractorAgent</text>
-  <text class="t" x="445" y="228">2. ClassifierAgent</text>
-  <text class="t" x="445" y="261">3. EventLinkerAgent</text>
-  <text class="t" x="445" y="294">4. ValidatorAgent</text>
-  <text class="s" x="445" y="360">Writes documents.json,</text>
-  <text class="s" x="445" y="386">events.json, validation.json</text>
-  <rect class="analysis" x="820" y="110" width="335" height="500" rx="16"/>
-  <text class="h" x="850" y="155">3. Analysis Job</text>
-  <text class="t" x="850" y="195">1. ClassifierAgent</text>
-  <text class="t" x="850" y="228">2. PnLAgent</text>
-  <text class="t" x="850" y="261">3. CashFlowAgent</text>
-  <text class="t" x="850" y="294">4. ValidatorAgent</text>
-  <text class="t" x="850" y="327">5. EmployeeAgent</text>
-  <text class="t" x="850" y="360">6. ReconciliationAgent</text>
-  <text class="t" x="850" y="393">7. NarratorAgent</text>
-  <text class="s" x="850" y="470">Writes reports/{period}/report.json</text>
-  <rect class="output" x="1220" y="205" width="145" height="250" rx="16"/>
-  <text class="h" x="1248" y="250">4. UI</text>
-  <text class="t" x="1245" y="292">P&amp;L</text>
-  <text class="t" x="1245" y="324">Cash flow</text>
-  <text class="t" x="1245" y="356">Metrics</text>
-  <text class="t" x="1245" y="388">Summary</text>
-  <line class="arrow" x1="325" y1="275" x2="415" y2="275"/>
-  <line class="arrow" x1="730" y1="290" x2="820" y2="290"/>
-  <line class="arrow" x1="1155" y1="360" x2="1220" y2="330"/>
-  <rect class="card" x="230" y="630" width="930" height="105" rx="14"/>
-  <text class="h" x="265" y="674">Model calls</text>
-  <text class="t" x="265" y="710">CPU jobs call Nebius Inference API. Vision extraction uses Qwen2.5-VL; narrative uses Llama 3.3.</text>
+  <rect class="bg" width="1400" height="900"/>
+  <text class="title" x="50" y="58">One Document-Control Workflow, Two Execution Modes</text>
+  <text class="sub" x="50" y="92">The agent packages and Object Storage contracts stay the same; only the compute boundary changes.</text>
+
+  <rect class="upload" x="35" y="155" width="235" height="330" rx="16"/>
+  <text class="h" x="62" y="198">1. Upload</text>
+  <text class="t" x="62" y="235">PDF · DOCX · images</text>
+  <text class="t" x="62" y="264">TIFF · scanned PDFs</text>
+  <text class="s" x="62" y="320">Raw files written to</text>
+  <text class="s" x="62" y="344">Object Storage</text>
+
+  <rect class="extract" x="305" y="155" width="235" height="330" rx="16"/>
+  <text class="h" x="332" y="198">2. Extract</text>
+  <text class="t" x="332" y="235">ExtractorAgent</text>
+  <text class="t" x="332" y="264">ClassifierAgent</text>
+  <text class="t" x="332" y="293">EventLinkerAgent</text>
+  <text class="t" x="332" y="322">ValidatorAgent</text>
+  <text class="s" x="332" y="382">Writes documents, events,</text>
+  <text class="s" x="332" y="406">validation + failure metadata</text>
+
+  <rect class="review" x="575" y="155" width="235" height="330" rx="16"/>
+  <text class="h" x="602" y="198">3. Human review</text>
+  <text class="t" x="602" y="235">Correct document type</text>
+  <text class="t" x="602" y="264">Exclude unrelated records</text>
+  <text class="t" x="602" y="293">Approve record set</text>
+  <text class="s" x="602" y="355">Current UI shows successfully</text>
+  <text class="s" x="602" y="379">extracted records only.</text>
+  <text class="warn" x="602" y="420">Failed-file list is not yet</text>
+  <text class="warn" x="602" y="441">surfaced or preserved here.</text>
+
+  <rect class="analysis" x="845" y="155" width="250" height="330" rx="16"/>
+  <text class="h" x="872" y="198">4. Analyse</text>
+  <text class="t" x="872" y="235">Classification + P&amp;L</text>
+  <text class="t" x="872" y="264">Provisional cash-flow view</text>
+  <text class="t" x="872" y="293">Payroll validation</text>
+  <text class="t" x="872" y="322">Employee analytics</text>
+  <text class="t" x="872" y="351">Reconciliation component</text>
+  <text class="t" x="872" y="380">Bounded narrative</text>
+  <text class="s" x="872" y="430">Writes report.json</text>
+
+  <rect class="output" x="1130" y="155" width="235" height="330" rx="16"/>
+  <text class="h" x="1157" y="198">5. Inspect</text>
+  <text class="t" x="1157" y="235">Period financial view</text>
+  <text class="t" x="1157" y="264">Payroll events</text>
+  <text class="t" x="1157" y="293">Named rule results</text>
+  <text class="t" x="1157" y="322">Source-file references</text>
+  <text class="s" x="1157" y="382">Invoice cash movements are</text>
+  <text class="s" x="1157" y="406">assumptions until bank linking.</text>
+
+  <line class="arrow" x1="270" y1="320" x2="305" y2="320"/>
+  <line class="arrow" x1="540" y1="320" x2="575" y2="320"/>
+  <line class="arrow" x1="810" y1="320" x2="845" y2="320"/>
+  <line class="arrow" x1="1095" y1="320" x2="1130" y2="320"/>
+
+  <rect class="live" x="85" y="565" width="575" height="170" rx="18"/>
+  <text class="h" x="120" y="610">Observed live mode</text>
+  <text class="t" x="120" y="646">CPU AI Endpoint runs extraction and analysis as isolated subprocesses.</text>
+  <text class="t" x="120" y="676">Same agents, statuses, and Object Storage artifacts.</text>
+  <text class="ok" x="120" y="708">JOB_RUNNER_BACKEND=inline · Endpoint RUNNING</text>
+
+  <rect class="design" x="740" y="565" width="575" height="170" rx="18"/>
+  <text class="h" x="775" y="610">Designed Nebius AI Jobs mode</text>
+  <text class="t" x="775" y="646">Extraction and analysis submit as separate on-demand CPU AI Jobs.</text>
+  <text class="t" x="775" y="676">SDK path, images, and capacity handling are implemented and tested.</text>
+  <text class="limit" x="775" y="708">Tenant CPU Jobs quota = 0 · no successful Job run</text>
+
+  <text class="sub" x="170" y="805">Both modes call the Nebius Inference API; Qwen reads documents and Llama narrates already-computed metrics.</text>
+  <text class="s" x="310" y="842">The live fallback is deployment evidence. The dashed Jobs architecture is an implemented design, not execution evidence.</text>
 </svg>

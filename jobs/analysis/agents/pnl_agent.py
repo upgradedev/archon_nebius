@@ -4,9 +4,9 @@ PnLAgent — aggregates extracted documents into P&L metrics.
 Single responsibility: pure Python arithmetic over classified documents.
 No LLM call; deterministic and fast.
 
-Uses employer_cost_total from payroll_register documents (when available)
-as the authoritative payroll expense figure — not the bank net transfer —
-to capture the full employer cost including employer social-security contributions.
+Uses `employer_cost_total` reported by a payroll register (when available) as
+the payroll expense figure, rather than double-counting the register, bank
+confirmation, and payslips.
 """
 
 from collections import defaultdict
@@ -38,10 +38,9 @@ def build_pnl(period: str, docs: list[ExtractedDoc]) -> MonthlyPnL:
 
 def build_expense_breakdown(docs: list[ExtractedDoc]) -> list[ExpenseCategory]:
     totals: dict[str, float] = defaultdict(float)
-    for doc in docs:
-        if doc.doc_type in EXPENSE_DOC_TYPES:
-            cat = _categorise(doc)
-            totals[cat] += _effective_amount(doc)
+    for doc in _expense_docs(docs):
+        cat = _categorise(doc)
+        totals[cat] += _effective_amount(doc)
 
     grand_total = sum(totals.values()) or 1.0
     return [
@@ -59,7 +58,10 @@ def build_vendor_summary(docs: list[ExtractedDoc]) -> list[VendorSummary]:
     totals: dict[str, float] = defaultdict(float)
     counts: dict[str, int] = defaultdict(int)
     for doc in docs:
-        if doc.doc_type in EXPENSE_DOC_TYPES and doc.vendor_name:
+        # A supplier ranking comes from purchase/expense documents. Payroll,
+        # bank confirmations, sales, and reference statements are not supplier
+        # spend and would otherwise rank the company or bank as a vendor.
+        if doc.doc_type in {"invoice", "expense"} and doc.vendor_name:
             totals[doc.vendor_name] += doc.total_amount
             counts[doc.vendor_name] += 1
 
@@ -100,24 +102,26 @@ def build_key_metrics(docs: list[ExtractedDoc], revenue: float, expenses: float)
 
 def _compute_expenses(docs: list[ExtractedDoc]) -> float:
     """
-    Use employer_cost_total from payroll_register as the true payroll cost.
+    Use employer_cost_total from payroll_register as the register-reported employer cost.
     For all other expense docs use total_amount directly.
     De-duplicate payroll: if a register is present, skip bank_confirmation
     and payslips for the same period to avoid double-counting.
     """
+    return sum(_effective_amount(doc) for doc in _expense_docs(docs))
+
+
+def _expense_docs(docs: list[ExtractedDoc]) -> list[ExtractedDoc]:
+    """Choose the same non-duplicated expense sources for every P&L view."""
     has_register = any(d.doc_type == "payroll_register" for d in docs)
-    total = 0.0
-    for doc in docs:
-        if doc.doc_type in REVENUE_DOC_TYPES:
-            continue
-        if doc.doc_type == "payroll_register":
-            # prefer employer_cost_total (includes employer social security); fall back to total_amount
-            total += doc.employer_cost_total or doc.total_amount
-        elif doc.doc_type in ("bank_confirmation", "payslip") and has_register:
-            continue  # already counted via register
-        elif doc.doc_type in EXPENSE_DOC_TYPES:
-            total += doc.total_amount
-    return total
+    return [
+        doc
+        for doc in docs
+        if doc.doc_type in EXPENSE_DOC_TYPES
+        and not (
+            has_register
+            and doc.doc_type in ("bank_confirmation", "payslip")
+        )
+    ]
 
 
 def _effective_amount(doc: ExtractedDoc) -> float:

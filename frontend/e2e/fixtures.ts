@@ -91,7 +91,7 @@ export const REPORT = {
     },
     cashFlow: { period: TEST_PERIOD, operating: 21_300, investing: -6_400, financing: -3_000, net: 11_900 },
     expenseBreakdown: [
-      { category: 'Payroll (true employer cost)', amount: 18_400, percentage: 25.6, monthOverMonthPct: 3.1 },
+      { category: 'Payroll (registered employer cost)', amount: 18_400, percentage: 25.6, monthOverMonthPct: 3.1 },
       { category: 'Cloud & software', amount: 15_900, percentage: 22.1, monthOverMonthPct: 8.4 },
       { category: 'Other operating', amount: 13_000, percentage: 18.1, monthOverMonthPct: 2.0 },
     ],
@@ -99,18 +99,18 @@ export const REPORT = {
       { name: 'Amazon Web Services', totalAmount: 7_420, invoiceCount: 1, avgDaysToPay: 14 },
     ],
     keyMetrics: {
-      revenueGrowthPct: 6.8,
+      revenueGrowthPct: null,
       expenseRatioPct: 74.5,
       cashBurnRate: 0,
       invoiceCount: 27,
       avgInvoiceValue: 3_570,
-      collectionRatePct: 92.4,
+      collectionRatePct: null,
     },
     executiveSummary:
       'January closed with revenue of EUR 96,400 and a net profit of EUR 24,550 — a 25.5% ' +
-      'operating margin. The defining reconciliation is payroll: the bank moved EUR 10,700 in net ' +
-      'wages, and the Event Linker reconciled the register\'s true employer cost of EUR 18,400 — ' +
-      'about 72% more, every euro tied to a source document.\n\n' +
+      'simplified document margin. The payroll documents show EUR 10,700 in bank-confirmed net wages and ' +
+      'EUR 18,400 in register-reported employer cost. The named checks compare uploaded values; ' +
+      'they do not verify separate remittance transactions.\n\n' +
       // The grounded narrator ends with a "Sources:" line whose citations are
       // separated by " · " (parseSummary splits on the middle dot into tags).
       'Sources: payroll-register-jan.pdf · sales-invoice-001.pdf · bank-confirmation-jan.pdf',

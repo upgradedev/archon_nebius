@@ -235,7 +235,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
       setUploadPhase('processing')
       setPeriod(detectedPeriod)
 
-      // 2) Submit the extraction job — retried ONLY here on a cold-start 502/503.
+      // 2) Start the extraction run — retried ONLY here on a cold-start 502/503.
       //    We NEVER re-upload the bytes. Backend idempotency (upload_id + period)
       //    guarantees the SAME job id is returned, so a retried submit can never
       //    spawn a duplicate job.
@@ -292,7 +292,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
   const updateRow = (key: string, patch: Partial<ReviewRow>) =>
     setReviewRows(prev => prev.map(r => (r._key === key ? { ...r, ...patch } : r)))
 
-  // Confirm review → persist the approved set → THEN submit the analysis job.
+  // Confirm review → persist the approved set → THEN start the analysis run.
   const handleConfirm = async () => {
     setConfirming(true)
     setReviewError(null)
@@ -303,7 +303,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
           void _key; void _include; void _status
           return { ...doc, doc_type: _docType }
         })
-      // Persist first so the analysis job reads only the reviewed set.
+      // Persist first so the analysis run reads only the reviewed set.
       await api.updateDocuments(period, approved)
       // Nebius analysis is a JOB: submit and poll (unlike Azure's sync /analyze).
       const analysisJob = await api.analyze(period)
@@ -601,7 +601,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
       {step === 1 && jobId && (
         <JobStatus
           jobId={jobId}
-          label="Extraction job"
+          label="Extraction run"
           runningMessage="Processing documents with vision LLM (Qwen2.5-VL-72B)…"
           onComplete={handleExtractionComplete}
           onDismiss={() => { setJobId(null); setStep(0) }}
@@ -679,7 +679,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
       {step === 3 && analysisJobId && (
         <JobStatus
           jobId={analysisJobId}
-          label="Analysis job"
+          label="Analysis run"
           runningMessage="Running 7-agent financial analysis pipeline…"
           pollFn={api.getAnalysisJob}
           onComplete={handleAnalysisComplete}

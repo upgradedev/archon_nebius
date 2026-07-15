@@ -148,7 +148,7 @@ test('e. Signed-in + empty store falls back to the shared sample dataset with a 
   await expect(drill.getByText('sales-invoice-3001.pdf')).toBeVisible()
 })
 
-test('f. JobStatus component renders a live Automated Deploy countdown badge with color-coding', async ({
+test('f. execution status renders a live elapsed-time badge with color-coding', async ({
   authedPage: page,
 }) => {
   // Mock a slow job API response that remains in 'running' state
@@ -193,10 +193,9 @@ test('f. JobStatus component renders a live Automated Deploy countdown badge wit
 
   // Verify that the dialog displays the JobStatus component and the timer badge
   const dialog = flow.dialog()
-  await expect(dialog.getByText('Extraction job')).toBeVisible()
+  await expect(dialog.getByText('Extraction run')).toBeVisible()
   
-  // The "Automated Deploy" badge should be visible
-  const deployBadge = dialog.getByText(/Automated Deploy:/)
+  // The neutral elapsed-time badge should be visible in both inline and Jobs modes.
+  const deployBadge = dialog.getByText(/Elapsed:/)
   await expect(deployBadge).toBeVisible()
 })
-

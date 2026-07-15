@@ -49,7 +49,7 @@ function normalizeReport(resp: AnalysisResponse): AnalysisResponse {
   // corrupt the cache and defeat referential-equality change detection).
   const next: RawReport = { ...report }
 
-  // payrollEvents[0] → payrollGap. Only when the true employer cost and a
+  // payrollEvents[0] → payrollGap. Only when register-reported employer cost and a
   // positive net figure are both present, else the gap % would be NaN/∞.
   if (!next.payrollGap && next.payrollEvents?.length) {
     const ev = next.payrollEvents[0]
@@ -169,22 +169,22 @@ export const api = {
   },
 
   getJob: async (jobId: string): Promise<Job> => {
-    // Demo mode: the extraction job is always immediately complete.
+    // Demo mode: the extraction run is always immediately complete.
     if (isDemoMode()) return demoJob(jobId, DEMO_REPORT.report.period)
     const { data } = await http.get<Job>(`/api/jobs/${jobId}`)
     return data
   },
 
-  // Submit an on-demand analysis job; returns a Job for polling
+  // Start an analysis run; Job is the API's execution-status abstraction.
   analyze: async (period: string): Promise<Job> => {
     if (isDemoMode()) return demoJob('demo-analysis-job', period)
     const { data } = await http.post<Job>('/api/analyze', { period })
     return data
   },
 
-  // Poll analysis job status
+  // Poll analysis-run status.
   getAnalysisJob: async (jobId: string): Promise<Job> => {
-    // Demo mode: the analysis job is always immediately complete.
+    // Demo mode: the analysis run is always immediately complete.
     if (isDemoMode()) return demoJob(jobId, DEMO_REPORT.report.period)
     const { data } = await http.get<Job>(`/api/analyze/${jobId}`)
     return data
@@ -264,7 +264,7 @@ export const api = {
 
   // Persist the user-reviewed document set for a period before analysis is
   // submitted. The backend writes these to extracted/{period}/reviewed/documents.json
-  // and removes the prior per-upload documents so the analysis job uses only the
+  // and removes the prior per-upload documents so the analysis run uses only the
   // approved set.
   updateDocuments: async (
     period: string,

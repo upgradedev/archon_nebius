@@ -11,15 +11,13 @@ interface Props {
   gap: PayrollGap
 }
 
-// Payroll reconciliation: the bank transfer is only the net-wages component;
-// adding withheld payroll taxes + the employer's own contributions reconciles up
-// to the register's true employer cost. Rendered without Recharts so it draws
-// reliably in a headless capture — the wedge is a plain Progress bar, the figures
-// are Statistics.
+// Compare two values reported by different payroll documents: bank-confirmed net
+// wages and register-reported employer cost. This is not proof that separate tax
+// or social-insurance remittances were paid. Rendered without Recharts so it draws
+// reliably in a headless capture.
 export default function PayrollGapCard({ gap }: Props) {
-  // The amount reconciled on top of the bank net to reach the true employer cost.
-  // Headline gapPct expresses it over the bank figure (~72%); the bar expresses
-  // the same amount as a share of the true cost (~42%) — one fact, two denominators.
+  // Difference between the two reported values. Headline gapPct expresses it over
+  // bank net; the bar expresses it as a share of registered employer cost.
   const gapAmount = gap.trueEmployerCost - gap.bankTransferNet
   const pct = Math.min(100, Math.round((gapAmount / gap.trueEmployerCost) * 100))
 
@@ -40,24 +38,24 @@ export default function PayrollGapCard({ gap }: Props) {
         </Col>
         <Col flex="1">
           <Statistic
-            title="True employer cost"
+            title="Registered employer cost"
             value={gap.trueEmployerCost}
             formatter={v => fmt(Number(v))}
             valueStyle={{ color: '#34d399' }}
           />
-          <Text type="secondary" style={{ fontSize: 12 }}>Gross pay + employer social security</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>Total reported by the payroll register</Text>
         </Col>
         <Col flex="0 0 auto" style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 40, fontWeight: 900, color: '#34d399', lineHeight: 1 }}>
             +{gap.gapPct.toFixed(0)}%
           </div>
-          <Text type="secondary" style={{ fontSize: 12 }}>true cost over the bank transfer</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>registered cost above bank net</Text>
         </Col>
       </Row>
 
       <div>
         <Row justify="space-between" style={{ marginBottom: 4 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>Reconciled beyond the bank net ({pct}% of true cost)</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>Difference ({pct}% of registered cost)</Text>
           <Text strong style={{ color: '#34d399' }}>{fmt(gapAmount)}</Text>
         </Row>
         <Progress
@@ -71,9 +69,9 @@ export default function PayrollGapCard({ gap }: Props) {
 
       <Space>
         <Tag icon={<TeamOutlined />} color="green">{gap.employeeCount} employees</Tag>
-        <Tag color="blue">3-document fusion</Tag>
+        <Tag color="blue">3-document comparison</Tag>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          Bank confirmation · payroll register · payslips → one financial event
+          Bank confirmation · payroll register · payslips → one linked payroll event
         </Text>
       </Space>
     </Space>

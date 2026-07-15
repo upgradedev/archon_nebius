@@ -62,16 +62,24 @@ def _grounded_report() -> FinancialReport:
 
 
 def test_reconciliation_context_folds_in_every_stream():
-    # _build_prompt -> _reconciliation_context must render the payroll multi-stream
-    # block (employer cost vs bank net gap), cash flow, per-employee, and validation.
+    # The prompt must render grounded comparisons and state their limitations.
     prompt = narrator._build_prompt(_grounded_report())
-    assert "Payroll multi-stream reconciliation (2026-01 for Acme SA)" in prompt
+    assert "Payroll document comparison (2026-01 for Acme SA)" in prompt
     assert "17,300.00" in prompt and "10,000.00" in prompt          # employer cost vs bank net
-    assert "exceeds the bank transfer by €7,300.00 (73%)" in prompt  # the gap, computed
+    assert "€7,300.00 (73%) above bank-confirmed net wages" in prompt
+    assert "not verification that separate tax" in prompt
     assert "Employees covered: 4" in prompt
-    assert "Cash flow (real movements)" in prompt
+    assert "Document-based cash-flow view" in prompt
+    assert "generic bank-to-invoice matching is not implemented" in prompt
     assert "Per-employee payslip analytics available for 1 employee(s)" in prompt
     assert "R2: FAIL (warning)" in prompt and "R1: PASS" in prompt
+
+
+def test_prompt_forbids_unimplemented_financial_controls():
+    prompt = narrator._build_prompt(_grounded_report())
+    assert "Do not claim that Archon verified separate tax or social-insurance remittances" in prompt
+    assert "collections, or duplicate payments" in prompt
+    assert 'Do not call a figure "true" or "fully reconciled"' in prompt
 
 
 def test_call_llm_invokes_client_and_returns_text():

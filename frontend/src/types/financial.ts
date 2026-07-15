@@ -91,14 +91,13 @@ export interface KeyMetrics {
   collectionRatePct: number | null
 }
 
-// Payroll reconciliation — the bank transfer is only the net-wages component;
-// withheld payroll taxes + the employer's own contributions reconcile up to the
-// register's true employer cost. Optional: present only when the report fused a
-// payroll event.
+// Payroll document comparison: bank-confirmed net wages versus the employer cost
+// reported by the payroll register. It does not imply separate remittance checks.
+// Optional: present only when the report linked a payroll event.
 export interface PayrollGap {
   bankTransferNet: number      // the net-wages component that left the account
-  trueEmployerCost: number     // gross pay + employer social security
-  gapPct: number               // true cost reconciled over the bank net: (true / bank − 1) × 100 (~72%)
+  trueEmployerCost: number     // register-reported total employer cost (legacy API field name)
+  gapPct: number               // registered cost above bank net: (registered / bank − 1) × 100
   employeeCount: number
 }
 
@@ -154,6 +153,7 @@ export interface ExtractedDoc {
   total_amount?: number
   currency?: string
   employer_cost_total?: number
+  net_pay_total?: number
   bank_transfer_amount?: number
   employee_count?: number
   // ── Drill-down columns (appended, all optional) ──────────────────────────────

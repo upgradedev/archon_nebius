@@ -4,9 +4,10 @@
 # PostgreSQL and Object Storage are NOT destroyed (data must survive).
 #
 # What runs and costs money:
-#   archon-backend  — Nebius Serverless AI Endpoint (CPU, always-on, ~$0.04/hr)
-#   extraction jobs — Nebius Serverless AI Jobs (GPU on-demand, auto-terminate)
-#   analysis jobs   — Nebius Serverless AI Jobs (CPU on-demand, auto-terminate)
+#   archon-backend  — Nebius Serverless AI Endpoint (CPU, billed while running;
+#                     see the README for the current source-linked estimate)
+#   extraction jobs — CPU AI Jobs design (no run provisioned on this tenant)
+#   analysis jobs   — CPU AI Jobs design (no run provisioned on this tenant)
 #
 # Usage:
 #   bash nebius/teardown.sh

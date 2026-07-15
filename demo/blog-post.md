@@ -1,140 +1,212 @@
-# Building Archon: an Agentic Financial Intelligence Platform on Nebius Serverless AI
+# Building Archon: From Financial Documents to Controlled Records on Nebius Serverless AI
+
+*Automated extraction and classification, human review, document linking, and deterministic completeness checks for small-business finance*
 
 *#NebiusServerlessChallenge · #ServerlessAI · #FinTech · #LLM*
 
 ---
 
-Small-business finance has a quiet failure mode. The numbers look clean while the underlying documents disagree. A company's financial truth is scattered across dozens of document types: sales and purchase invoices, orders, receipts, payments, bank transfers and statements, payroll, expenses. Each one is entered, mis-entered, or never entered by a different hand.
+Small-business finance does not start with a dashboard. It starts with a folder full of documents that somebody must understand and enter correctly: purchase and sales invoices, expense receipts, payroll registers, bank confirmations, payslips, and supplier statements.
 
-**Archon** pulls all of it into one place. It produces a consolidated, period-over-period view (P&L, EBITDA, per-period metrics, total workforce cost, cash), then cross-checks the whole picture to surface what is missing or does not reconcile. It reads scanned and digital documents in several languages, and writes an executive summary on top.
+The operational questions are simple to ask and expensive to answer manually:
 
-This post is about the engineering. Three parts in particular: the document-fusion insight the product is built around, the multi-agent architecture on **Nebius Serverless AI**, and the trust design that lets a language model near a financial report without ever touching the arithmetic.
+- What is this document, and where does it belong?
+- Is it a supplier invoice or a sales invoice?
+- Was every expected document actually received and recorded?
+- Which documents describe the same financial event?
+- Does a payment or collection have supporting evidence?
+- For payroll, do the register, the bank confirmation, and the payslips agree?
 
-> **Architecture diagram:** the full component graph (frontend, BFF, CPU endpoint, jobs, storage, DB, inference) is rendered in the [repository README](https://github.com/upgradedev/archon_nebius#architecture).
+**Archon** is built around that control loop. It turns uploaded financial documents into structured, classified, reviewable records; links documents that describe the same event; and runs explicit checks before producing a period financial view. The goal is to make financial entry and control faster, clearer, and auditable.
 
-## The insight: one event, three documents, three different truths
+The current build proves that architecture with two bounded control paths: automated document processing with a human review gate, and payroll-event linking with deterministic validation. It also contains a supplier-statement reconciliation component for structured statement entries. General invoice-to-bank-payment matching, collections matching, duplicate-payment detection, and tax-remittance verification are the next extensions of the same model, not claims about what this version already does.
 
-The clearest example of "the documents disagree" is a single payroll event. It produces three artifacts, and each one tells a different part of the truth:
+> **Architecture diagram:** the complete component graph is also available in the [public repository](https://github.com/upgradedev/archon_nebius#architecture). The diagram separates the Jobs-based target architecture from the inline execution mode used by the live Endpoint while this tenant has zero CPU AI-Jobs quota.
 
-| Document | What it reports | Illustrative figures (one employee) |
-|---|---|---|
-| Bank confirmation | Net salary transferred to the employee | net wages |
-| Payslip | Gross − employee contributions − tax | net wages, gross pay |
-| Payroll register | Gross **+ employer** contributions | full employer cost |
+## The product loop: read, classify, review, record, control
 
-The register's true cost of employment is the net wages, plus the tax and social security withheld from the employee, plus the employer's own contributions. The bank debit shows only the net-wages component. So software that reads only the bank statement sees only that component. On the sample, the register's true employer cost reconciles to about **72% above** what left the bank. The employer's own social-security contribution alone is about 35% of the transfer, and the rest is the withheld employee tax and social security. For most SMBs, payroll is the single largest cost centre.
+Archon begins with mixed files rather than pre-cleaned rows. The extraction pipeline accepts PDFs, DOCX files, images, TIFFs, and scanned PDFs. Digital documents take the text path. Scanned and image-based documents go through Qwen2.5-VL-72B on the Nebius Inference API.
 
-No single document can be trusted alone. The fix is to *fuse* the three into one event and read the right figure for the right question. That job belongs to a dedicated agent:
+The result is a structured record with fields such as document type, date, supplier, recipient, tax identifier, currency, invoice number, VAT, totals, and line items. Payroll documents add purpose-specific fields such as employee count, gross pay, net pay, and employer cost.
+
+Extraction is followed by deterministic classification. This second pass matters because an LLM can read a document correctly and still assign the wrong accounting type. `ClassifierAgent` refines ambiguous results using domain rules, keeping obvious classification errors out of downstream calculations.
+
+The user then sees the successfully extracted documents before analysis. They can correct the type, exclude an unrelated file, and confirm the set that should proceed. Archon also checks whether a document appears to belong to the configured company by name or tax identifier.
+
+There is an important current limitation around failed files. During extraction, Archon records each failed filename and reason inside the per-upload `documents.json` artifact in Object Storage and writes the failure to the job log. The current review API and UI do not expose that failure list, and confirming the reviewed set replaces the per-upload document artifact without carrying the failure metadata forward. Failures are therefore recorded during processing, but they are not yet visible to the reviewer in the product. Surfacing and preserving them through review is required before this can be described as a closed failure-handling loop.
+
+That review gate is deliberate. Automation should remove repetitive entry work without removing control from the person responsible for the books.
+
+```python
+# jobs/extraction/agents/classifier.py
+def run(docs):
+    for doc in docs:
+        if doc.doc_type in (DocType.UNKNOWN, DocType.PAYROLL):
+            doc.doc_type = _infer_type(doc)
+    return docs
+```
+
+After approval, Object Storage holds the authoritative raw and structured artifacts. Managed PostgreSQL provides a relational read model for documents, payroll events, employees, and validation results. The database mirror is intentionally best-effort: a temporary database problem must not make an already-produced report disappear.
+
+## Linking documents that describe one event
+
+Classification answers “what is this?” Linking answers “what does it belong with?”
+
+Payroll is a useful worked example because a single payroll run produces several documents with different roles:
+
+- The bank confirmation records the net amount transferred to employees.
+- The payroll register records gross pay, employer contributions, employee count, and the full employer cost.
+- Individual payslips explain the employee-level amounts.
+
+These are complementary records for different parts of the same event, not competing versions of one number. Archon’s `EventLinkerAgent` groups them by company and period into a `PayrollEvent`. The cash-flow view reads the bank movement; the management expense view reads the register; validation checks whether the supporting records agree.
 
 ```python
 # jobs/extraction/agents/event_linker.py
 def _build_event(company, period, docs):
-    bank      = _pick_one(docs, DocType.BANK_CONFIRMATION)
-    register  = _pick_one(docs, DocType.PAYROLL_REGISTER)
-    payslips  = [d for d in docs if d.doc_type == DocType.PAYSLIP]
+    bank = _pick_one(docs, DocType.BANK_CONFIRMATION)
+    register = _pick_one(docs, DocType.PAYROLL_REGISTER)
+    payslips = [d for d in docs if d.doc_type == DocType.PAYSLIP]
 
-    is_complete = all([bank is not None, register is not None, len(payslips) > 0])
-    return PayrollEvent(period=period, company_name=company or None,
-                        bank_confirmation=bank, payroll_register=register,
-                        payslips=payslips, is_complete=is_complete)
+    return PayrollEvent(
+        period=period,
+        company_name=company or None,
+        bank_confirmation=bank,
+        payroll_register=register,
+        payslips=payslips,
+        is_complete=bool(bank and register and payslips),
+    )
 ```
 
-Once the event is linked, the P&L uses the register's employer cost and the cash-flow view uses the bank transfer. It is the same event, counted once, correctly, from two angles. The same reconciliation shape extends to vendors. A `ReconciliationAgent` flags invoices a vendor statement references but the system never received.
+Four named rules then check the linked evidence:
 
-## Why Nebius Serverless AI fit the workload
+- **R1:** bank net approximately equals the sum of payslip nets, within ±2%.
+- **R2:** employer cost divided by net pay falls inside an explicit expected band.
+- **R3:** the bank-confirmation date is not later than the end of the payroll period.
+- **R4:** register headcount equals the number of payslips.
 
-The workload is bursty. A customer uploads documents once a month, waits for processing, then may not run another batch for weeks. That is a poor fit for an always-on GPU. Archon uses three Nebius compute primitives instead:
+Each result cites the rule, the compared values, and the source files. The output is not “the AI thinks something looks suspicious.” It is a control that a reviewer can reproduce by hand.
 
-- a **CPU AI Endpoint** for the always-on FastAPI orchestration backend (`/upload · /jobs · /analyze · /reports`);
-- a **CPU AI Job for extraction** that starts on upload, processes the batch, writes JSON, and self-terminates;
-- a **CPU AI Job for analysis** that reads the extracted JSON, builds the report, and self-terminates.
+The broader product direction follows the same pattern. A supplier invoice should connect to its settlement evidence. A sales invoice should connect to its collection. A bank movement should be explainable by a document or obligation. Taxes and social-security liabilities should connect to their remittances. Those links are the natural next event families; the submitted build does not pretend they are already complete.
 
-The decisive choice is that **the GPU is not inside Archon's containers**. Extraction and analysis are cheap CPU Python containers that call the **Nebius Inference API** over HTTP: Qwen2.5-VL-72B for vision extraction, Llama-3.3-70B for narration. The frontier models live in Nebius's inference layer, so Archon's own containers stay disposable. The only always-on cost is a ~$0.04/hr CPU endpoint, and each job run costs about a cent. Object Storage holds the raw, extracted, and report artifacts (`documents.json`, `events.json`, `validation.json`). Managed PostgreSQL holds the indexed `documents` records, queryable per period, doc-type, and upload. Container Registry hosts the three images. Six Nebius services, one workflow.
+## Supplier completeness: the precise current boundary
 
-The React frontend and a thin BFF route sit on Firebase for public hosting, login, and browser-edge TLS. The honest claim is precise: **all domain compute and stateful financial infrastructure run on Nebius, and Firebase is only the public edge.**
+Archon includes a unit-tested `ReconciliationAgent` that compares pre-structured entries from a supplier statement with the invoice numbers and totals present in the system. Given those fields, it can report statement invoices that are missing from the uploaded set, uploaded invoices absent from the statement, and a balance discrepancy.
 
-## Two agent pipelines
+That is a document-completeness component, not yet a bank-payment matcher. It is invoked by the analysis pipeline when structured statement data is present, but the current extraction prompt does not request `statement_entries`, `statement_balance`, or `statement_overdue`, and the review UI does not collect them. The component is therefore tested at the analysis boundary but is not wired end to end from a raw supplier statement through extraction and review. “This bank payment settled that invoice” is separate roadmap work.
 
-**Extraction (4 agents)** turns raw files into structured JSON. `ExtractorAgent` auto-detects file type, routing digital text to text extraction and scans or images to the vision model. `ClassifierAgent` then *deterministically* refines the document type, which keeps common LLM misclassifications out of the accounting layer. `EventLinkerAgent` fuses the payroll triad described above. `ValidatorAgent` runs cross-document consistency checks.
+This distinction is also why Archon keeps supplier statements out of P&L and cash-flow arithmetic. A statement is reference evidence. Counting it as an expense would duplicate the invoices it lists.
 
-**Analysis (7 agents)** turns that JSON into a dashboard-ready report. It re-classifies, then runs `PnLAgent`, `CashFlowAgent`, a `ValidatorAgent` cross-document safety net, `EmployeeAgent` (whose payroll-event summaries consume that validation), `ReconciliationAgent`, and finally `NarratorAgent` for the executive summary. Each agent has a single responsibility, which makes it easy to test and easy to reason about.
+## Why Nebius Serverless AI fits the workflow
 
-## Trust: the numbers are deterministic, the LLM only narrates
+Financial-document processing is bursty. A business may upload a monthly batch, process it, inspect the results, and then do nothing for days or weeks. Keeping a dedicated GPU online for that pattern would be wasteful.
 
-For a financial product, "a language model computed your P&L" is a non-starter. Archon is built so it never does. Every figure (P&L, expense breakdown, vendor summaries, key metrics) is pure Python arithmetic:
+Archon separates orchestration from batch work:
+
+- A **CPU AI Endpoint** hosts the FastAPI backend and the upload, review, job-status, analysis, and report APIs.
+- An **extraction AI Job** is the designed on-demand path for processing an uploaded batch and writing structured artifacts.
+- An **analysis AI Job** is the designed on-demand path for reading approved records, running the financial agents, and writing the report.
+- The **Nebius Inference API** serves Qwen2.5-VL-72B for vision extraction and Llama-3.3-70B for the executive narrative.
+- **Object Storage** and **Managed PostgreSQL** provide durable artifacts and a relational read model.
+- **Nebius Container Registry** holds the extraction and analysis Job images. The Endpoint backend image is pulled from GitHub Container Registry.
+
+The GPU lives in the managed inference layer rather than in Archon’s containers. The extraction and analysis packages remain CPU-only whether they run as Jobs or through the fallback below.
+
+The live deployment currently uses `JOB_RUNNER_BACKEND=inline`: the same two packages run as isolated subprocesses inside the CPU Endpoint and use the same Object Storage and status contracts. The Jobs submission code, images, and capacity handling are implemented and tested, but this tenant’s zero CPU AI-Jobs quota means no Job has provisioned successfully. “Designed as AI Jobs” and “currently running inline” are intentionally separate claims.
+
+The React frontend and a thin BFF run on Firebase for public hosting, authentication, and browser-edge TLS. The precise deployment claim is therefore: **Nebius runs the domain backend, job design, inference, storage, registry, and financial data services; Firebase provides the public browser edge.**
+
+## Two single-responsibility pipelines
+
+The extraction package has four stages:
+
+1. `ExtractorAgent` routes each file to text or vision extraction and emits structured fields.
+2. `ClassifierAgent` refines the document type deterministically.
+3. `EventLinkerAgent` groups documents that describe the same payroll event.
+4. `ValidatorAgent` applies the named cross-document rules.
+
+The analysis package has seven stages: classification, P&L aggregation, cash-flow construction, validation, employee analytics, supplier-statement reconciliation, and narrative generation.
+
+These are the same packages in both execution modes. With Jobs capacity they are submitted as two on-demand Nebius AI Jobs. In the live submission they run as isolated subprocesses inside the Nebius AI Endpoint. The execution boundary changes; the agents and artifact contracts do not.
+
+Small agents are not cosmetic. They make each responsibility independently testable. A failed extraction remains an extraction problem; a classification error does not become an unexplained reporting error; and a validation rule can be measured separately from the figures it checks.
+
+## Deterministic accounting, bounded model use
+
+Archon does not ask a language model to calculate the financial totals. P&L figures and validation results are produced by Python arithmetic and explicit rules. The model reads messy documents and writes a narrative from already-computed metrics.
 
 ```python
-# jobs/analysis/agents/pnl_agent.py
-"""
-PnLAgent — aggregates extracted documents into P&L metrics.
-Single responsibility: pure Python arithmetic over classified documents.
-No LLM call; deterministic and fast.
-"""
 def build_pnl(period, docs):
-    revenue  = sum(d.total_amount for d in docs if d.doc_type in REVENUE_DOC_TYPES)
+    revenue = sum(d.total_amount for d in docs if d.doc_type in REVENUE_DOC_TYPES)
     expenses = _compute_expenses(docs)
-    net_profit = revenue - expenses
-    return MonthlyPnL(period=period, revenue=round(revenue, 2),
-                      expenses=round(expenses, 2), netProfit=round(net_profit, 2), ...)
+    return MonthlyPnL(
+        period=period,
+        revenue=round(revenue, 2),
+        expenses=round(expenses, 2),
+        netProfit=round(revenue - expenses, 2),
+    )
 ```
 
-The only place a model touches the analysis is `NarratorAgent`, and it writes a three-to-four-sentence summary *from the already-computed metrics*. If that call fails, the report still renders. The narrative is the garnish, not the meal. The numbers you see are not hallucinated. They are `round(sum(...), 2)`.
+If narrative generation fails, the report still exists. The language model is useful at the unstructured edges of the workflow; it is not the ledger.
 
-The cross-document checks are equally auditable. `ValidatorAgent` runs four named, deterministic rules with explicit tolerances: `R1: bank.total ≈ Σ payslips ±2%`, `R2: employer_cost / net_pay ∈ [1.40, 2.60]`, `R3: bank date ≤ period end`, `R4: register headcount == payslip count`. Every flag cites the rule, the two figures compared, and the source files. It is a finding you can check by hand, not "the model thought something looked off."
+The current cash-flow output is a provisional document-derived view, not a bank-reconciled cash statement. Payroll cash uses the actual `bank_confirmation` transfer, but sales invoices are assumed collected and purchase invoices or expense documents are assumed paid. Until general payment and collection linking is implemented, those invoice-derived inflows and outflows must not be presented as verified bank movements.
 
-## Measuring it, and an honest caveat
+## Measuring the implemented controls
 
-A claim like "the true payroll cost reconciles to ~72% over the bank net" is worth nothing without a number behind it. So the repo ships an **evaluation harness** (`eval/`) that scores the *real* pipeline agents against a labelled synthetic corpus. It runs offline, with no API key, using only `pydantic`:
+The repository includes an offline evaluation harness built around 40 labelled synthetic payroll cases. It imports the real `ClassifierAgent`, `EventLinkerAgent`, `ValidatorAgent`, and `PnLAgent` rather than reimplementing them inside the test.
+
+Under a deterministic perfect-extraction ceiling, classification, selected-field accuracy, and payroll-fusion accuracy reach 100%. A deliberately degraded extractor drops classification to 74.29%, field accuracy to 77.62%, and fusion accuracy to 54.05%. That drop is useful: small field errors compound when records are linked.
+
+The 100% figure is not a claim that live Qwen extraction is perfect. It is a ceiling test for the downstream agents given correct structured fields. Keeping that distinction explicit makes the benchmark useful rather than promotional.
+
+The harness also found a real defect. R2 and R4 initially fired 0 out of 37 applicable cases because the extraction prompt did not request the register fields those rules consumed. After the fields were added and mapped, the same tests measured 37 out of 37. That before-and-after result is exactly what an evaluation harness should produce: evidence that a control is active, not just code that looks plausible.
 
 ```bash
-python eval/generate_corpus.py && python eval/evaluate.py
+python eval/generate_corpus.py --out corpus/full --n 40 --seed 7
+python eval/evaluate.py --corpus eval/corpus/full --out eval/RESULTS_full.json
 ```
 
-On the deterministic 40-case corpus, under perfect extraction, the `PnLAgent` reports employer cost to the cent, at **100% field and fusion accuracy**. The register's true employer cost reconciles to the register total, about **72% over the naive bank-only view on the sample**. Every component is tied to a source document. The thesis is verified, not asserted.
+The benchmark runs offline with no API key and only `pydantic`. The public repository includes the generated results, tests, and reproduction commands.
 
-The uncomfortable first result was the whole reason to build a harness. Two of the four validation rules were **dormant**. R2 and R4 fired 0/37 times because they read fields (`employer_cost_total`, `net_pay_total`, `employee_count`) the extraction prompt never requested. The harness turned that from an unknown into a measured 0/37, with file-and-line evidence and a one-prompt fix. We wired those fields into the extractor, and the same harness now measures **37/37**. R2 and R4 fire on every applicable case, proven before and after rather than asserted. The full write-up is in [`eval/BASELINE.md`](https://github.com/upgradedev/archon_nebius/blob/master/eval/BASELINE.md). Finding it before a customer does is the whole point.
+## An operational lesson from AI Jobs
 
-## One lesson worth keeping: a serverless job can lie to you
+The most useful Serverless engineering lesson came from a failure mode. A Nebius AI Job can be accepted while never receiving an instance when the selected compute preset has no available quota. The submission returns an ID, but the job remains in provisioning and eventually disappears.
 
-A Nebius AI Job is a *request* for compute, not a guarantee. Quota is granted per compute preset, and when a preset has zero quota the platform does something worse than reject you. It *accepts* the job, strands it in `PROVISIONING`, never allocates an instance, and tears it down with no error. Your submission returned a job id. Nothing is coming.
+Archon wraps job submission in a bounded capacity probe. It distinguishes:
 
-Archon now treats this as a first-class failure mode. It submits, probes for a real instance within a bounded window, and on a *never-provisioned* outcome it deletes the stalled job and climbs a config-driven preset ladder. It fails over only when a job never got compute, never when a job reached compute and then crashed (that second bug would recur on every rung). If every rung fails, the API returns one actionable `503` instead of a silent spinner. The full taxonomy is in [`docs/capacity-probe-pattern.md`](https://github.com/upgradedev/archon_nebius/blob/master/docs/capacity-probe-pattern.md), reproducible offline with `bash scripts/demo-failover.sh`.
+1. submission rejected for capacity,
+2. accepted but never provisioned,
+3. an application that reached compute and then failed.
 
-There is a second failure mode this exposed, and it is worth being upfront about. AI Jobs are the primary design. The submission path, the pysdk integration, and the capacity probe are all built and tested. But this tenant's `cpu-d3` AI-Jobs quota is a hard **0**, verified empirically across every preset and region, so no Job ever provisions. Rather than gate the live demo on a quota grant, Archon carries a runtime fallback. Set `JOB_RUNNER_BACKEND=inline` and the *same* extraction and analysis pipelines run as isolated subprocesses inside the Endpoint, tracked in Object Storage exactly like a Job. It uses subprocess isolation rather than in-process import, because the two job packages have colliding top-level module names. The pipeline completes end to end either way. The honest summary: the Jobs integration is real and ships in the image, and the inline runner is the resilience path that keeps the product working when the platform grants zero Jobs capacity.
+A capacity rejection, or a terminal/vanished Job that provably never received an instance, moves to the next configured preset. If an accepted Job is still provisioning when the observation window ends, Archon keeps and returns that pending Job rather than deleting it or creating a duplicate. A Job that reached compute and then failed is surfaced as an application failure, not retried on another preset.
 
-One more detail bit us. When the backend submits a job, Nebius must pull the image, and registry credentials belong on the job spec itself as a **single** message, not a list:
+This tenant currently has zero CPU AI-Jobs quota. The Jobs integration, SDK submission path, images, and capacity probe are built and tested, but no CPU Job can provision on the tenant. For the live product, `JOB_RUNNER_BACKEND=inline` runs the same extraction and analysis packages as isolated subprocesses inside the CPU Endpoint while preserving the same status and Object Storage contracts. It is a resilience path, not evidence of a successful Job run.
 
-```python
-# backend/services/nebius.py
-registry_credentials=JobSpec.RegistryCredentials(username="iam", password=token)
-```
+That disclosure matters. Reproducible engineering includes the limits of the environment in which it was tested.
 
-Treating it as repeated turns job submission into a 500. Small detail, real outage.
+## Try the build
 
-## Making a best-effort path loud
-
-Archon mirrors every finished report into Managed PostgreSQL as a relational read-model. The mirror is best-effort by design. Object Storage is the source of truth, so if the database write ever fails the report still renders. That design has a quiet downside. Best-effort code fails silently, and a mirror that does nothing looks exactly like a mirror that works.
-
-So database reachability became a first-class signal. The backend exposes a small `/health/db` probe that opens a connection and runs `SELECT 1`. The deploy pipeline calls it the moment the endpoint goes live and writes the verdict into the job summary. If PostgreSQL is unreachable, the deploy says so in plain language, instead of leaving a dead mirror for someone to notice weeks later. The connection runs over the cluster's private in-VPC endpoint, so it never depends on a public allowlist that shifts every time the endpoint is recreated.
-
-Proving the write used to need a full analysis run, and a full run needs job quota. To break that dependency the repo ships a one-command seed workflow. It writes a valid report to storage for a throwaway period, calls the read path, and watches the relational tables populate. Anyone can verify the database path end to end without spending a cent of compute.
-
-The pattern under this and the capacity probe is the same. A serverless system has more ways to fail quietly than a single machine does. The engineering worth keeping is whatever turns each quiet failure into a loud one.
-
-## Try it
-
-The local stack needs no Nebius account, just an Inference API key. LocalStack stands in for object storage, and jobs run as local containers:
+The public repository is MIT licensed. A fresh local run needs Docker, Python, `curl`, `jq`, and a Nebius Inference API key. First generate the synthetic PDFs and start the stack:
 
 ```bash
-git clone https://github.com/upgradedev/archon_nebius && cd archon_nebius
-cp .env.example .env          # set NEBIUS_INFERENCE_API_KEY
+git clone https://github.com/upgradedev/archon_nebius
+cd archon_nebius
+cp .env.example .env
+# Edit .env and replace the NEBIUS_INFERENCE_API_KEY placeholder.
+python -m pip install reportlab
+python scripts/generate-sample-data.py
 docker compose up --build
-bash scripts/test-pipeline.sh # drives the full pipeline, prints the report JSON
 ```
 
-Or see the payoff with zero setup. **https://archon-pnl.web.app/?demo=1** renders a full sample report (P&L, charts, validations, executive summary) entirely client-side, with no backend call.
+Then, in a second terminal while the stack is running:
 
-That is the point of the build. Once Nebius handles the serverless compute and inference surfaces, the hard work moves back where it belongs, to domain correctness.
+```bash
+cd archon_nebius
+bash scripts/test-pipeline.sh
+```
+
+The [live demo](https://archon-pnl.web.app/?demo=1) renders an illustrative seeded financial view without authentication. Its internally consistent seeded records demonstrate the review and reporting UI; they are not evidence of bank matching, collection matching, or remittance verification. The public [Nebius deployment run](https://github.com/upgradedev/archon_nebius/actions/runs/29419841856) is infrastructure evidence: it records `archon-backend-r130` reaching `RUNNING`, a successful Object Storage round trip, Managed PostgreSQL reachable from the Endpoint, and the Firebase BFF health route returning HTTP 200. It does not claim that an AI Job ran; the live processing mode remains the disclosed inline fallback.
+
+Archon’s direction is straightforward: every successfully extracted document becomes an understandable record; every record has a category and an owner; related records form one financial event; and every validation result identifies the values and source files it compared. That is the foundation for answering the questions a business actually asks — what is this, why was it paid, what is still missing, and does the close reconcile?
 
 ---
 

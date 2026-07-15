@@ -2,7 +2,7 @@
 Archon evaluation harness — runner.
 
 Scores the REAL extraction + analysis agents against a labelled corpus and
-prints the four accuracy metrics plus the naive-bookkeeping floor. Writes
+prints the four accuracy metrics plus the payroll document-value comparison. Writes
 machine-readable results to eval/RESULTS.json.
 
 Usage:
@@ -80,15 +80,16 @@ def main() -> None:
     else:
         print("  (none)")
 
-    print("\nNaive-bookkeeping floor (bank-only payroll cost vs true employer cost):")
+    print("\nPayroll document comparison (bank-confirmed net wages vs register employer cost):")
     if floor["cases"]:
         print(f"  cases with a bank doc           {floor['cases']}")
-        print(f"  total bank-only (wrong number)  EUR {floor['total_bank_only']:,.2f}")
-        print(f"  total true employer cost        EUR {floor['total_true_cost']:,.2f}")
-        print(f"  total understatement recovered  EUR {floor['total_understatement']:,.2f}")
-        print(f"  mean understatement % of true   {floor['mean_understatement_pct_of_true']}%")
-        print(f"  mean understatement % of bank   {floor['mean_understatement_pct_of_bank']}%")
-        print(f"  mean employer social-sec wedge % bank  {floor['mean_employer_social_security_wedge_pct_of_bank']}%")
+        print(f"  total bank-confirmed net wages  EUR {floor['total_bank_only']:,.2f}")
+        print(f"  total register employer cost    EUR {floor['total_true_cost']:,.2f}")
+        print(f"  total numeric difference         EUR {floor['total_understatement']:,.2f}")
+        print(f"  mean difference % of register   {floor['mean_understatement_pct_of_true']}%")
+        print(f"  mean difference % of bank net   {floor['mean_understatement_pct_of_bank']}%")
+        print(f"  mean employer-contribution component % bank  {floor['mean_employer_social_security_wedge_pct_of_bank']}%")
+        print("  note: complementary document values; not proof of separate liability payments")
 
     out = Path(args.out) if args.out else Path(__file__).resolve().parent / "RESULTS.json"
     out.write_text(json.dumps(

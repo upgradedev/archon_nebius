@@ -146,8 +146,10 @@ The ladder accepts any `platform:preset` pair, so a `gpu-h200-sxm` rung *can* be
 appended as a last-resort escape when every `cpu-d3` size is quota-blocked. It is
 **off by default and intentionally absent from the default ladder**: Archon jobs
 are CPU workloads (all LLM inference is remote HTTP to the Nebius Inference API),
-so a GPU rung costs roughly 100× (~$4.50/hr vs ~$0.04/hr) for zero compute
-benefit. See `.env.example` for the annotated opt-in example and cost warning.
+so a GPU rung would add substantial cost for zero application-compute benefit.
+The current CPU Endpoint estimate is documented in the README from Nebius's
+published rates; verify current regional pricing before enabling any GPU rung.
+See `.env.example` for the annotated opt-in example and cost warning.
 
 ## Reproduce it in one command
 

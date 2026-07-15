@@ -117,7 +117,7 @@ def test_health_is_ok(base_url, auth_session):
 
 
 @requires_creds
-def test_signed_in_upload_and_job_submit(base_url, auth_session, period):
+def test_signed_in_upload_and_extraction_start(base_url, auth_session, period):
     # Upload must be accepted (200) with the Bearer token and persist to storage.
     pdfs = _sample_pdfs()
     files = [("files", (p.name, p.read_bytes(), "application/pdf")) for p in pdfs]
@@ -126,7 +126,8 @@ def test_signed_in_upload_and_job_submit(base_url, auth_session, period):
     upload_id = up.json().get("uploadId")
     assert upload_id
 
-    # Job submit must not 500 — regression guard for create -> Operation.resource_id.
+    # The execution abstraction returns an AI Job id in Jobs mode or an inline
+    # run id in the live zero-quota fallback.
     job = auth_session.post(
         f"{base_url}/api/jobs",
         json={"uploadId": upload_id, "period": period},
@@ -134,29 +135,24 @@ def test_signed_in_upload_and_job_submit(base_url, auth_session, period):
     )
     assert job.status_code == 200, job.text
     job_id = job.json().get("id")
-    assert job_id and job_id.startswith("aijob-")
+    assert job_id and job_id.startswith(("aijob-", "inline-ext-"))
 
-    # Status poll must not 500 — regression guard for the JobStatus wrapper shape.
+    # Status polling uses the same response shape in both execution modes.
     st = auth_session.get(f"{base_url}/api/jobs/{job_id}", timeout=30)
     assert st.status_code == 200, st.text
     assert st.json().get("status") in {"pending", "running", "completed", "failed"}
 
 
-# How long to wait for each Job to actually finish. A healthy Nebius Job provisions
-# in ~5 min; a zero-quota Job is accepted but never gets an instance, so a generous
-# bound distinguishes "slow" from "walled". Opt-in / scheduled only (this whole
-# module is), never a per-PR gate — a capacity wall is an infra state, not a code
-# regression, so it must not block merges.
+# How long to wait for an execution run to finish. Jobs mode may spend minutes in
+# provisioning; inline mode runs in an Endpoint subprocess. This module is opt-in
+# / scheduled, never a per-PR gate, because live infrastructure state must not
+# block ordinary code merges.
 _PROVISION_TIMEOUT_S = int(os.environ.get("E2E_PROVISION_TIMEOUT_S", "600"))
 _POLL_S = int(os.environ.get("E2E_PROVISION_POLL_S", "15"))
 
 
 def _poll_to_completion(session, url, kind):
-    """Poll a job status URL until it completes; fail LOUDLY on a capacity wall.
-
-    This is the assertion the thin '200 + status is pending' check never made, the
-    gap that let a zero-quota wall (and, earlier, a stopped database) pass unseen.
-    """
+    """Poll an execution-status URL until it completes or fails loudly."""
     import time
 
     deadline = time.monotonic() + _PROVISION_TIMEOUT_S
@@ -168,14 +164,18 @@ def _poll_to_completion(session, url, kind):
         if last == "completed":
             return
         if last == "failed":
-            pytest.fail(f"{kind} job FAILED after provisioning: {r.json().get('errorMessage')}")
+            pytest.fail(f"{kind} run FAILED: {r.json().get('errorMessage')}")
         time.sleep(_POLL_S)
+    run_id = url.rstrip("/").rsplit("/", 1)[-1]
+    hint = (
+        "The aijob id may indicate an AI-Jobs capacity/quota wall."
+        if run_id.startswith("aijob-")
+        else "The inline id indicates the Endpoint subprocess or its dependencies stalled."
+    )
     pytest.fail(
-        f"CAPACITY WALL: {kind} job never completed within {_PROVISION_TIMEOUT_S}s "
-        f"(last status={last!r}). The job was accepted but almost certainly never "
-        f"got compute — AI-Jobs quota for cpu-d3 is 0. Fix: request AI-Jobs quota in "
-        f"the Nebius console, or set JOB_RUNNER_BACKEND=inline to run the pipeline in "
-        f"the endpoint. (Offline demo path unaffected: /?demo=1.)"
+        f"EXECUTION TIMEOUT: {kind} run {run_id} did not complete within "
+        f"{_PROVISION_TIMEOUT_S}s (last status={last!r}). {hint} "
+        f"Inspect the execution status and Endpoint logs."
     )
 
 
@@ -183,9 +183,9 @@ def _poll_to_completion(session, url, kind):
 def test_signed_in_pipeline_completes_or_flags_wall(base_url, auth_session, period):
     """Drive the WHOLE live pipeline as a signed-in user and assert it FINISHES.
 
-    upload -> extraction job -> (wait to completion) -> analyze -> (wait) -> report
+    upload -> extraction run -> (wait to completion) -> analyze -> (wait) -> report
     with real relational data. Unlike test_signed_in_upload_and_job_submit (which
-    only checks the submit returns 200), this fails loudly if a job never provisions
+    only checks the start call returns 200), this fails loudly if a run stalls
     or the report has no data — the early-warning that catches a capacity wall or a
     stopped database automatically instead of by manual inspection.
     """

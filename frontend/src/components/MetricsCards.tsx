@@ -25,12 +25,12 @@ const fmt = (v: number) =>
 // Plain-English definition shown on the (i) icon of each tile. Universal
 // terminology only — no jurisdiction-specific tax terms.
 const TILE_TOOLTIPS: Record<string, string> = {
-  'Revenue': 'Net revenue excluding VAT from sales invoices issued by the company. VAT is excluded — it is collected on behalf of the tax authority.',
-  'Net Profit': 'Revenue (ex-VAT) minus total expenses. Positive means a profitable period; negative means a loss.',
-  'Gross Margin': 'Gross profit as a share of revenue — how much of each unit of revenue remains after direct costs.',
+  'Revenue': 'Sum of the total amounts on documents classified as sales invoices. Values are used as supplied by the documents and may include VAT.',
+  'Net Profit': 'Document-total revenue minus the implemented expense set. Positive means this simplified period view is profitable; negative means a loss.',
+  'Simplified Margin': 'Net profit as a share of document-total revenue in this single-period view. It is not a gross-margin calculation by cost of goods sold.',
   'Revenue Growth': 'Change in revenue versus the prior period.',
   'Invoices': 'Total financial documents processed: sales invoices, purchase invoices and expense receipts.',
-  'Collection Rate': 'Share of invoiced revenue collected in cash during the period.',
+  'Collection Rate': 'Not calculated in this build. It requires invoice-to-collection linking or accounts-receivable aging data.',
 }
 
 // Which document types back each drillable tile — a tile is clickable iff it has
@@ -39,15 +39,13 @@ const TILE_TOOLTIPS: Record<string, string> = {
 const TILE_DOC_TYPES: Record<string, string[]> = {
   'Revenue': ['sales'],
   'Net Profit': ['sales', 'invoice', 'expense', 'payroll', 'payroll_register', 'payslip', 'bank_confirmation'],
-  'Gross Margin': ['sales', 'invoice', 'expense', 'payroll', 'payroll_register', 'payslip'],
-  'Collection Rate': ['sales', 'bank_confirmation'],
+  'Simplified Margin': ['sales', 'invoice', 'expense', 'payroll', 'payroll_register', 'payslip'],
   'Invoices': ['sales', 'invoice', 'expense'],
 }
 
 // Contextual empty state per tile — explains WHY no docs matched, not just "none".
 const TILE_EMPTY_TEXT: Record<string, string> = {
   'Revenue': 'No sales invoices found. Set your company name and tax ID in Settings so the classifier can identify your sales documents.',
-  'Collection Rate': 'No sales or bank documents found. Set your company name and tax ID in Settings so collections can be matched.',
 }
 const DEFAULT_EMPTY = 'No supporting documents found for this metric.'
 
@@ -196,9 +194,9 @@ export default function MetricsCards({ report, period, documents }: Props) {
           </Card>
         </Col>
         <Col xs={12} sm={8} md={4}>
-          <Card size="small" {...tileProps('Gross Margin')}>
+          <Card size="small" {...tileProps('Simplified Margin')}>
             <Statistic
-              title={tileTitle('Gross Margin')}
+              title={tileTitle('Simplified Margin')}
               value={pnl.grossMarginPct}
               precision={1}
               suffix="%"
@@ -240,7 +238,7 @@ export default function MetricsCards({ report, period, documents }: Props) {
           </Card>
         </Col>
         <Col xs={12} sm={8} md={4}>
-          <Card size="small" {...tileProps('Collection Rate')}>
+          <Card size="small">
             {metrics.collectionRatePct === null ? (
               <Statistic
                 title={tileTitle('Collection Rate')}

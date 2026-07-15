@@ -14,11 +14,9 @@ interface Props {
   rules: ValidationRule[]
 }
 
-// The R1–R4 cross-document validation ledger. All four rules fire end-to-end;
-// R2/R4 read the register's employer-cost / headcount fields the extractor now
-// populates (they were the harness's keystone dormancy finding, now fixed). A
-// rule shows SKIPPED only when its inputs are absent (e.g. no register that
-// period) — never because a field is permanently un-extracted.
+// The R1–R4 cross-document validation ledger. A rule shows SKIPPED whenever its
+// required documents or fields are absent. The offline perfect-input harness
+// exercises all four rules on the synthetic cases where each rule applies.
 export default function ValidationLedger({ rules }: Props) {
   return (
     <Space direction="vertical" size={8} style={{ width: '100%' }}>
@@ -43,9 +41,9 @@ export default function ValidationLedger({ rules }: Props) {
         }}
       />
       <Text type="secondary" style={{ fontSize: 12 }}>
-        All four rules fire end-to-end — R2 &amp; R4 read the register&apos;s employer-cost and
-        headcount fields the extractor populates. The evaluation harness proves this by measuring
-        each rule&apos;s activity, rather than assuming the checks fire.
+        The offline 40-case perfect-input harness exercises R1–R4 on every applicable
+        synthetic case. In an uploaded period, a rule is skipped when its required documents
+        or extracted fields are absent.
       </Text>
     </Space>
   )

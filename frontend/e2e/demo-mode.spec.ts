@@ -18,8 +18,7 @@ import { test, expect, type Page, type Request } from '@playwright/test'
 const TILE_DOC: Record<string, string> = {
   Revenue: 'sales-invoice-3001.pdf',
   'Net Profit': 'payroll-register-jan.pdf',
-  'Gross Margin': 'payslip-employee-01.pdf',
-  'Collection Rate': 'bank-confirmation-jan.pdf',
+  'Simplified Margin': 'payslip-employee-01.pdf',
   Invoices: 'aws-cloud-invoice.pdf',
 }
 
@@ -36,7 +35,7 @@ function installApiGuard(page: Page): string[] {
 }
 
 test.describe('demo mode — full judge journey, zero backend', () => {
-  test('1. dashboard renders the report, payroll gap (72% / 35%) and KPIs', async ({ page }) => {
+  test('1. dashboard renders the report, payroll document comparison, and KPIs', async ({ page }) => {
     const violations = installApiGuard(page)
     await page.goto('/?demo=1')
 
@@ -45,12 +44,12 @@ test.describe('demo mode — full judge journey, zero backend', () => {
 
     // Payroll-gap card — the core insight, with both denominators.
     await expect(page.getByText('Bank transfer (net)', { exact: true })).toBeVisible()
-    await expect(page.getByText('True employer cost', { exact: true })).toBeVisible()
+    await expect(page.getByText('Registered employer cost', { exact: true })).toBeVisible()
     await expect(page.getByText('+72%')).toBeVisible()
     await expect(page.getByText('6 employees')).toBeVisible()
 
-    // The ~35% employer social-security wedge is narrated in the executive summary.
-    await expect(page.getByText(/~35% over the transfer/)).toBeVisible()
+    // The seeded summary states the boundary of the document checks explicitly.
+    await expect(page.getByText(/do not confirm that separate tax or social-insurance remittances were paid/)).toBeVisible()
 
     // KPI tiles carry real figures (revenue = €96,400).
     await expect(page.getByText('€96,400').first()).toBeVisible()
@@ -58,13 +57,13 @@ test.describe('demo mode — full judge journey, zero backend', () => {
 
     // Validation ledger — the R1–R4 card renders with all four rules passing.
     await expect(page.getByText('Cross-document validation — R1 to R4')).toBeVisible()
-    await expect(page.getByText('All four rules fire end-to-end', { exact: false })).toBeVisible()
+    await expect(page.getByText('offline 40-case perfect-input harness', { exact: false })).toBeVisible()
     await expect(page.getByText('PASS', { exact: true })).toHaveCount(4)
 
     expect(violations, `Unexpected backend calls: ${violations.join(', ')}`).toEqual([])
   })
 
-  test('2. every metric tile opens a populated drill-down dialog', async ({ page }) => {
+  test('2. every evidence-backed metric tile opens a populated drill-down dialog', async ({ page }) => {
     const violations = installApiGuard(page)
     await page.goto('/?demo=1')
     await expect(page.getByRole('button', { name: 'Revenue — open detail' })).toBeVisible()
@@ -80,6 +79,8 @@ test.describe('demo mode — full judge journey, zero backend', () => {
       await dialog.getByRole('button', { name: 'Close' }).click()
       await expect(dialog).toBeHidden()
     }
+
+    await expect(page.getByLabel('Collection Rate — open detail')).toHaveCount(0)
 
     expect(violations, `Unexpected backend calls: ${violations.join(', ')}`).toEqual([])
   })
@@ -182,7 +183,7 @@ test.describe('demo mode — full judge journey, zero backend', () => {
     await page.goto('/?demo=1')
 
     const summaryCard = page.locator('.ant-card', { hasText: 'Executive Summary' })
-    const payrollCard = page.locator('.ant-card', { hasText: 'bank net vs true employer cost' })
+    const payrollCard = page.locator('.ant-card', { hasText: 'bank-confirmed net vs registered employer cost' })
     const pnlCard = page.locator('.ant-card', { hasText: 'Revenue vs Expenses vs Net Profit' })
     await expect(summaryCard).toBeVisible()
     await expect(payrollCard).toBeVisible()
@@ -210,12 +211,12 @@ test.describe('demo mode — full judge journey, zero backend', () => {
 
     // Each chip → a short answer citing the exact figure from DEMO_REPORT.
     const cases: { q: string; expect: RegExp }[] = [
-      { q: 'What was the net profit this period?', expect: /Net profit was €24,550 .* 25\.5% operating margin/ },
-      { q: "What's the total employer cost?", expect: /true employer cost is €18,400 across 6 employees/ },
-      { q: 'How does the bank transfer reconcile to the true payroll cost?', expect: /bank moved €10,700.*€18,400.*72% more.*€7,700/ },
-      { q: 'Which vendors cost the most?', expect: /Amazon Web Services \(€7,420\).*Google Cloud \(€4,180\).*Metro Toll Systems \(€2,960\)/ },
-      { q: 'Were there any validation issues?', expect: /All 4 cross-document checks passed \(R1–R4\)\. No validation issues/ },
-      { q: 'How much cash did the business generate?', expect: /Net cash generated was €11,900 .*92\.4% collection rate/ },
+      { q: 'What was the net profit this period?', expect: /Net profit was €24,550 .* 25\.5% simplified document margin/ },
+      { q: 'What employer cost does the payroll register report?', expect: /payroll register reports total employer cost of €18,400 across 6 employees/ },
+      { q: 'How do bank-confirmed net wages compare with registered employer cost?', expect: /bank confirmation records €10,700.*€18,400.*€7,700 difference \(72%\).*does not verify separate tax/ },
+      { q: 'Which vendors cost the most?', expect: /Delta Operating Supplies \(€13,000\).*City Center Offices Rent \(€9,600\).*Meridian Advisory Partners \(€8,750\)/ },
+      { q: 'Were there any validation issues?', expect: /All 4 available payroll checks passed \(R1–R4\).*does not confirm separate tax/ },
+      { q: 'What cash-flow view do these documents produce?', expect: /€32,250 net cash.*operating €32,250.*generic bank-to-invoice matching is not implemented.*collection rate is unavailable/ },
     ]
 
     for (const c of cases) {

@@ -40,20 +40,26 @@ describe('MetricsCards', () => {
 
   it('renders all six KPI tiles', () => {
     wrap(<MetricsCards report={report} period="2026-01" />)
-    ;['Revenue', 'Net Profit', 'Gross Margin', 'Revenue Growth', 'Invoices', 'Collection Rate']
+    ;['Revenue', 'Net Profit', 'Simplified Margin', 'Revenue Growth', 'Invoices', 'Collection Rate']
       .forEach(label => expect(screen.getByText(label)).toBeTruthy())
   })
 
-  it('exposes exactly the five drillable tiles as buttons', () => {
+  it('exposes exactly the four evidence-backed drillable tiles as buttons', () => {
     wrap(<MetricsCards report={report} period="2026-01" />)
-    // Revenue, Net Profit, Gross Margin, Collection Rate, Invoices are drillable;
-    // Revenue Growth is deliberately inert (informational only).
-    expect(screen.getAllByRole('button')).toHaveLength(5)
+    // Revenue, Net Profit, Simplified Margin and Invoices are drillable.
+    // Growth and Collection Rate remain informational because this build lacks
+    // prior-period and invoice-to-collection evidence.
+    expect(screen.getAllByRole('button')).toHaveLength(4)
   })
 
   it('does not make the Revenue Growth tile clickable', () => {
     wrap(<MetricsCards report={report} period="2026-01" />)
     expect(screen.queryByLabelText('Revenue Growth — open detail')).toBeNull()
+  })
+
+  it('does not present Collection Rate as a matched-document control', () => {
+    wrap(<MetricsCards report={report} period="2026-01" />)
+    expect(screen.queryByLabelText('Collection Rate — open detail')).toBeNull()
   })
 
   it('carries a definition tooltip on each tile', () => {

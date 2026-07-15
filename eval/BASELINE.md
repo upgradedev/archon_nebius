@@ -40,10 +40,10 @@ see `LIVE_EXTRACTION.md`.)
 |---|---|---|
 | **Classification accuracy** | `doc_type` after the real `ClassifierAgent` vs the labelled type, per source file | exact |
 | **Field accuracy** | every extracted number/date the current prompt emits (`total_amount`, `issue_date`) vs the label | numbers within 1 cent OR ≤0.5% relative; dates exact |
-| **Fusion figure accuracy** | the payroll **expense the real `PnLAgent` reports** vs the independently-computed true employer cost | same numeric rule |
+| **Fusion figure accuracy** | the payroll **expense the real `PnLAgent` reports** vs the independently generated register-employer-cost label | same numeric rule |
 | **Validation-outcome accuracy** | the real `ValidatorAgent` R1–R4 pass/fail vs **domain truth** | exact boolean |
 | **Rule activity** | of the cases where a rule *could* apply, how often it actually evaluated vs skipped | — |
-| **Naive floor** | bank-only "payroll cost" vs the true employer cost | EUR + % |
+| **Payroll document comparison** | bank-confirmed net wages vs generated register employer cost | EUR + % |
 
 The figure "expected" (the true totals) is kept **separate** from the validation
 "expected" (is this payroll actually consistent?) so a validation bug cannot hide
@@ -128,30 +128,26 @@ that the classifier earns its place (it recovers a chunk of the
 misclassified-as-generic docs) and that R2 catches a defect the perfect
 extractor never produces.
 
-### Naive-bookkeeping FLOOR — reconciliation measured on the sample
+### Payroll document comparison measured on the synthetic corpus
 
-These are measurement figures on the synthetic corpus, not a customer result. The owner who books the bank salary transfer as "the payroll cost":
+These are synthetic-corpus comparisons, not a customer result or evidence that
+any separate liability was paid. The bank confirmation and payroll register
+report complementary measures:
 
 | Quantity | Sample (5 bank cases) | Full (31 bank cases) |
 |---|---|---|
-| Total bank-only (the wrong number) | EUR 36,355.30 | EUR 185,543.72 |
-| Total true employer cost | EUR 62,503.72 | EUR 318,925.43 |
-| **Total reconciled beyond bank net** | **EUR 26,148.42** | **EUR 133,381.71** |
-| Mean reconciled amount, % of true cost | 41.37% | 41.84% |
-| Mean reconciled amount, % over bank net | 70.65% | 71.97% |
-| Mean employer social-security wedge, % over bank | 35.22% | 35.49% |
+| Total bank-confirmed net wages | EUR 36,355.30 | EUR 185,543.72 |
+| Total generated register employer cost | EUR 62,503.72 | EUR 318,925.43 |
+| **Total numeric difference** | **EUR 26,148.42** | **EUR 133,381.71** |
+| Mean difference, % of register cost | 41.37% | 41.84% |
+| Mean difference, % over bank net | 70.65% | 71.97% |
+| Mean generated employer-contribution component, % over bank | 35.22% | 35.49% |
 
-**Two numbers, reported separately on purpose.** The **~35%** figure is the
-*employer social-security wedge only* (employer social-security ÷ bank net) —
-what the register adds on top of the transfer purely from the employer's own
-contribution. The **~72%** figure is the *full* reconciliation delta (true employer
-cost ÷ bank net − 1): it also folds in the withheld employee social-security and
-income tax the bank transfer nets out, so it is roughly double. Both are honest
-and measured from `truth{}`; they answer different questions, and every
-Archon-facing surface should say which one it means. (This measured split
-supersedes the older "~28%" copy that predated the current corpus rates; that
-number matched neither ratio and has been retired — see the repo-wide unification
-in the docs.)
+**Two ratios, kept separate.** The **~35%** ratio is the synthetic employer-
+contribution component divided by bank net. The **~72%** ratio is the generated
+register employer cost divided by bank net, minus one; it also reflects the
+gross-to-net difference modeled by the corpus. They describe the test data and
+do not establish that tax or social-insurance liabilities were separately paid.
 
 ---
 
