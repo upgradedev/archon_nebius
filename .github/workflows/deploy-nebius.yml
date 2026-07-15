@@ -554,6 +554,13 @@ jobs:
           echo "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/fb-sa.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/fb-sa.json"
           npm install -g firebase-tools >/dev/null 2>&1
+          # Firebase's Python (Gen2) deploy locates the Functions SDK via
+          # functions/venv — present locally but absent in a fresh CI checkout, so
+          # create + populate it here or `firebase deploy` fails with
+          # "Missing virtual environment at venv directory".
+          python3.12 -m venv frontend/functions/venv 2>/dev/null || python3 -m venv frontend/functions/venv
+          frontend/functions/venv/bin/pip install --quiet --upgrade pip
+          frontend/functions/venv/bin/pip install --quiet -r frontend/functions/requirements.txt
           printf 'NEBIUS_BACKEND_URL=%s\n' "$BACKEND_URL" > frontend/functions/.env
           echo "Redeploying the BFF function → $BACKEND_URL"
           ( cd frontend && firebase deploy --only functions --project archon-pnl --non-interactive )
