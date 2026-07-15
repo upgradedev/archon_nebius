@@ -1,0 +1,128 @@
+name: Smoke AI Jobs across projects
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEBIUS_SA_KEY_B64: ${{ secrets.NEBIUS_SA_KEY_B64 }}
+      NEBIUS_SA_KEY_ID: ${{ secrets.NEBIUS_SA_KEY_ID }}
+      NEBIUS_SA_ID: ${{ secrets.NEBIUS_SA_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install runtime SDK
+        run: pip install --disable-pip-version-check 'nebius==0.3.92' httpx
+
+      - name: Create, verify, and delete smoke Jobs
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import time
+          import uuid
+
+          from google.protobuf.duration_pb2 import Duration
+          from nebius.api.nebius.ai.v1 import (
+              CreateJobRequest,
+              DeleteJobRequest,
+              GetJobRequest,
+              JobServiceClient,
+              JobSpec,
+          )
+          from nebius.api.nebius.common.v1 import ResourceMetadata
+          from services.nebius import _make_sdk
+
+          targets = [
+              ("project-e00cncsmpr00e8p6knyvdq", "eu-north1", "vpcsubnet-e00sn2btkrs87k2re4"),
+              ("project-e01mmzejpr00e93rgqgf3q", "eu-west1", "vpcsubnet-e01x810n0mmhj19k9b"),
+              ("project-e03byhh4pr00v15s7dz11p", "uk-south1", "vpcsubnet-e03w9xd3nbg2abq7qb"),
+          ]
+          terminal = {6: "COMPLETED", 7: "FAILED", 8: "CANCELLED", 9: "ERROR"}
+          created = {}
+          failures = []
+
+          sdk = _make_sdk()
+          service = JobServiceClient(sdk)
+          try:
+              for project, region, subnet in targets:
+                  name = f"archon-smoke-{region}-{uuid.uuid4().hex[:6]}"
+                  print("SMOKE_CREATE", project, region, subnet, name, flush=True)
+                  try:
+                      operation = service.create(CreateJobRequest(
+                          metadata=ResourceMetadata(parent_id=project, name=name),
+                          spec=JobSpec(
+                              image="alpine:3.20",
+                              container_command="sh",
+                              args="-c 'echo ARCHON_NEBIUS_JOB_OK'",
+                              platform="cpu-d3",
+                              preset="4vcpu-16gb",
+                              subnet_id=subnet,
+                              disk=JobSpec.DiskSpec(
+                                  type=1,
+                                  size_bytes=20 * 1024 * 1024 * 1024,
+                              ),
+                              timeout=Duration(seconds=300),
+                          ),
+                      )).wait()
+                      job_id = operation.resource_id
+                      created[job_id] = (project, region, name)
+                      print("SMOKE_CREATED", project, region, job_id, flush=True)
+                  except Exception as exc:
+                      failures.append((project, region, "CREATE", repr(exc)))
+                      print("SMOKE_CREATE_FAILED", project, region, type(exc).__name__, str(exc), flush=True)
+
+              deadline = time.monotonic() + 9 * 60
+              completed = set()
+              last_states = {}
+              while created.keys() - completed and time.monotonic() < deadline:
+                  for job_id in list(created.keys() - completed):
+                      project, region, name = created[job_id]
+                      try:
+                          job = service.get(GetJobRequest(id=job_id)).wait()
+                          state = int(getattr(getattr(job, "status", None), "state", 0))
+                          instances = len(getattr(getattr(job, "status", None), "instances", []) or [])
+                          if last_states.get(job_id) != state:
+                              print("SMOKE_STATE", project, region, job_id, state, "instances", instances, flush=True)
+                              last_states[job_id] = state
+                          if state in terminal:
+                              completed.add(job_id)
+                              if state != 6:
+                                  details = getattr(getattr(job, "status", None), "state_details", None)
+                                  failures.append((project, region, terminal[state], repr(details)))
+                              else:
+                                  print("SMOKE_SUCCESS", project, region, job_id, flush=True)
+                      except Exception as exc:
+                          failures.append((project, region, "GET", repr(exc)))
+                          completed.add(job_id)
+                  if created.keys() - completed:
+                      time.sleep(10)
+
+              for job_id in created.keys() - completed:
+                  project, region, _ = created[job_id]
+                  failures.append((project, region, "TIMEOUT", job_id))
+                  print("SMOKE_TIMEOUT", project, region, job_id, flush=True)
+
+              for job_id, (project, region, _) in created.items():
+                  try:
+                      service.delete(DeleteJobRequest(id=job_id)).wait()
+                      print("SMOKE_DELETED", project, region, job_id, flush=True)
+                  except Exception as exc:
+                      print("SMOKE_DELETE_WARNING", project, region, job_id, type(exc).__name__, str(exc), flush=True)
+          finally:
+              sdk.sync_close()
+
+          if failures:
+              print("SMOKE_FAILURES", failures, flush=True)
+              raise SystemExit(1)
+          print("SMOKE_ALL_PROJECTS_OK", flush=True)
+          PY
