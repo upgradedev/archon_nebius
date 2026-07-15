@@ -22,8 +22,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Nebius SDK
-        run: pip install --disable-pip-version-check 'nebius>=0.3.0'
+      - name: Install probe dependencies
+        run: pip install --disable-pip-version-check 'nebius>=0.3.0' httpx
 
       - name: Probe quota allowances and Jobs access
         working-directory: backend
