@@ -69,15 +69,20 @@ jobs:
                           name = str(getattr(metadata, "name", ""))
                           service = str(getattr(status, "service", ""))
                           description = str(getattr(status, "description", ""))
-                          hay = f"{name} {service} {description}".lower()
-                          print("QUOTA_ROW",
-                                "name", name,
-                                "region", getattr(spec, "region", ""),
-                                "limit", getattr(spec, "limit", None),
-                                "service", service,
-                                "description", description[:180],
-                                "service_description", str(getattr(status, "service_description", ""))[:120],
-                                "unit", getattr(status, "unit", ""))
+                          if name in {
+                              "compute.instance.count",
+                              "compute.instance.non-gpu.vcpu",
+                          }:
+                              print("COMPUTE_QUOTA",
+                                    "name", name,
+                                    "region", getattr(spec, "region", ""),
+                                    "limit", getattr(spec, "limit", None),
+                                    "usage", getattr(status, "usage", None),
+                                    "usage_percentage", getattr(status, "usage_percentage", None),
+                                    "state", getattr(status, "state", None),
+                                    "usage_state", getattr(status, "usage_state", None),
+                                    "spec_repr", repr(spec),
+                                    "status_repr", repr(status))
                   except Exception as exc:
                       print("QUOTA_ACCESS error", type(exc).__name__, str(exc)[:300])
               finally:
