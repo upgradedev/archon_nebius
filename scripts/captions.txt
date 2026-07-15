@@ -9,7 +9,7 @@
 134|147|Same completeness on the payables side — every supplier statement reconciled
 147|161|Flags a supplier not paid, a duplicate payment, a wrong amount, or wrong vendor
 161|174|Built entirely on Nebius Serverless AI
-174|188|2 on-demand CPU Jobs (extract + analyze)  ·  1 CPU AI Endpoint
+174|188|2 CPU Jobs (extract + analyze), inline-capable  ·  1 CPU AI Endpoint
 188|201|Inference API: Qwen2.5-VL-72B vision  ·  Llama-3.3-70B analysis
 201|213|We don't claim accuracy — we measure it
 213|225|Scores the REAL agents (imported, not re-implemented) on 40 synthetic cases
