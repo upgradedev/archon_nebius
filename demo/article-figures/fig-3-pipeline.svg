@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850" role="img" aria-labelledby="title desc">
+  <title id="title">Archon pipeline</title>
+  <desc id="desc">Pipeline diagram showing upload, extraction job with four stages, analysis job with seven stages, and dashboard output.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#344054"/>
+    </marker>
+    <style>
+      .bg{fill:#f7f9fc}
+      .card{fill:#ffffff;stroke:#d0d5dd;stroke-width:2}
+      .upload{fill:#fff4cc;stroke:#b88700;stroke-width:2}
+      .extract{fill:#e9f7ef;stroke:#1b7f4b;stroke-width:2}
+      .analysis{fill:#f4ecff;stroke:#7a3ec8;stroke-width:2}
+      .output{fill:#eef4ff;stroke:#356ac3;stroke-width:2}
+      .title{font:700 34px Arial, sans-serif;fill:#101828}
+      .h{font:700 22px Arial, sans-serif;fill:#101828}
+      .t{font:16px Arial, sans-serif;fill:#344054}
+      .s{font:14px Arial, sans-serif;fill:#475467}
+      .arrow{stroke:#344054;stroke-width:3;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect class="bg" width="1400" height="850"/>
+  <text class="title" x="60" y="70">Upload to Dashboard: Two On-Demand Nebius AI Jobs</text>
+  <rect class="upload" x="75" y="170" width="250" height="210" rx="16"/>
+  <text class="h" x="105" y="215">1. Upload</text>
+  <text class="t" x="105" y="252">PDF, DOCX, JPG, PNG,</text>
+  <text class="t" x="105" y="280">TIFF, scanned PDFs</text>
+  <text class="s" x="105" y="330">raw-docs/{period}/{upload}</text>
+  <rect class="extract" x="415" y="110" width="315" height="360" rx="16"/>
+  <text class="h" x="445" y="155">2. Extraction Job</text>
+  <text class="t" x="445" y="195">1. ExtractorAgent</text>
+  <text class="t" x="445" y="228">2. ClassifierAgent</text>
+  <text class="t" x="445" y="261">3. EventLinkerAgent</text>
+  <text class="t" x="445" y="294">4. ValidatorAgent</text>
+  <text class="s" x="445" y="360">Writes documents.json,</text>
+  <text class="s" x="445" y="386">events.json, validation.json</text>
+  <rect class="analysis" x="820" y="110" width="335" height="500" rx="16"/>
+  <text class="h" x="850" y="155">3. Analysis Job</text>
+  <text class="t" x="850" y="195">1. ClassifierAgent</text>
+  <text class="t" x="850" y="228">2. PnLAgent</text>
+  <text class="t" x="850" y="261">3. CashFlowAgent</text>
+  <text class="t" x="850" y="294">4. ValidatorAgent</text>
+  <text class="t" x="850" y="327">5. EmployeeAgent</text>
+  <text class="t" x="850" y="360">6. ReconciliationAgent</text>
+  <text class="t" x="850" y="393">7. NarratorAgent</text>
+  <text class="s" x="850" y="470">Writes reports/{period}/report.json</text>
+  <rect class="output" x="1220" y="205" width="145" height="250" rx="16"/>
+  <text class="h" x="1248" y="250">4. UI</text>
+  <text class="t" x="1245" y="292">P&amp;L</text>
+  <text class="t" x="1245" y="324">Cash flow</text>
+  <text class="t" x="1245" y="356">Metrics</text>
+  <text class="t" x="1245" y="388">Summary</text>
+  <line class="arrow" x1="325" y1="275" x2="415" y2="275"/>
+  <line class="arrow" x1="730" y1="290" x2="820" y2="290"/>
+  <line class="arrow" x1="1155" y1="360" x2="1220" y2="330"/>
+  <rect class="card" x="230" y="630" width="930" height="105" rx="14"/>
+  <text class="h" x="265" y="674">Model calls</text>
+  <text class="t" x="265" y="710">CPU jobs call Nebius Inference API. Vision extraction uses Qwen2.5-VL; narrative uses Llama 3.3.</text>
+</svg>
